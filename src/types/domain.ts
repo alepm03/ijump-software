@@ -42,7 +42,6 @@ export interface OperationalDay {
   notes: string | null
   createdAt: string
   updatedAt: string
-  flights?: Flight[]
 }
 
 export interface Flight {
@@ -54,7 +53,6 @@ export interface Flight {
   status: FlightStatus
   orderIndex: number
   createdAt: string
-  participants?: Participant[]
 }
 
 export interface Participant {
@@ -75,9 +73,6 @@ export interface Participant {
   notes: string | null
   createdAt: string
   updatedAt: string
-  instructor?: Instructor
-  payments?: Payment[]
-  reservationGroup?: ReservationGroup
 }
 
 export interface ReservationGroup {
@@ -124,4 +119,19 @@ export interface DailySummary {
   overweightCount: number
   totalRevenue: number
   revenueByMethod: Record<PaymentMethod, number>
+}
+
+// Extended types with loaded relations
+export interface ParticipantWithDetails extends Participant {
+  instructor: Instructor | null
+  payments: Payment[]
+  reservationGroup: ReservationGroup | null
+}
+
+export interface FlightWithParticipants extends Flight {
+  participants: ParticipantWithDetails[]
+}
+
+export interface OperationalDayWithDetails extends OperationalDay {
+  flights: FlightWithParticipants[]
 }

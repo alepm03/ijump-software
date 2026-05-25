@@ -62,33 +62,33 @@
 
 > Construir antes de la UI. Es el contrato entre DB y frontend.
 
-- [ ] Definir tipos de dominio TypeScript en `src/types/domain.ts`
-- [ ] Configurar cliente Supabase para Server Components y Client Components
-- [ ] Server Actions — `OperationalDay`:
-  - [ ] `getOperationalDays()` — listado paginado
-  - [ ] `getOperationalDay(date)` — jornada con vuelos y participantes
-  - [ ] `createOperationalDay(date)`
-  - [ ] `updateOperationalDay(id, data)`
-- [ ] Server Actions — `Flight`:
-  - [ ] `createFlight(dayId, data)`
-  - [ ] `updateFlight(id, data)`
-  - [ ] `deleteFlight(id)`
-  - [ ] `reorderFlights(dayId, orderedIds)`
-- [ ] Server Actions — `Participant`:
-  - [ ] `createParticipant(flightId, data)`
-  - [ ] `updateParticipant(id, data)`
-  - [ ] `moveParticipant(id, newFlightId)`
-  - [ ] `updateOperationalStatus(id, status)`
-  - [ ] `deleteParticipant(id)`
-- [ ] Server Actions — `Payment`:
-  - [ ] `createPayment(participantId, data)`
-  - [ ] `updatePayment(id, data)`
-  - [ ] `deletePayment(id)`
-  - [ ] `getDailySummary(dayId)` — totales del día
-- [ ] Server Actions — `Instructor`:
-  - [ ] `getInstructors()`
-  - [ ] `createInstructor(data)`
-  - [ ] `toggleInstructorActive(id)`
+- [x] Definir tipos de dominio TypeScript en `src/types/domain.ts`
+- [x] Configurar cliente Supabase para Server Components y Client Components
+- [x] Server Actions — `OperationalDay`:
+  - [x] `getOperationalDays()` — listado paginado
+  - [x] `getOperationalDay(date)` — jornada con vuelos y participantes
+  - [x] `createOperationalDay(date)`
+  - [x] `updateOperationalDay(id, data)`
+- [x] Server Actions — `Flight`:
+  - [x] `createFlight(dayId, data)`
+  - [x] `updateFlight(id, data)`
+  - [x] `deleteFlight(id)`
+  - [x] `reorderFlights(orderedIds)`
+- [x] Server Actions — `Participant`:
+  - [x] `createParticipant(flightId, data)`
+  - [x] `updateParticipant(id, data)`
+  - [x] `moveParticipant(id, newFlightId)`
+  - [x] `updateOperationalStatus(id, status)`
+  - [x] `deleteParticipant(id)`
+- [x] Server Actions — `Payment`:
+  - [x] `createPayment(participantId, data)`
+  - [x] `updatePayment(id, data)`
+  - [x] `deletePayment(id)`
+  - [x] `getDailySummary(dayId)` — totales del día
+- [x] Server Actions — `Instructor`:
+  - [x] `getInstructors()`
+  - [x] `createInstructor(data)`
+  - [x] `toggleInstructorActive(id)`
 
 ---
 

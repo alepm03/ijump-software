@@ -1,10 +1,20 @@
-export default function CalendarPage() {
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-semibold text-white">
-        Calendario Operacional
-      </h1>
-      <p className="mt-2 text-zinc-400">Módulo 4 — en construcción.</p>
-    </div>
-  )
+import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns'
+import { getOperationalDaysWithStats } from '@/lib/actions/operational-day'
+import { CalendarView } from '@/components/operational/CalendarView'
+
+export default async function CalendarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string }>
+}) {
+  const { month: monthParam } = await searchParams
+  const month = monthParam ?? format(new Date(), 'yyyy-MM')
+
+  const monthDate = parseISO(`${month}-01`)
+  const from = format(startOfMonth(monthDate), 'yyyy-MM-dd')
+  const to = format(endOfMonth(monthDate), 'yyyy-MM-dd')
+
+  const days = await getOperationalDaysWithStats(from, to)
+
+  return <CalendarView month={month} days={days} />
 }

@@ -121,6 +121,16 @@ export interface DailySummary {
   revenueByMethod: Record<PaymentMethod, number>
 }
 
+// Calendar summary — lightweight, for the month view
+export interface OperationalDaySummary {
+  id: string
+  date: string
+  weatherStatus: WeatherStatus
+  notes: string | null
+  flightCount: number
+  jumpCount: number
+}
+
 // Extended types with loaded relations
 export interface ParticipantWithDetails extends Participant {
   instructor: Instructor | null

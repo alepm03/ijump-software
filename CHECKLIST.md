@@ -94,12 +94,12 @@
 
 ## MÓDULO 4 — Calendario Operacional
 
-- [ ] Página principal `/` — lista de jornadas operacionales
-- [ ] Componente `DayCard` — resumen de una jornada (fecha, vuelos, saltos)
-- [ ] Botón "Nueva Jornada" con selector de fecha
-- [ ] Navegación por mes/semana
-- [ ] Indicadores visuales: jornadas con datos vs vacías
-- [ ] Link a jornada → `/2024-09-28` (slug por fecha)
+- [x] Página principal `/` — lista de jornadas operacionales
+- [x] Componente `DayCard` — resumen de una jornada (fecha, vuelos, saltos)
+- [x] Botón "Nueva Jornada" con selector de fecha
+- [x] Navegación por mes (‹ › + Hoy, URL search params)
+- [x] Indicadores visuales: jornadas con datos vs vacías, badge meteorología
+- [x] Link a jornada → `/yyyy-MM-dd` (slug por fecha)
 
 ---
 

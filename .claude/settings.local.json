@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(npm --version)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-turbopack)",
+      "Bash(Get-Content \"C:\\\\Users\\\\aleja\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-aleja-IJUMP-Software\\\\1a0b49f2-61fa-4f87-a78f-328fcf2935b1\\\\tasks\\\\bj7flg4hy.output\" -Wait -Tail 30)",
+      "Bash(Select-Object -First 50)"
+    ]
+  }
+}

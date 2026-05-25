@@ -123,6 +123,42 @@ src/
 - RLS habilitado en todas las tablas desde el principio
 - Variables de entorno: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
 
+## Estrategia de ramas (Gitflow)
+
+La rama principal es `main`. Todo el trabajo se hace en ramas separadas que se mergean vía PR.
+
+### Convención de nombres
+
+| Tipo | Prefijo | Ejemplo |
+|------|---------|---------|
+| Nueva funcionalidad | `feature/` | `feature/operational-day-calendar` |
+| Corrección de bug | `fix/` | `fix/flight-reorder-index` |
+| Módulo de base de datos | `feature/db-` | `feature/db-schema-initial` |
+| Hotfix urgente en producción | `hotfix/` | `hotfix/payment-calculation` |
+| Refactor sin cambio funcional | `refactor/` | `refactor/participant-actions` |
+
+### Reglas
+- **Nunca** hacer commits directamente sobre `main`
+- Cada rama cubre **una sola funcionalidad o fix** (granularidad de checklist item o submódulo)
+- Hacer PR a `main` al terminar la rama
+- Borrar la rama después del merge
+- Mensajes de commit en inglés, imperativo: `Add flight reorder logic`, `Fix payment total calculation`
+
+### Flujo habitual
+```bash
+# Crear rama desde main actualizado
+git checkout main && git pull
+git checkout -b feature/nombre-descriptivo
+
+# Trabajar, commitear...
+git add <files>
+git commit -m "Add: descripción del cambio"
+
+# Push y PR
+git push -u origin feature/nombre-descriptivo
+# → Abrir PR en GitHub hacia main
+```
+
 ## Comandos útiles
 
 ```bash

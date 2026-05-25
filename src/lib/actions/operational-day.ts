@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { Tables } from '@/lib/supabase/database.types'
 import type {
   OperationalDay,
+  OperationalDaySummary,
   OperationalDayWithDetails,
   FlightWithParticipants,
   ParticipantWithDetails,
@@ -205,14 +206,80 @@ export async function getOperationalDay(
   }
 }
 
+export async function getOperationalDaysWithStats(
+  from: string,
+  to: string
+): Promise<OperationalDaySummary[]> {
+  const supabase = await createClient()
+
+  const { data: days, error: daysError } = await supabase
+    .from('operational_days')
+    .select('*')
+    .gte('date', from)
+    .lte('date', to)
+    .order('date')
+
+  if (daysError) throw new Error(daysError.message)
+  if (!days?.length) return []
+
+  const dayIds = days.map((d) => d.id)
+
+  const { data: flights, error: flightsError } = await supabase
+    .from('flights')
+    .select('id, operational_day_id')
+    .in('operational_day_id', dayIds)
+
+  if (flightsError) throw new Error(flightsError.message)
+
+  const flightIds = (flights ?? []).map((f) => f.id)
+
+  const { data: participants, error: participantsError } = flightIds.length
+    ? await supabase
+        .from('participants')
+        .select('flight_id')
+        .in('flight_id', flightIds)
+    : { data: [] as { flight_id: string | null }[], error: null }
+
+  if (participantsError) throw new Error(participantsError.message)
+
+  const flightsByDay = new Map<string, number>()
+  for (const f of flights ?? []) {
+    flightsByDay.set(f.operational_day_id, (flightsByDay.get(f.operational_day_id) ?? 0) + 1)
+  }
+
+  const jumpsByFlight = new Map<string, number>()
+  for (const p of participants ?? []) {
+    if (!p.flight_id) continue
+    jumpsByFlight.set(p.flight_id, (jumpsByFlight.get(p.flight_id) ?? 0) + 1)
+  }
+
+  const jumpsByDay = new Map<string, number>()
+  for (const f of flights ?? []) {
+    const count = jumpsByFlight.get(f.id) ?? 0
+    jumpsByDay.set(f.operational_day_id, (jumpsByDay.get(f.operational_day_id) ?? 0) + count)
+  }
+
+  return days.map((d) => ({
+    id: d.id,
+    date: d.date,
+    weatherStatus: d.weather_status,
+    notes: d.notes,
+    flightCount: flightsByDay.get(d.id) ?? 0,
+    jumpCount: jumpsByDay.get(d.id) ?? 0,
+  }))
+}
+
 export async function createOperationalDay(
   date: string
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; date?: string }> {
   const supabase = await createClient()
   const { error } = await supabase.from('operational_days').insert({ date })
-  if (error) return { error: error.message }
+  if (error) {
+    if (error.code === '23505') return { error: 'Ya existe una jornada para esa fecha.' }
+    return { error: error.message }
+  }
   revalidatePath('/')
-  return {}
+  return { date }
 }
 
 export async function updateOperationalDay(

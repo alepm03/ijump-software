@@ -29,25 +29,20 @@
 
 > Crítico: definir bien el schema antes de tocar UI.
 
-- [ ] Diseñar y crear migración: tabla `operational_days`
-  - id, date (unique), weather_status, notes, created_at, updated_at
-- [ ] Diseñar y crear migración: tabla `instructors`
-  - id, name, active, created_at
-- [ ] Diseñar y crear migración: tabla `reservation_groups`
-  - id, payer_name, source (enum), notes, created_at
-- [ ] Diseñar y crear migración: tabla `flights`
-  - id, operational_day_id (FK), flight_number, estimated_departure_time, actual_departure_time, status (enum), order_index, created_at
-- [ ] Diseñar y crear migración: tabla `participants`
-  - id, reservation_group_id (FK nullable), flight_id (FK nullable), full_name, phone, email, package_type (enum), media_package (enum), weight, overweight_fee, operational_status (enum), assigned_instructor_id (FK nullable), waiver_signed, check_in_completed, geared_up, notes, created_at, updated_at
-- [ ] Diseñar y crear migración: tabla `payments`
-  - id, participant_id (FK), amount, method (enum), stage (enum), notes, created_at
-- [ ] Diseñar y crear migración: tabla `waivers`
-  - id, participant_id (FK), signed_at, pdf_url, signature_url, accepted
-- [ ] Crear todos los enums PostgreSQL:
-  - `flight_status`, `operational_status`, `package_type`, `payment_method`, `payment_stage`, `reservation_source`
-- [ ] Configurar Row Level Security en todas las tablas
-- [ ] Generar tipos TypeScript desde Supabase CLI
-- [ ] Revisar relaciones, índices y constraints
+- [x] Diseñar y crear migración: tabla `operational_days`
+- [x] Diseñar y crear migración: tabla `instructors`
+- [x] Diseñar y crear migración: tabla `reservation_groups`
+- [x] Diseñar y crear migración: tabla `flights`
+- [x] Diseñar y crear migración: tabla `participants`
+- [x] Diseñar y crear migración: tabla `payments`
+- [x] Diseñar y crear migración: tabla `waivers`
+- [x] Crear todos los enums PostgreSQL: `flight_status`, `operational_status`, `package_type`, `payment_method`, `payment_stage`, `reservation_source`, `weather_status`
+- [x] Trigger `updated_at` en `operational_days` y `participants`
+- [x] Índices de rendimiento en FKs y `order_index`
+- [x] Configurar Row Level Security en todas las tablas
+- [x] Migración aplicada a Supabase cloud (`supabase db push`)
+- [x] Generar tipos TypeScript desde Supabase CLI (`database.types.ts`)
+- [x] PR abierto: `feature/db-schema-initial`
 
 ---
 

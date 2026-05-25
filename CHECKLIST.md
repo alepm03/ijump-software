@@ -48,13 +48,13 @@
 
 ## MÓDULO 2 — Autenticación
 
-- [ ] Configurar Supabase Auth (email/password)
-- [ ] Crear middleware Next.js para proteger rutas
-- [ ] Página de login (`/login`)
-- [ ] Server Action de login / logout
+- [x] Configurar Supabase Auth (email/password)
+- [x] Crear proxy Next.js para proteger rutas (`src/proxy.ts`)
+- [x] Página de login (`/login`)
+- [x] Server Action de login / logout
 - [ ] Crear cuenta admin inicial en Supabase
-- [ ] Redireccionamiento automático: no autenticado → `/login`
-- [ ] Redireccionamiento post-login → calendario (`/`)
+- [x] Redireccionamiento automático: no autenticado → `/login`
+- [x] Redireccionamiento post-login → calendario (`/`)
 
 ---
 

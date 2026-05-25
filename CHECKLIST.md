@@ -8,27 +8,19 @@
 ## MÓDULO 0 — Setup del Proyecto
 
 - [ ] Crear repositorio GitHub (`ijump-software`)
-- [ ] Inicializar proyecto Next.js 14 con TypeScript y App Router
-  ```bash
-  npx create-next-app@latest ijump-software --typescript --tailwind --app --src-dir
-  ```
-- [ ] Configurar Tailwind CSS
-- [ ] Instalar y configurar shadcn/ui
-  ```bash
-  npx shadcn-ui@latest init
-  ```
-- [ ] Instalar dependencias clave:
-  - `@supabase/supabase-js`, `@supabase/ssr`
-  - `zustand`
-  - `@tanstack/react-table`
-  - `@dnd-kit/core`, `@dnd-kit/sortable`
-  - `react-hook-form`, `zod`
-  - `date-fns`
+- [x] Inicializar proyecto Next.js 15 con TypeScript y App Router
+- [x] Configurar Tailwind CSS
+- [x] Instalar y configurar shadcn/ui (badge, card, dialog, dropdown, input, select, sheet, skeleton, sonner, table, tabs, tooltip, textarea)
+- [x] Instalar dependencias clave: @supabase/supabase-js, @supabase/ssr, zustand, @tanstack/react-table, @dnd-kit/core+sortable+utilities, react-hook-form, zod, date-fns
+- [x] Configurar ESLint + Prettier (prettier-plugin-tailwindcss)
+- [x] Crear estructura de carpetas: app/(auth), app/(dashboard)/[date], components/operational, lib/supabase, lib/actions, types/
+- [x] Crear clientes Supabase (client.ts, server.ts)
+- [x] Crear tipos de dominio (src/types/domain.ts)
+- [x] Crear plantilla .env.local
+- [ ] Crear repositorio GitHub y primer commit
 - [ ] Crear proyecto en Supabase (cloud)
 - [ ] Instalar Supabase CLI y configurar localmente
-- [ ] Configurar variables de entorno (`.env.local`)
 - [ ] Configurar proyecto en Vercel y conectar repositorio
-- [ ] Configurar ESLint + Prettier
 - [ ] Primer deploy vacío a Vercel funcionando
 
 ---

@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import type { TablesUpdate } from '@/lib/supabase/database.types'
-import type { OperationalStatus, PackageType } from '@/types/domain'
+import type { OperationalStatus, PackageType, ReservationSource } from '@/types/domain'
 
 export type CreateParticipantData = {
   fullName: string
@@ -14,6 +14,8 @@ export type CreateParticipantData = {
   reservationGroupId?: string | null
   assignedInstructorId?: string | null
   notes?: string | null
+  source?: ReservationSource
+  payerName?: string | null
 }
 
 export type UpdateParticipantData = Partial<{
@@ -37,6 +39,19 @@ export async function createParticipant(
   data: CreateParticipantData
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
+
+  let resolvedGroupId = data.reservationGroupId ?? null
+
+  if (data.source) {
+    const { data: group, error: groupError } = await supabase
+      .from('reservation_groups')
+      .insert({ source: data.source, payer_name: data.payerName ?? null })
+      .select('id')
+      .single()
+    if (groupError) return { error: groupError.message }
+    resolvedGroupId = group.id
+  }
+
   const { error } = await supabase.from('participants').insert({
     flight_id: flightId,
     full_name: data.fullName,
@@ -44,7 +59,7 @@ export async function createParticipant(
     email: data.email ?? null,
     package_type: data.packageType ?? 'SOLO',
     weight: data.weight ?? null,
-    reservation_group_id: data.reservationGroupId ?? null,
+    reservation_group_id: resolvedGroupId,
     assigned_instructor_id: data.assignedInstructorId ?? null,
     notes: data.notes ?? null,
   })

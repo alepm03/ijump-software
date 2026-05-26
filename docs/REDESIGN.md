@@ -91,24 +91,26 @@ Este rediseño lo convierte en un CRM operacional moderno con:
 - [x] Validar paleta, tipografía y layout con el usuario
 
 ### Fase 1 — Tokens y shell global
-- [ ] `src/app/globals.css` — nuevo sistema de variables CSS (OKLCH)
-- [ ] `src/app/(dashboard)/layout.tsx` — sidebar + quitar header bar
-- [ ] `src/app/layout.tsx` — verificar fuente y reset
+- [x] `src/app/globals.css` — nuevo sistema de variables CSS (OKLCH)
+- [x] `src/app/(dashboard)/layout.tsx` — sidebar + quitar header bar
+- [x] `src/components/layout/AppSidebar.tsx` — nuevo componente sidebar
 
 ### Fase 2 — Vista del día (cambio más crítico)
-- [ ] `src/components/operational/DayManifest.tsx` — layout vertical + `verticalListSortingStrategy`
-- [ ] `src/components/operational/FlightCard.tsx` — rediseño como fila full-width
-- [ ] `src/components/operational/DayHeader.tsx` — adaptar a light mode
-- [ ] `src/components/operational/ParticipantRow.tsx` — adaptar a light mode
-- [ ] `src/components/operational/DailySummaryPanel.tsx` — adaptar a light mode
-- [ ] `src/components/operational/AddParticipantDrawer.tsx` — adaptar a light mode
+- [x] `src/components/operational/DayManifest.tsx` — layout vertical + `verticalListSortingStrategy`
+- [x] `src/components/operational/FlightCard.tsx` — rediseño como fila full-width
+- [x] `src/components/operational/DayHeader.tsx` — adaptar a light mode
+- [x] `src/components/operational/ParticipantRow.tsx` — adaptar a light mode
+- [x] `src/components/operational/DailySummaryPanel.tsx` — adaptar a light mode
+- [x] `src/components/operational/AddParticipantDrawer.tsx` — adaptar a light mode
 
 ### Fase 3 — Calendario
-- [ ] `src/components/operational/CalendarView.tsx` — adaptar a light mode + naranja
-- [ ] `src/components/operational/DayCard.tsx` — adaptar a light mode + naranja
+- [x] `src/components/operational/CalendarView.tsx` — adaptar a light mode + naranja
+- [x] `src/components/operational/DayCard.tsx` — adaptar a light mode + naranja
+- [x] `src/components/operational/NewDayDialog.tsx` — adaptar a light mode
 
 ### Fase 4 — Auth
-- [ ] `src/app/(auth)/login/page.tsx` — adaptar a light mode + brand naranja
+- [x] `src/app/(auth)/login/page.tsx` — adaptar a light mode + brand naranja
+- [x] `src/app/(auth)/layout.tsx` — quitar bg dark
 
 ### Fase 5 — Auditoría final (web-design-guidelines)
 - [ ] Contraste de texto (WCAG AA mínimo)

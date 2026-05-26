@@ -147,9 +147,11 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    // h-full fills the main area; flex-col so summary bar pins to bottom
+    <div className="h-full flex flex-col">
       <DayHeader day={{ ...day, flights }} />
 
+      {/* Scrollable flights area */}
       <div className="flex-1 overflow-y-auto">
         <DndContext
           sensors={sensors}
@@ -160,7 +162,7 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
             items={flights.map((f) => f.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="flex flex-col gap-3 p-6 max-w-4xl mx-auto">
+            <div className="flex flex-col gap-2.5 px-7 py-5 max-w-[880px] mx-auto">
               {flights.map((flight) => (
                 <FlightCard
                   key={flight.id}
@@ -171,13 +173,12 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
                 />
               ))}
 
-              {/* Add flight */}
               <button
                 onClick={handleAddFlight}
                 disabled={isPending}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-border hover:border-primary/40 hover:bg-secondary/40 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50 text-sm"
+                className="w-full flex items-center justify-center gap-1.5 py-3.5 rounded-[10px] border-2 border-dashed border-border hover:border-primary/30 hover:bg-secondary/40 hover:text-primary text-muted-foreground transition-all disabled:opacity-50 text-[13.5px] font-medium"
               >
-                <Plus size={16} />
+                <Plus size={15} />
                 Añadir vuelo
               </button>
             </div>
@@ -185,15 +186,16 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
 
           <DragOverlay>
             {dragType === 'flight' && (
-              <div className="w-full max-w-4xl h-16 rounded-xl border border-primary/40 bg-card opacity-80 shadow-md" />
+              <div className="max-w-[880px] h-14 rounded-[10px] border border-primary/30 bg-card opacity-80 shadow-md" />
             )}
             {dragType === 'participant' && (
-              <div className="h-10 rounded-lg border border-primary/40 bg-card opacity-80 shadow-sm" />
+              <div className="h-9 rounded-md border border-primary/30 bg-card opacity-80 shadow-sm" />
             )}
           </DragOverlay>
         </DndContext>
       </div>
 
+      {/* Summary bar — flex-shrink-0 keeps it always visible at the bottom */}
       <DailySummaryPanel flights={flights} />
 
       <AddParticipantDrawer

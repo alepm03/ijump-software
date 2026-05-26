@@ -1,7 +1,5 @@
 'use client'
 
-import { useState } from 'react'
-import { ChevronUp, ChevronDown } from 'lucide-react'
 import type { FlightWithParticipants, ReservationSource, PaymentMethod } from '@/types/domain'
 
 const CANCELLED_STATUSES = ['CANCELLED', 'NO_SHOW', 'WEATHER_CANCELLED']
@@ -32,7 +30,6 @@ function computeSummary(flights: FlightWithParticipants[]) {
   const byMethod: Partial<Record<PaymentMethod, number>> = {}
   let handycamCount = 0
   let externalCount = 0
-  let overweightCount = 0
   let totalRevenue = 0
 
   for (const p of active) {
@@ -41,7 +38,6 @@ function computeSummary(flights: FlightWithParticipants[]) {
 
     if (p.packageType === 'HANDYCAM' || p.packageType === 'HANDYCAM_FOTOS') handycamCount++
     if (p.packageType === 'VIDEO_EXTERNO') externalCount++
-    if (p.overweightFee > 0) overweightCount++
 
     for (const pmt of p.payments) {
       totalRevenue += pmt.amount
@@ -54,7 +50,6 @@ function computeSummary(flights: FlightWithParticipants[]) {
     totalJumps: active.length,
     handycamCount,
     externalCount,
-    overweightCount,
     totalRevenue,
     bySource,
     byMethod,
@@ -66,73 +61,69 @@ interface DailySummaryPanelProps {
 }
 
 export function DailySummaryPanel({ flights }: DailySummaryPanelProps) {
-  const [collapsed, setCollapsed] = useState(false)
   const s = computeSummary(flights)
 
   return (
-    <div className="border-t border-border bg-card/80 backdrop-blur-sm">
-      <button
-        onClick={() => setCollapsed((c) => !c)}
-        className="w-full flex items-center justify-between px-6 py-2 text-xs text-muted-foreground hover:text-foreground"
-      >
-        <span className="font-medium uppercase tracking-wider text-[10px]">Resumen del día</span>
-        {collapsed ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-      </button>
+    <div className="flex-shrink-0 border-t border-border bg-card">
+      <div className="flex items-center px-7 py-4 max-w-[880px] mx-auto gap-0">
+        <span className="text-[11px] font-bold text-muted-foreground/50 uppercase tracking-[0.1em] mr-6 flex-shrink-0">
+          Resumen
+        </span>
 
-      {!collapsed && (
-        <div className="px-6 pb-4 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3 text-xs max-w-4xl mx-auto">
-          {/* Totals */}
-          <div>
-            <p className="text-muted-foreground mb-1 uppercase tracking-wider text-[10px]">Totales</p>
-            <p className="text-foreground/80">
-              <span className="font-semibold text-foreground text-base">{s.totalFlights}</span>{' '}
-              vuelos
-            </p>
-            <p className="text-foreground/80">
-              <span className="font-semibold text-foreground text-base">{s.totalJumps}</span>{' '}
-              saltos
-            </p>
-          </div>
-
-          {/* Media & extras */}
-          <div>
-            <p className="text-muted-foreground mb-1 uppercase tracking-wider text-[10px]">Extras</p>
-            <p className="text-foreground/70">HC: <span className="text-foreground font-medium">{s.handycamCount}</span></p>
-            <p className="text-foreground/70">Video ext.: <span className="text-foreground font-medium">{s.externalCount}</span></p>
-            <p className="text-foreground/70">Sobrepeso: <span className="text-foreground font-medium">{s.overweightCount}</span></p>
-          </div>
-
-          {/* By source */}
-          <div>
-            <p className="text-muted-foreground mb-1 uppercase tracking-wider text-[10px]">Por fuente</p>
-            {(Object.entries(s.bySource) as [ReservationSource, number][])
-              .sort((a, b) => b[1] - a[1])
-              .map(([src, count]) => (
-                <p key={src} className="text-foreground/70">
-                  {SOURCE_LABELS[src]}: <span className="text-foreground font-medium">{count}</span>
-                </p>
-              ))}
-          </div>
-
-          {/* Revenue */}
-          <div>
-            <p className="text-muted-foreground mb-1 uppercase tracking-wider text-[10px]">Ingresos</p>
-            <p className="text-foreground/80 mb-1">
-              <span className="font-bold text-primary text-base">
-                {s.totalRevenue.toFixed(0)}€
-              </span>
-            </p>
-            {(Object.entries(s.byMethod) as [PaymentMethod, number][])
-              .filter(([, v]) => v > 0)
-              .sort((a, b) => b[1] - a[1])
-              .map(([method, amount]) => (
-                <p key={method} className="text-foreground/70">
-                  {METHOD_LABELS[method]}: <span className="text-foreground font-medium">{amount.toFixed(0)}€</span>
-                </p>
-              ))}
-          </div>
+        <div className="flex items-baseline gap-1.5 flex-shrink-0">
+          <span className="text-[22px] font-extrabold text-foreground leading-none" style={{ letterSpacing: '-0.6px' }}>
+            {s.totalFlights}
+          </span>
+          <span className="text-[13px] text-muted-foreground">vuelos</span>
         </div>
-      )}
+
+        <div className="w-px h-5 bg-border mx-6" />
+
+        <div className="flex items-baseline gap-1.5 flex-shrink-0">
+          <span className="text-[22px] font-extrabold text-foreground leading-none" style={{ letterSpacing: '-0.6px' }}>
+            {s.totalJumps}
+          </span>
+          <span className="text-[13px] text-muted-foreground">saltos</span>
+        </div>
+
+        <div className="w-px h-5 bg-border mx-6" />
+
+        <div className="flex items-baseline gap-1.5 flex-shrink-0">
+          <span className="text-[22px] font-extrabold text-primary leading-none" style={{ letterSpacing: '-0.6px' }}>
+            {s.totalRevenue.toFixed(0)}€
+          </span>
+          <span className="text-[13px] text-muted-foreground">ingresos</span>
+        </div>
+
+        <div className="ml-auto flex items-center gap-5 flex-wrap">
+          {s.handycamCount > 0 && (
+            <span className="text-[12.5px] text-muted-foreground">
+              HC: <strong className="text-foreground font-bold">{s.handycamCount}</strong>
+            </span>
+          )}
+          {s.externalCount > 0 && (
+            <span className="text-[12.5px] text-muted-foreground">
+              Video: <strong className="text-foreground font-bold">{s.externalCount}</strong>
+            </span>
+          )}
+          {(Object.entries(s.bySource) as [ReservationSource, number][])
+            .filter(([, v]) => v > 0)
+            .sort((a, b) => b[1] - a[1])
+            .map(([src, count]) => (
+              <span key={src} className="text-[12.5px] text-muted-foreground">
+                {SOURCE_LABELS[src]}: <strong className="text-foreground font-bold">{count}</strong>
+              </span>
+            ))}
+          {(Object.entries(s.byMethod) as [PaymentMethod, number][])
+            .filter(([, v]) => v > 0)
+            .sort((a, b) => b[1] - a[1])
+            .map(([method, amount]) => (
+              <span key={method} className="text-[12.5px] text-muted-foreground">
+                {METHOD_LABELS[method]}: <strong className="text-foreground font-bold">{amount.toFixed(0)}€</strong>
+              </span>
+            ))}
+        </div>
+      </div>
     </div>
   )
 }

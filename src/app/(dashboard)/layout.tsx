@@ -17,7 +17,8 @@ export default async function DashboardLayout({
   return (
     <div className="flex h-screen bg-background">
       <AppSidebar email={user.email ?? ''} />
-      <main className="flex-1 overflow-auto">{children}</main>
+      {/* overflow-hidden so each page controls its own scroll — day view keeps summary pinned at bottom */}
+      <main className="flex-1 overflow-hidden flex flex-col">{children}</main>
     </div>
   )
 }

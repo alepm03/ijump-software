@@ -110,59 +110,56 @@ export function AddParticipantDrawer({
 
   return (
     <Sheet open={flightId !== null} onOpenChange={(open) => !open && handleClose()}>
-      <SheetContent className="bg-zinc-900 border-zinc-700 text-white w-full sm:max-w-md overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader className="mb-6">
-          <SheetTitle className="text-white">Añadir participante</SheetTitle>
+          <SheetTitle>Añadir participante</SheetTitle>
         </SheetHeader>
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           {/* Name */}
           <div className="space-y-1.5">
-            <Label className="text-zinc-300 text-sm">Nombre *</Label>
+            <Label className="text-sm">Nombre *</Label>
             <Input
               {...form.register('fullName')}
               placeholder="Nombre completo"
-              className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600"
             />
             {form.formState.errors.fullName && (
-              <p className="text-red-400 text-xs">{form.formState.errors.fullName.message}</p>
+              <p className="text-destructive text-xs">{form.formState.errors.fullName.message}</p>
             )}
           </div>
 
           {/* Phone + Email */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-zinc-300 text-sm">Teléfono</Label>
+              <Label className="text-sm">Teléfono</Label>
               <Input
                 {...form.register('phone')}
                 placeholder="600 000 000"
-                className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-zinc-300 text-sm">Email</Label>
+              <Label className="text-sm">Email</Label>
               <Input
                 {...form.register('email')}
                 type="email"
                 placeholder="correo@ejemplo.com"
-                className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600"
               />
             </div>
           </div>
 
           {/* Source */}
           <div className="space-y-1.5">
-            <Label className="text-zinc-300 text-sm">Fuente de reserva</Label>
+            <Label className="text-sm">Fuente de reserva</Label>
             <Select
               value={form.watch('source')}
               onValueChange={(v) => form.setValue('source', v as FormValues['source'])}
             >
-              <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+              <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-zinc-800 border-zinc-700">
+              <SelectContent>
                 {Object.entries(SOURCE_LABELS).map(([val, label]) => (
-                  <SelectItem key={val} value={val} className="text-white focus:bg-zinc-700">
+                  <SelectItem key={val} value={val}>
                     {label}
                   </SelectItem>
                 ))}
@@ -173,28 +170,27 @@ export function AddParticipantDrawer({
           {/* Payer name (if grouped source) */}
           {source !== 'DIRECT' && (
             <div className="space-y-1.5">
-              <Label className="text-zinc-300 text-sm">Nombre del pagador (grupo)</Label>
+              <Label className="text-sm">Nombre del pagador (grupo)</Label>
               <Input
                 {...form.register('payerName')}
                 placeholder="Opcional"
-                className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600"
               />
             </div>
           )}
 
           {/* Package */}
           <div className="space-y-1.5">
-            <Label className="text-zinc-300 text-sm">Paquete</Label>
+            <Label className="text-sm">Paquete</Label>
             <Select
               value={form.watch('packageType')}
               onValueChange={(v) => form.setValue('packageType', v as FormValues['packageType'])}
             >
-              <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+              <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-zinc-800 border-zinc-700">
+              <SelectContent>
                 {Object.entries(PACKAGE_LABELS).map(([val, label]) => (
-                  <SelectItem key={val} value={val} className="text-white focus:bg-zinc-700">
+                  <SelectItem key={val} value={val}>
                     {label}
                   </SelectItem>
                 ))}
@@ -205,33 +201,32 @@ export function AddParticipantDrawer({
           {/* Weight + Instructor */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-zinc-300 text-sm">Peso (kg)</Label>
+              <Label className="text-sm">Peso (kg)</Label>
               <Input
                 {...form.register('weight')}
                 type="number"
                 placeholder="75"
                 min={1}
                 max={400}
-                className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-zinc-300 text-sm">Instructor</Label>
+              <Label className="text-sm">Instructor</Label>
               <Select
                 value={form.watch('assignedInstructorId') ?? ''}
                 onValueChange={(v) => form.setValue('assignedInstructorId', v || undefined)}
               >
-                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+                <SelectTrigger>
                   <SelectValue placeholder="Sin asignar" />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="" className="text-zinc-400 focus:bg-zinc-700">
+                <SelectContent>
+                  <SelectItem value="" className="text-muted-foreground">
                     Sin asignar
                   </SelectItem>
                   {instructors
                     .filter((i) => i.active)
                     .map((i) => (
-                      <SelectItem key={i.id} value={i.id} className="text-white focus:bg-zinc-700">
+                      <SelectItem key={i.id} value={i.id}>
                         {i.name}
                       </SelectItem>
                     ))}
@@ -246,14 +241,14 @@ export function AddParticipantDrawer({
               type="button"
               variant="ghost"
               onClick={handleClose}
-              className="flex-1 text-zinc-400 hover:text-white"
+              className="flex-1"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               disabled={isPending}
-              className="flex-1 bg-sky-600 hover:bg-sky-500 text-white"
+              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               {isPending ? 'Añadiendo...' : 'Añadir'}
             </Button>

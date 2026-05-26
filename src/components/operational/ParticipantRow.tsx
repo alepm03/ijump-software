@@ -24,24 +24,24 @@ import type { ParticipantWithDetails, Instructor, OperationalStatus, PackageType
 // ─── Status config ──────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<OperationalStatus, { label: string; className: string }> = {
-  PENDING: { label: 'Pendiente', className: 'bg-zinc-700 text-zinc-300' },
-  CHECKED_IN: { label: 'Check-in', className: 'bg-blue-900 text-blue-300' },
-  WAIVER_SIGNED: { label: 'Waiver', className: 'bg-purple-900 text-purple-300' },
-  BRIEFED: { label: 'Briefed', className: 'bg-yellow-900 text-yellow-300' },
-  GEARED_UP: { label: 'Equipado', className: 'bg-orange-900 text-orange-300' },
-  READY: { label: 'Listo', className: 'bg-green-900 text-green-300' },
-  COMPLETED: { label: 'Completado', className: 'bg-emerald-900 text-emerald-300' },
-  CANCELLED: { label: 'Cancelado', className: 'bg-red-950 text-red-400' },
-  NO_SHOW: { label: 'No show', className: 'bg-red-950 text-red-400' },
-  WEATHER_CANCELLED: { label: 'Wx cancel.', className: 'bg-red-950 text-red-400' },
+  PENDING: { label: 'Pendiente', className: 'bg-zinc-100 text-zinc-500' },
+  CHECKED_IN: { label: 'Check-in', className: 'bg-blue-50 text-blue-600' },
+  WAIVER_SIGNED: { label: 'Waiver', className: 'bg-purple-50 text-purple-600' },
+  BRIEFED: { label: 'Briefed', className: 'bg-yellow-50 text-yellow-700' },
+  GEARED_UP: { label: 'Equipado', className: 'bg-orange-50 text-orange-600' },
+  READY: { label: 'Listo', className: 'bg-green-50 text-green-600' },
+  COMPLETED: { label: 'Completado', className: 'bg-emerald-50 text-emerald-600' },
+  CANCELLED: { label: 'Cancelado', className: 'bg-red-50 text-red-500' },
+  NO_SHOW: { label: 'No show', className: 'bg-red-50 text-red-500' },
+  WEATHER_CANCELLED: { label: 'Wx cancel.', className: 'bg-red-50 text-red-500' },
 }
 
 const PACKAGE_CONFIG: Record<PackageType, { label: string; className: string }> = {
-  SOLO: { label: 'Solo', className: 'bg-zinc-800 text-zinc-400' },
-  HANDYCAM: { label: 'HC', className: 'bg-sky-900 text-sky-300' },
-  VIDEO_EXTERNO: { label: 'VE', className: 'bg-indigo-900 text-indigo-300' },
-  FOTOS: { label: 'Fotos', className: 'bg-teal-900 text-teal-300' },
-  HANDYCAM_FOTOS: { label: 'HC+F', className: 'bg-sky-900 text-sky-300' },
+  SOLO: { label: 'Solo', className: 'bg-zinc-100 text-zinc-500' },
+  HANDYCAM: { label: 'HC', className: 'bg-blue-50 text-blue-600' },
+  VIDEO_EXTERNO: { label: 'VE', className: 'bg-indigo-50 text-indigo-600' },
+  FOTOS: { label: 'Fotos', className: 'bg-teal-50 text-teal-600' },
+  HANDYCAM_FOTOS: { label: 'HC+F', className: 'bg-blue-50 text-blue-600' },
 }
 
 // ─── Inline editable text field ─────────────────────────────────────────────
@@ -89,7 +89,7 @@ function InlineField({
             setEditing(false)
           }
         }}
-        className={`bg-zinc-700 border border-zinc-600 rounded px-1 py-0 text-xs text-white outline-none focus:ring-1 focus:ring-sky-500 min-w-0 ${className}`}
+        className={`bg-background border border-input rounded px-1 py-0 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring min-w-0 ${className}`}
         autoFocus
       />
     )
@@ -98,8 +98,8 @@ function InlineField({
   return (
     <span
       onClick={startEdit}
-      className={`cursor-text hover:bg-zinc-700/60 rounded px-1 py-0.5 text-xs transition-colors ${
-        value ? 'text-zinc-200' : 'text-zinc-600'
+      className={`cursor-text hover:bg-secondary/60 rounded px-1 py-0.5 text-xs transition-colors ${
+        value ? 'text-foreground' : 'text-muted-foreground/50'
       } ${className}`}
     >
       {value || placeholder}
@@ -130,7 +130,7 @@ function Toggle({
       className={`flex items-center justify-center w-5 h-5 rounded text-[9px] font-bold border transition-colors ${
         checked
           ? `${activeClass} border-transparent`
-          : 'bg-transparent border-zinc-700 text-zinc-600 hover:border-zinc-500 hover:text-zinc-400'
+          : 'bg-transparent border-border text-muted-foreground/50 hover:border-border hover:text-muted-foreground'
       }`}
     >
       {checked ? <Check size={9} /> : label[0]}
@@ -179,8 +179,8 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
     <div
       ref={setNodeRef}
       style={{ opacity: isDragging ? 0.4 : 1 }}
-      className={`bg-zinc-800/60 rounded-lg border transition-colors ${
-        isDragging ? 'border-sky-600' : 'border-zinc-700/50 hover:border-zinc-600'
+      className={`bg-background rounded-lg border transition-all ${
+        isDragging ? 'border-primary/40 shadow-sm' : 'border-border/70 hover:border-border hover:shadow-sm'
       }`}
     >
       <div className="flex items-start gap-1 p-2">
@@ -188,7 +188,7 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
         <button
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing text-zinc-600 hover:text-zinc-400 pt-0.5 flex-shrink-0 touch-none"
+          className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground pt-0.5 flex-shrink-0 touch-none"
         >
           <GripVertical size={12} />
         </button>
@@ -206,18 +206,19 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
             <DropdownMenu>
               <DropdownMenuTrigger
                 disabled={isPending}
-                className={`flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded transition-colors ${statusCfg.className}`}
+                className={`flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full transition-colors ${statusCfg.className}`}
               >
                 {statusCfg.label}
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-700 min-w-[140px]">
+              <DropdownMenuContent align="end" className="min-w-[140px]">
                 {(Object.entries(STATUS_CONFIG) as [OperationalStatus, typeof statusCfg][]).map(
                   ([status, cfg]) => (
                     <DropdownMenuItem
                       key={status}
                       onClick={() => save({ operationalStatus: status })}
-                      className={`text-xs cursor-pointer ${cfg.className} hover:opacity-80`}
+                      className="text-xs cursor-pointer"
                     >
+                      <span className={`inline-block w-2 h-2 rounded-full mr-2 ${cfg.className.split(' ')[0]}`} />
                       {cfg.label}
                     </DropdownMenuItem>
                   )
@@ -232,17 +233,17 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
             <DropdownMenu>
               <DropdownMenuTrigger
                 disabled={isPending}
-                className={`text-[10px] font-medium px-1.5 py-0.5 rounded transition-colors ${pkgCfg.className}`}
+                className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full transition-colors ${pkgCfg.className}`}
               >
                 {pkgCfg.label}
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="bg-zinc-900 border-zinc-700">
+              <DropdownMenuContent align="start">
                 {(Object.entries(PACKAGE_CONFIG) as [PackageType, typeof pkgCfg][]).map(
                   ([pkg, cfg]) => (
                     <DropdownMenuItem
                       key={pkg}
                       onClick={() => save({ packageType: pkg })}
-                      className={`text-xs cursor-pointer ${cfg.className}`}
+                      className="text-xs cursor-pointer"
                     >
                       {cfg.label}
                     </DropdownMenuItem>
@@ -257,17 +258,17 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
               onValueChange={(v) => save({ assignedInstructorId: v || null })}
               disabled={isPending}
             >
-              <SelectTrigger className="h-5 text-[10px] px-1.5 py-0 bg-zinc-700/50 border-zinc-600/50 text-zinc-300 min-w-[80px] max-w-[100px]">
+              <SelectTrigger className="h-5 text-[10px] px-1.5 py-0 min-w-[80px] max-w-[100px]">
                 <SelectValue placeholder="Instructor" />
               </SelectTrigger>
-              <SelectContent className="bg-zinc-800 border-zinc-700">
-                <SelectItem value="" className="text-zinc-400 text-xs focus:bg-zinc-700">
+              <SelectContent>
+                <SelectItem value="" className="text-muted-foreground text-xs">
                   —
                 </SelectItem>
                 {instructors
                   .filter((i) => i.active)
                   .map((i) => (
-                    <SelectItem key={i.id} value={i.id} className="text-white text-xs focus:bg-zinc-700">
+                    <SelectItem key={i.id} value={i.id} className="text-xs">
                       {i.name}
                     </SelectItem>
                   ))}
@@ -279,21 +280,21 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
               <Toggle
                 checked={p.waiverSigned}
                 label="Waiver"
-                activeClass="bg-purple-800 text-purple-200"
+                activeClass="bg-purple-50 text-purple-600"
                 onClick={() => save({ waiverSigned: !p.waiverSigned })}
                 disabled={isPending}
               />
               <Toggle
                 checked={p.checkInCompleted}
                 label="Check-in"
-                activeClass="bg-blue-800 text-blue-200"
+                activeClass="bg-blue-50 text-blue-600"
                 onClick={() => save({ checkInCompleted: !p.checkInCompleted })}
                 disabled={isPending}
               />
               <Toggle
                 checked={p.gearedUp}
                 label="Geared"
-                activeClass="bg-orange-800 text-orange-200"
+                activeClass="bg-orange-50 text-orange-600"
                 onClick={() => save({ gearedUp: !p.gearedUp })}
                 disabled={isPending}
               />
@@ -320,13 +321,13 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
               <button
                 onClick={handleDelete}
                 disabled={isPending}
-                className="text-[10px] text-red-400 hover:text-red-300 px-1"
+                className="text-[10px] text-destructive hover:text-destructive/80 px-1"
               >
                 Sí
               </button>
               <button
                 onClick={() => setConfirmDelete(false)}
-                className="text-[10px] text-zinc-500 hover:text-zinc-300"
+                className="text-[10px] text-muted-foreground hover:text-foreground"
               >
                 No
               </button>
@@ -334,7 +335,7 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
           ) : (
             <button
               onClick={() => setConfirmDelete(true)}
-              className="text-zinc-600 hover:text-red-400 transition-colors"
+              className="text-muted-foreground/40 hover:text-destructive transition-colors"
             >
               <X size={13} />
             </button>

@@ -21,17 +21,17 @@ const WEATHER_CONFIG: Record<WeatherStatus, { label: string; icon: React.ReactNo
   OK: {
     label: 'OK',
     icon: <Sun size={14} />,
-    className: 'text-emerald-400 border-emerald-800 hover:bg-emerald-900/30',
+    className: 'text-emerald-600 border-emerald-200 hover:bg-emerald-50',
   },
   MARGINAL: {
     label: 'Marginal',
     icon: <Cloud size={14} />,
-    className: 'text-yellow-400 border-yellow-800 hover:bg-yellow-900/30',
+    className: 'text-yellow-600 border-yellow-200 hover:bg-yellow-50',
   },
   CANCELLED: {
     label: 'Cancelado',
     icon: <CloudOff size={14} />,
-    className: 'text-red-400 border-red-800 hover:bg-red-900/30',
+    className: 'text-red-500 border-red-200 hover:bg-red-50',
   },
 }
 
@@ -71,17 +71,17 @@ export function DayHeader({ day }: DayHeaderProps) {
   }
 
   return (
-    <div className="border-b border-zinc-800 bg-zinc-900/90 backdrop-blur-sm px-4 py-3 sticky top-0 z-10">
-      <div className="flex items-center gap-3 max-w-screen-2xl mx-auto">
-        <Link href="/" className="text-zinc-400 hover:text-zinc-200 transition-colors">
+    <div className="border-b border-border bg-card/80 backdrop-blur-sm px-6 py-3 sticky top-0 z-10">
+      <div className="flex items-center gap-3 max-w-4xl mx-auto">
+        <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft size={18} />
         </Link>
 
         <div className="min-w-0">
-          <h1 className="text-base font-semibold text-white capitalize leading-tight">
+          <h1 className="text-base font-semibold text-foreground capitalize leading-tight">
             {format(date, "EEEE d 'de' MMMM yyyy", { locale: es })}
           </h1>
-          <p className="text-xs text-zinc-500 leading-tight">
+          <p className="text-xs text-muted-foreground leading-tight">
             {day.flights.length} vuelos · {totalJumps} participantes
           </p>
         </div>
@@ -95,13 +95,13 @@ export function DayHeader({ day }: DayHeaderProps) {
             {weather.icon}
             {weather.label}
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="bg-zinc-900 border-zinc-700">
+          <DropdownMenuContent align="start">
             {(Object.entries(WEATHER_CONFIG) as [WeatherStatus, typeof weather][]).map(
               ([status, cfg]) => (
                 <DropdownMenuItem
                   key={status}
                   onClick={() => handleWeatherChange(status)}
-                  className={`flex items-center gap-2 cursor-pointer ${cfg.className}`}
+                  className={`flex items-center gap-2 cursor-pointer text-xs ${cfg.className}`}
                 >
                   {cfg.icon}
                   {cfg.label}
@@ -129,13 +129,13 @@ export function DayHeader({ day }: DayHeaderProps) {
                 }
               }}
               placeholder="Notas del día..."
-              className="text-xs h-8 min-h-0 py-1 bg-zinc-800 border-zinc-700 text-zinc-200 placeholder:text-zinc-600 resize-none"
+              className="text-xs h-8 min-h-0 py-1 resize-none"
               autoFocus
             />
           ) : (
             <button
               onClick={() => setEditingNotes(true)}
-              className="text-xs text-zinc-500 hover:text-zinc-300 truncate block w-full text-left px-1 py-1 rounded hover:bg-zinc-800/60 transition-colors"
+              className="text-xs text-muted-foreground hover:text-foreground truncate block w-full text-left px-1 py-1 rounded hover:bg-secondary/60 transition-colors"
             >
               {notes || 'Añadir notas...'}
             </button>

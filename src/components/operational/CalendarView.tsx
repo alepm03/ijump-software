@@ -36,7 +36,6 @@ export function CalendarView({ month, days }: CalendarViewProps) {
   const monthEnd = endOfMonth(currentMonth)
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd })
 
-  // Monday-first offset: Sun(0)→6, Mon(1)→0, ..., Sat(6)→5
   const startOffset = (getDay(monthStart) + 6) % 7
 
   const daysByDate = new Map(days.map((d) => [d.date, d]))
@@ -57,23 +56,23 @@ export function CalendarView({ month, days }: CalendarViewProps) {
     <div className="p-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => navigate('prev')}
-            className="text-zinc-400 hover:text-white"
+            className="text-muted-foreground hover:text-foreground"
           >
             ‹
           </Button>
-          <h2 className="text-xl font-semibold text-white capitalize min-w-[180px] text-center">
+          <h2 className="text-xl font-semibold text-foreground capitalize min-w-[180px] text-center">
             {format(currentMonth, 'MMMM yyyy', { locale: es })}
           </h2>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => navigate('next')}
-            className="text-zinc-400 hover:text-white"
+            className="text-muted-foreground hover:text-foreground"
           >
             ›
           </Button>
@@ -81,14 +80,14 @@ export function CalendarView({ month, days }: CalendarViewProps) {
             variant="ghost"
             size="sm"
             onClick={() => router.push('/')}
-            className="text-zinc-500 hover:text-white text-xs ml-1"
+            className="text-muted-foreground hover:text-foreground text-xs ml-1"
           >
             Hoy
           </Button>
         </div>
         <Button
           onClick={() => openNewDay(undefined)}
-          className="bg-sky-600 hover:bg-sky-500 text-white"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground"
         >
           + Nueva Jornada
         </Button>
@@ -97,7 +96,7 @@ export function CalendarView({ month, days }: CalendarViewProps) {
       {/* Weekday headers */}
       <div className="grid grid-cols-7 gap-1 mb-1">
         {WEEKDAYS.map((wd) => (
-          <div key={wd} className="text-center text-xs font-medium text-zinc-500 py-1">
+          <div key={wd} className="text-center text-xs font-medium text-muted-foreground py-1">
             {wd}
           </div>
         ))}
@@ -105,12 +104,10 @@ export function CalendarView({ month, days }: CalendarViewProps) {
 
       {/* Calendar grid */}
       <div className="grid grid-cols-7 gap-1">
-        {/* Empty cells before first day */}
         {Array.from({ length: startOffset }).map((_, i) => (
           <div key={`empty-start-${i}`} className="min-h-[80px]" />
         ))}
 
-        {/* Day cells */}
         {daysInMonth.map((date) => {
           const dateStr = format(date, 'yyyy-MM-dd')
           const dayData = daysByDate.get(dateStr)
@@ -132,15 +129,15 @@ export function CalendarView({ month, days }: CalendarViewProps) {
                 min-h-[80px] rounded-lg border text-left p-2 w-full
                 transition-colors group
                 ${today
-                  ? 'border-sky-800 bg-zinc-900/40'
-                  : 'border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/40'
+                  ? 'border-primary/30 bg-secondary/40'
+                  : 'border-border hover:border-border hover:bg-secondary/30'
                 }
               `}
             >
-              <span className={`text-sm font-medium leading-none ${today ? 'text-sky-400' : 'text-zinc-500'}`}>
+              <span className={`text-sm font-medium leading-none ${today ? 'text-primary' : 'text-muted-foreground'}`}>
                 {format(date, 'd')}
               </span>
-              <span className="block mt-1 text-xs text-zinc-700 group-hover:text-zinc-500 transition-colors">
+              <span className="block mt-1 text-xs text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors">
                 +
               </span>
             </button>

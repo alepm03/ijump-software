@@ -14,17 +14,25 @@ export default function LoginPage() {
   )
 
   return (
-    <Card className="w-full max-w-sm bg-zinc-900 border-zinc-800">
+    <Card className="w-full max-w-sm shadow-sm">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl text-white">iJump</CardTitle>
-        <p className="text-zinc-400 text-sm">Sistema operacional</p>
+        <div className="mx-auto mb-3 w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+          <svg width="18" height="18" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path
+              d="M7 1 C7 1 3 4 3 7.5 C3 9.5 4.5 11 7 11 C9.5 11 11 9.5 11 7.5 C11 4 7 1 7 1Z"
+              fill="white"
+              fillOpacity="0.9"
+            />
+            <circle cx="7" cy="12.5" r="1" fill="white" fillOpacity="0.6" />
+          </svg>
+        </div>
+        <CardTitle className="text-xl">iJump</CardTitle>
+        <p className="text-muted-foreground text-sm">Sistema operacional</p>
       </CardHeader>
       <CardContent>
         <form action={action} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-zinc-300">
-              Email
-            </Label>
+            <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               name="email"
@@ -32,29 +40,25 @@ export default function LoginPage() {
               autoComplete="email"
               required
               placeholder="admin@ijump.es"
-              className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-zinc-300">
-              Contraseña
-            </Label>
+            <Label htmlFor="password">Contraseña</Label>
             <Input
               id="password"
               name="password"
               type="password"
               autoComplete="current-password"
               required
-              className="bg-zinc-800 border-zinc-700 text-white"
             />
           </div>
           {state?.error && (
-            <p className="text-sm text-red-400">{state.error}</p>
+            <p className="text-sm text-destructive">{state.error}</p>
           )}
           <Button
             type="submit"
             disabled={pending}
-            className="w-full bg-sky-600 hover:bg-sky-500 text-white"
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             {pending ? 'Entrando...' : 'Entrar'}
           </Button>

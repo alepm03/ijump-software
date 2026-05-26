@@ -20,13 +20,16 @@ export function DayCard({ day, isToday }: DayCardProps) {
       href={`/${day.date}`}
       className={`
         flex flex-col gap-1 rounded-lg border p-2 h-full min-h-[80px]
-        transition-colors hover:border-sky-500 hover:bg-zinc-800/60
-        ${isToday ? 'border-sky-600 bg-zinc-800/40' : 'border-zinc-700 bg-zinc-900/60'}
+        transition-all hover:shadow-sm
+        ${isToday
+          ? 'border-primary/40 bg-secondary/40 hover:border-primary/60'
+          : 'border-border bg-card hover:border-border hover:bg-secondary/20'
+        }
         ${day.weatherStatus === 'CANCELLED' ? 'opacity-60' : ''}
       `}
     >
       <div className="flex items-start justify-between gap-1">
-        <span className={`text-sm font-semibold leading-none ${isToday ? 'text-sky-400' : 'text-zinc-200'}`}>
+        <span className={`text-sm font-semibold leading-none ${isToday ? 'text-primary' : 'text-foreground'}`}>
           {day.date.slice(8)}
         </span>
         {weatherBadge && (
@@ -36,10 +39,10 @@ export function DayCard({ day, isToday }: DayCardProps) {
         )}
       </div>
       <div className="mt-auto flex flex-col gap-0.5">
-        <span className="text-xs text-zinc-400">
+        <span className="text-xs text-muted-foreground">
           {day.flightCount} {day.flightCount === 1 ? 'vuelo' : 'vuelos'}
         </span>
-        <span className="text-xs text-zinc-400">
+        <span className="text-xs text-muted-foreground">
           {day.jumpCount} {day.jumpCount === 1 ? 'salto' : 'saltos'}
         </span>
       </div>

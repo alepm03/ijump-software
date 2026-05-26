@@ -12,7 +12,7 @@ import {
   useSensors,
   DragOverlay,
 } from '@dnd-kit/core'
-import { SortableContext, arrayMove, horizontalListSortingStrategy } from '@dnd-kit/sortable'
+import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { reorderFlights, createFlight, deleteFlight } from '@/lib/actions/flight'
@@ -36,12 +36,10 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
   const [addToFlightId, setAddToFlightId] = useState<string | null>(null)
   const [dragType, setDragType] = useState<'flight' | 'participant' | null>(null)
 
-  // Sync with incoming props (from router.refresh)
   useEffect(() => {
     setFlights(day.flights)
   }, [day])
 
-  // Realtime sync
   useRealtimeManifest(day.id)
 
   const sensors = useSensors(
@@ -82,13 +80,11 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
 
     if (activeType === 'participant') {
       const sourceFlightId = active.data.current?.flightId as string | undefined
-      // over could be a flight sortable or a flight droppable zone
       const targetFlightId =
         (over.data.current?.flightId as string | undefined) ?? (over.id as string)
 
       if (!sourceFlightId || !targetFlightId || sourceFlightId === targetFlightId) return
 
-      // Validate target is actually a flight
       const targetFlight =
         flights.find((f) => f.id === targetFlightId) ??
         flights.find((f) => `drop-${f.id}` === targetFlightId)
@@ -97,7 +93,6 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
       const resolvedTargetId = targetFlight.id
       const participantId = active.id as string
 
-      // Optimistic update
       const participant = flights
         .flatMap((f) => f.participants)
         .find((p) => p.id === participantId)
@@ -155,8 +150,7 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
     <div className="flex flex-col min-h-screen">
       <DayHeader day={{ ...day, flights }} />
 
-      {/* Manifest board */}
-      <div className="flex-1 overflow-x-auto">
+      <div className="flex-1 overflow-y-auto">
         <DndContext
           sensors={sensors}
           onDragStart={handleDragStart}
@@ -164,9 +158,9 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
         >
           <SortableContext
             items={flights.map((f) => f.id)}
-            strategy={horizontalListSortingStrategy}
+            strategy={verticalListSortingStrategy}
           >
-            <div className="flex gap-4 p-4 items-start min-w-max">
+            <div className="flex flex-col gap-3 p-6 max-w-4xl mx-auto">
               {flights.map((flight) => (
                 <FlightCard
                   key={flight.id}
@@ -177,25 +171,24 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
                 />
               ))}
 
-              {/* Add flight button */}
+              {/* Add flight */}
               <button
                 onClick={handleAddFlight}
                 disabled={isPending}
-                className="flex-shrink-0 w-72 min-h-[120px] flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-700 hover:border-zinc-500 hover:bg-zinc-800/30 text-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-border hover:border-primary/40 hover:bg-secondary/40 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50 text-sm"
               >
-                <Plus size={20} />
-                <span className="text-sm">Añadir vuelo</span>
+                <Plus size={16} />
+                Añadir vuelo
               </button>
             </div>
           </SortableContext>
 
-          {/* Drag overlay — minimal ghost */}
           <DragOverlay>
             {dragType === 'flight' && (
-              <div className="w-72 h-16 rounded-xl border border-sky-600 bg-zinc-800 opacity-80" />
+              <div className="w-full max-w-4xl h-16 rounded-xl border border-primary/40 bg-card opacity-80 shadow-md" />
             )}
             {dragType === 'participant' && (
-              <div className="w-64 h-10 rounded-lg border border-sky-600 bg-zinc-700 opacity-80" />
+              <div className="h-10 rounded-lg border border-primary/40 bg-card opacity-80 shadow-sm" />
             )}
           </DragOverlay>
         </DndContext>

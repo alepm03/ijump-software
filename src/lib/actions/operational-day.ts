@@ -269,15 +269,38 @@ export async function getOperationalDaysWithStats(
   }))
 }
 
+function addHours(time: string, hours: number): string {
+  const [h, m] = time.split(':').map(Number)
+  return `${String((h + hours) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
 export async function createOperationalDay(
-  date: string
+  date: string,
+  startTime: string
 ): Promise<{ error?: string; date?: string }> {
   const supabase = await createClient()
-  const { error } = await supabase.from('operational_days').insert({ date })
+
+  const { data: day, error } = await supabase
+    .from('operational_days')
+    .insert({ date })
+    .select('id')
+    .single()
+
   if (error) {
     if (error.code === '23505') return { error: 'Ya existe una jornada para esa fecha.' }
     return { error: error.message }
   }
+
+  const flights = Array.from({ length: 5 }, (_, i) => ({
+    operational_day_id: day.id,
+    flight_number: i + 1,
+    order_index: i,
+    estimated_departure_time: addHours(startTime, i),
+  }))
+
+  const { error: flightsError } = await supabase.from('flights').insert(flights)
+  if (flightsError) return { error: flightsError.message }
+
   revalidatePath('/')
   return { date }
 }

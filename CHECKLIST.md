@@ -108,46 +108,44 @@
 > Este es el módulo más importante. Es el corazón del sistema.
 
 ### 5.1 — Estructura base
-- [ ] Página `/[date]` — carga la jornada completa
-- [ ] Header de jornada: fecha, estado meteorológico, notas, métricas rápidas
-- [ ] Layout de vuelos en columnas o tarjetas verticales
+- [x] Página `/[date]` — carga la jornada completa
+- [x] Header de jornada: fecha, estado meteorológico, notas, métricas rápidas
+- [x] Layout de vuelos en columnas o tarjetas horizontales
 
 ### 5.2 — FlightCard
-- [ ] Componente `FlightCard`: número de vuelo, hora, estado, lista de participantes
-- [ ] Edición inline de hora del vuelo
-- [ ] Cambio de estado del vuelo (dropdown)
-- [ ] Botón añadir vuelo
-- [ ] Botón eliminar vuelo (con confirmación)
+- [x] Componente `FlightCard`: número de vuelo, hora, estado, lista de participantes
+- [x] Edición inline de hora del vuelo
+- [x] Cambio de estado del vuelo (dropdown)
+- [x] Botón añadir vuelo
+- [x] Botón eliminar vuelo (con confirmación)
 
 ### 5.3 — ParticipantRow
-- [ ] Componente `ParticipantRow` dentro de FlightCard
-- [ ] Campos editables inline: nombre, teléfono, email, peso
-- [ ] Selector de instructor (dropdown con instructores activos)
-- [ ] Selector de package type y media package
-- [ ] Badge de estado operativo con cambio rápido
-- [ ] Indicadores visuales: waiver firmado, check-in, equipado
-- [ ] Notas rápidas inline
-- [ ] Botón eliminar participante
+- [x] Componente `ParticipantRow` dentro de FlightCard
+- [x] Campos editables inline: nombre, peso
+- [x] Selector de instructor (dropdown con instructores activos)
+- [x] Selector de package type
+- [x] Badge de estado operativo con cambio rápido
+- [x] Indicadores visuales: waiver firmado, check-in, equipado
+- [x] Botón eliminar participante
 
 ### 5.4 — Añadir participantes
-- [ ] Modal/drawer "Añadir participante" a un vuelo
-- [ ] Form: nombre, teléfono, email, fuente de reserva, package, peso
-- [ ] Opción de crear ReservationGroup o añadir a uno existente
+- [x] Sheet "Añadir participante" a un vuelo
+- [x] Form: nombre, teléfono, email, fuente de reserva, package, peso, instructor
+- [x] Crea ReservationGroup automáticamente si fuente != DIRECT
 
 ### 5.5 — Drag & Drop
-- [ ] Reordenar vuelos (drag flight cards)
-- [ ] Mover participante entre vuelos (drag participant row)
-- [ ] Persistencia inmediata al soltar
+- [x] Reordenar vuelos (drag flight cards)
+- [x] Mover participante entre vuelos (drag participant row)
+- [x] Persistencia inmediata al soltar con actualización optimista
 
 ### 5.6 — Realtime
-- [ ] Suscripción Supabase Realtime en la vista operacional
-- [ ] Actualización automática al cambiar datos desde otro dispositivo
-- [ ] Indicador visual de conexión realtime
+- [x] Suscripción Supabase Realtime en la vista operacional
+- [x] Actualización automática al cambiar datos desde otro dispositivo
 
 ### 5.7 — Panel de resumen diario
-- [ ] Totales en tiempo real: vuelos, saltos, por fuente, HC extras, OW
-- [ ] Ingresos totales del día
-- [ ] Desglose por método de pago
+- [x] Totales en tiempo real: vuelos, saltos, por fuente, HC extras, OW
+- [x] Ingresos totales del día
+- [x] Desglose por método de pago
 
 ---
 

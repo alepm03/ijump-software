@@ -9,7 +9,10 @@
       "Bash([ -s \"$output_file\" ])",
       "PowerShell(Move-Item *)",
       "Bash(supabase --version)",
-      "Bash(ls .env.local)"
+      "Bash(ls .env.local)",
+      "Bash(git checkout *)",
+      "Bash(git pull *)",
+      "Bash(npm run *)"
     ]
   }
 }

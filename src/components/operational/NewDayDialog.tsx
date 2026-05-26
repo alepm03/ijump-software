@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { createOperationalDay } from '@/lib/actions/operational-day'
@@ -25,13 +25,21 @@ export function NewDayDialog({ open, initialDate, onOpenChange }: NewDayDialogPr
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [date, setDate] = useState(initialDate ?? format(new Date(), 'yyyy-MM-dd'))
+  const [startTime, setStartTime] = useState('09:00')
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (open) {
+      setDate(initialDate ?? format(new Date(), 'yyyy-MM-dd'))
+      setError(null)
+    }
+  }, [open, initialDate])
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
     startTransition(async () => {
-      const result = await createOperationalDay(date)
+      const result = await createOperationalDay(date, startTime)
       if (result.error) {
         setError(result.error)
         return
@@ -61,6 +69,24 @@ export function NewDayDialog({ open, initialDate, onOpenChange }: NewDayDialogPr
               className="bg-zinc-800 border-zinc-700 text-white"
             />
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="startTime" className="text-zinc-300">
+              Hora del primer vuelo
+            </Label>
+            <Input
+              id="startTime"
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              required
+              className="bg-zinc-800 border-zinc-700 text-white"
+            />
+            <p className="text-xs text-zinc-500">
+              Se crearán 5 vuelos automáticamente cada hora desde esta hora.
+            </p>
+          </div>
+
           {error && <p className="text-sm text-red-400">{error}</p>}
           <DialogFooter>
             <Button

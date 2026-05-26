@@ -3,9 +3,10 @@
 import { useState, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useDraggable } from '@dnd-kit/core'
-import { GripVertical, X, Check } from 'lucide-react'
+import { GripVertical, X, Check, Euro } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateParticipant, deleteParticipant } from '@/lib/actions/participant'
+import { createPayment, deletePayment } from '@/lib/actions/payment'
 import {
   Select,
   SelectContent,
@@ -19,7 +20,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import type { ParticipantWithDetails, Instructor, OperationalStatus, PackageType } from '@/types/domain'
+import type {
+  ParticipantWithDetails,
+  Instructor,
+  OperationalStatus,
+  PackageType,
+  PaymentMethod,
+  PaymentStage,
+  Payment,
+} from '@/types/domain'
 
 // ─── Status config ──────────────────────────────────────────────────────────
 
@@ -42,6 +51,20 @@ const PACKAGE_CONFIG: Record<PackageType, { label: string; className: string }> 
   VIDEO_EXTERNO: { label: 'VE', className: 'bg-indigo-900 text-indigo-300' },
   FOTOS: { label: 'Fotos', className: 'bg-teal-900 text-teal-300' },
   HANDYCAM_FOTOS: { label: 'HC+F', className: 'bg-sky-900 text-sky-300' },
+}
+
+const STAGE_CONFIG: Record<PaymentStage, { label: string; className: string }> = {
+  RESERVA: { label: 'Reserva', className: 'bg-violet-950 text-violet-300' },
+  LIQUIDACION: { label: 'Liquid.', className: 'bg-emerald-950 text-emerald-300' },
+  SUPLEMENTO: { label: 'Supl.', className: 'bg-yellow-950 text-yellow-300' },
+}
+
+const METHOD_LABELS: Record<PaymentMethod, string> = {
+  EFECTIVO: 'Efect.',
+  TARJETA: 'Tarjeta',
+  BIZUM: 'Bizum',
+  TRANSFERENCIA: 'Transf.',
+  GROUPON: 'Groupon',
 }
 
 // ─── Inline editable text field ─────────────────────────────────────────────
@@ -135,6 +158,157 @@ function Toggle({
     >
       {checked ? <Check size={9} /> : label[0]}
     </button>
+  )
+}
+
+// ─── Payment section ──────────────────────────────────────────────────────────
+
+function PaymentSection({
+  participantId,
+  payments,
+  overweightFee,
+  onSaveOw,
+}: {
+  participantId: string
+  payments: Payment[]
+  overweightFee: number
+  onSaveOw: (fee: number) => void
+}) {
+  const router = useRouter()
+  const [isPmtPending, startPmtTransition] = useTransition()
+  const [expanded, setExpanded] = useState(false)
+  const [stage, setStage] = useState<PaymentStage>('LIQUIDACION')
+  const [amount, setAmount] = useState('')
+  const [method, setMethod] = useState<PaymentMethod>('EFECTIVO')
+
+  const paymentsTotal = payments.reduce((sum, p) => sum + p.amount, 0)
+  const grandTotal = paymentsTotal + overweightFee
+  const hasActivity = payments.length > 0 || overweightFee > 0
+
+  function addPayment() {
+    const n = parseFloat(amount)
+    if (isNaN(n) || n <= 0) return
+    startPmtTransition(async () => {
+      const result = await createPayment(participantId, { amount: n, method, stage })
+      if (result.error) toast.error(result.error)
+      else {
+        setAmount('')
+        router.refresh()
+      }
+    })
+  }
+
+  function removePayment(id: string) {
+    startPmtTransition(async () => {
+      const result = await deletePayment(id)
+      if (result.error) toast.error(result.error)
+      else router.refresh()
+    })
+  }
+
+  return (
+    <div className="border-t border-zinc-700/40 mt-1">
+      {/* Header toggle */}
+      <button
+        onClick={() => setExpanded((e) => !e)}
+        className="w-full flex items-center gap-1.5 px-2 py-1 text-[10px] hover:bg-zinc-700/30 transition-colors rounded-b-lg"
+      >
+        <Euro size={10} className="text-zinc-500 flex-shrink-0" />
+        {hasActivity ? (
+          <span className="text-emerald-400 font-semibold">{grandTotal.toFixed(0)}€</span>
+        ) : (
+          <span className="text-zinc-600">Sin pagos</span>
+        )}
+        {overweightFee > 0 && (
+          <span className="text-yellow-400 text-[9px]">({overweightFee}€ OW)</span>
+        )}
+        {payments.length > 0 && (
+          <span className="text-zinc-600 text-[9px]">{payments.length} pago{payments.length > 1 ? 's' : ''}</span>
+        )}
+        <span className="ml-auto text-zinc-600">{expanded ? '▲' : '▼'}</span>
+      </button>
+
+      {expanded && (
+        <div className="px-2 pb-2 space-y-1.5">
+          {/* Existing payments */}
+          {payments.map((pmt) => (
+            <div key={pmt.id} className="flex items-center gap-1 text-[10px]">
+              <span className={`px-1 py-0.5 rounded font-medium flex-shrink-0 ${STAGE_CONFIG[pmt.stage].className}`}>
+                {STAGE_CONFIG[pmt.stage].label}
+              </span>
+              <span className="text-zinc-100 font-semibold">{pmt.amount}€</span>
+              <span className="text-zinc-400">{METHOD_LABELS[pmt.method]}</span>
+              {pmt.notes && <span className="text-zinc-600 truncate">{pmt.notes}</span>}
+              <button
+                onClick={() => removePayment(pmt.id)}
+                disabled={isPmtPending}
+                className="ml-auto text-zinc-600 hover:text-red-400 transition-colors flex-shrink-0"
+              >
+                <X size={10} />
+              </button>
+            </div>
+          ))}
+
+          {/* Overweight fee */}
+          <div className="flex items-center gap-1 text-[10px]">
+            <span className="text-zinc-500 flex-shrink-0">Sobrepeso:</span>
+            <InlineField
+              value={overweightFee > 0 ? String(overweightFee) : ''}
+              placeholder="0"
+              onSave={(v) => {
+                const n = parseFloat(v)
+                onSaveOw(isNaN(n) || n < 0 ? 0 : n)
+              }}
+              inputType="number"
+              className="w-12 text-yellow-400 text-center"
+            />
+            <span className="text-zinc-600">€</span>
+          </div>
+
+          {/* Add payment form */}
+          <div className="flex items-center gap-1 pt-0.5 border-t border-zinc-700/40">
+            <select
+              value={stage}
+              onChange={(e) => setStage(e.target.value as PaymentStage)}
+              className="bg-zinc-700 rounded text-[10px] text-zinc-200 px-1 py-0.5 outline-none border-none cursor-pointer"
+            >
+              <option value="RESERVA">Reserva</option>
+              <option value="LIQUIDACION">Liquid.</option>
+              <option value="SUPLEMENTO">Supl.</option>
+            </select>
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="€"
+              min={0}
+              className="bg-zinc-700 border border-zinc-600 rounded px-1 py-0.5 text-[10px] text-white w-14 outline-none focus:ring-1 focus:ring-sky-500"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') addPayment()
+              }}
+            />
+            <select
+              value={method}
+              onChange={(e) => setMethod(e.target.value as PaymentMethod)}
+              className="bg-zinc-700 rounded text-[10px] text-zinc-200 px-1 py-0.5 outline-none border-none cursor-pointer"
+            >
+              <option value="EFECTIVO">Efect.</option>
+              <option value="TARJETA">Tarjeta</option>
+              <option value="BIZUM">Bizum</option>
+              <option value="TRANSFERENCIA">Transf.</option>
+              <option value="GROUPON">Groupon</option>
+            </select>
+            <button
+              onClick={addPayment}
+              disabled={isPmtPending || !amount}
+              className="text-emerald-400 hover:text-emerald-300 disabled:text-zinc-600 transition-colors flex-shrink-0"
+            >
+              <Check size={12} />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -341,6 +515,15 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
           )}
         </div>
       </div>
+
+      {/* Payments section */}
+      <PaymentSection
+        participantId={p.id}
+        payments={p.payments}
+        overweightFee={p.overweightFee}
+        onSaveOw={(fee) => save({ overweightFee: fee })}
+      />
     </div>
   )
 }
+

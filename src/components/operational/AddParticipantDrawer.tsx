@@ -10,11 +10,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   Select,
   SelectContent,
@@ -109,13 +109,13 @@ export function AddParticipantDrawer({
   }
 
   return (
-    <Sheet open={flightId !== null} onOpenChange={(open) => !open && handleClose()}>
-      <SheetContent className="w-full sm:max-w-md overflow-y-auto">
-        <SheetHeader className="mb-6">
-          <SheetTitle>Añadir participante</SheetTitle>
-        </SheetHeader>
+    <Dialog open={flightId !== null} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Añadir participante</DialogTitle>
+        </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-2">
           {/* Name */}
           <div className="space-y-1.5">
             <Label className="text-sm">Nombre *</Label>
@@ -147,24 +147,44 @@ export function AddParticipantDrawer({
             </div>
           </div>
 
-          {/* Source */}
-          <div className="space-y-1.5">
-            <Label className="text-sm">Fuente de reserva</Label>
-            <Select
-              value={form.watch('source')}
-              onValueChange={(v) => form.setValue('source', v as FormValues['source'])}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(SOURCE_LABELS).map(([val, label]) => (
-                  <SelectItem key={val} value={val}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Source + Package */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-sm">Fuente de reserva</Label>
+              <Select
+                value={form.watch('source')}
+                onValueChange={(v) => form.setValue('source', v as FormValues['source'])}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(SOURCE_LABELS).map(([val, label]) => (
+                    <SelectItem key={val} value={val}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm">Paquete</Label>
+              <Select
+                value={form.watch('packageType')}
+                onValueChange={(v) => form.setValue('packageType', v as FormValues['packageType'])}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PACKAGE_LABELS).map(([val, label]) => (
+                    <SelectItem key={val} value={val}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Payer name (if grouped source) */}
@@ -177,26 +197,6 @@ export function AddParticipantDrawer({
               />
             </div>
           )}
-
-          {/* Package */}
-          <div className="space-y-1.5">
-            <Label className="text-sm">Paquete</Label>
-            <Select
-              value={form.watch('packageType')}
-              onValueChange={(v) => form.setValue('packageType', v as FormValues['packageType'])}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(PACKAGE_LABELS).map(([val, label]) => (
-                  <SelectItem key={val} value={val}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
           {/* Weight + Instructor */}
           <div className="grid grid-cols-2 gap-3">
@@ -241,7 +241,7 @@ export function AddParticipantDrawer({
               type="button"
               variant="ghost"
               onClick={handleClose}
-              className="flex-1"
+              className="flex-1 text-muted-foreground hover:text-foreground hover:bg-secondary"
             >
               Cancelar
             </Button>
@@ -254,7 +254,7 @@ export function AddParticipantDrawer({
             </Button>
           </div>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }

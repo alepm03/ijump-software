@@ -67,6 +67,47 @@ El Excel `docs/28 SEPT.xlsx` tiene esta estructura por fila:
 
 El resumen al final del Excel (totales diarios) debe estar disponible en tiempo real en el dashboard.
 
+## Sistema de diseño — reglas obligatorias
+
+Toda nueva UI debe seguir este sistema sin excepción. No usar dark mode, no usar clases zinc hardcodeadas, no usar azul sky como acento.
+
+### Tema y color
+- **Light mode únicamente** — no hay dark mode en este proyecto
+- **Color space**: OKLCH vía variables CSS (`--background`, `--foreground`, `--primary`, etc.)
+- **Acento de marca**: naranja corporativo — usar siempre `bg-primary`, `text-primary`, `hover:bg-primary/90`
+- **Nunca** usar `bg-zinc-900`, `bg-zinc-800`, `text-white`, `bg-sky-600` ni ningún color hardcodeado de Tailwind para superficies o texto
+- Usar exclusivamente tokens semánticos: `bg-background`, `bg-card`, `bg-secondary`, `text-foreground`, `text-muted-foreground`, `border-border`
+
+### Tokens de referencia rápida
+| Propósito | Token |
+|-----------|-------|
+| Fondo principal | `bg-background` |
+| Tarjetas / superficies | `bg-card` |
+| Hover / tint de marca | `bg-secondary` |
+| Texto principal | `text-foreground` |
+| Texto secundario | `text-muted-foreground` |
+| Bordes | `border-border` |
+| Acento naranja | `bg-primary` / `text-primary` |
+| Texto sobre naranja | `text-primary-foreground` |
+| Sidebar | `bg-sidebar` |
+
+### Componentes y patrones
+- **Badges de estado**: pill redondeado (`rounded-full`), fondo suave claro + texto de color. Ejemplo: `bg-blue-50 text-blue-600`, `bg-orange-50 text-orange-600`
+- **Nav activo en sidebar**: `bg-secondary text-primary font-semibold` — nunca `border-left` como acento
+- **CTAs primarios**: `bg-primary hover:bg-primary/90 text-primary-foreground`
+- **Botones fantasma**: `text-muted-foreground hover:text-foreground hover:bg-secondary`
+- **Modales / Sheets / Dialogs**: sin clases de color explícitas — los tokens de shadcn/ui ya aplican el tema correcto
+- **Inputs en edición inline**: `bg-background border border-input rounded focus:ring-ring`
+- **Destructive**: `text-destructive` / `hover:text-destructive`
+
+### Layout
+- App shell: `flex h-screen bg-background` con `<AppSidebar>` (224px) + `<main className="flex-1 overflow-auto">`
+- Vista del día: lista vertical `flex flex-col gap-3`, ancho máximo `max-w-4xl mx-auto`, padding `p-6`
+- Calendario: `max-w-5xl mx-auto`, padding `p-6`
+
+### Referencia visual
+El prototipo aprobado está en `docs/ijump-prototype-v2.html`. Abrirlo en el navegador para referencia visual antes de implementar nuevas pantallas.
+
 ## Convenciones de desarrollo
 
 ### Estructura de carpetas (Next.js App Router)

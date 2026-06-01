@@ -1,7 +1,6 @@
-import { logout } from '@/lib/actions/auth'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { Button } from '@/components/ui/button'
+import { AppSidebar } from '@/components/layout/AppSidebar'
 
 export default async function DashboardLayout({
   children,
@@ -16,21 +15,10 @@ export default async function DashboardLayout({
   if (!user) redirect('/login')
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b border-zinc-800 bg-zinc-900 px-6 py-3 flex items-center justify-between">
-        <span className="font-semibold text-white tracking-tight">iJump</span>
-        <form action={logout}>
-          <Button
-            type="submit"
-            variant="ghost"
-            size="sm"
-            className="text-zinc-400 hover:text-white"
-          >
-            Salir
-          </Button>
-        </form>
-      </header>
-      <main className="flex-1">{children}</main>
+    <div className="flex h-screen bg-background">
+      <AppSidebar email={user.email ?? ''} />
+      {/* overflow-hidden so each page controls its own scroll — day view keeps summary pinned at bottom */}
+      <main className="flex-1 overflow-hidden flex flex-col">{children}</main>
     </div>
   )
 }

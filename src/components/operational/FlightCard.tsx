@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useSortable } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Plus, Trash2 } from 'lucide-react'
+import { GripVertical, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateFlight, deleteFlight as deleteFlightAction } from '@/lib/actions/flight'
 import { ParticipantRow } from './ParticipantRow'
@@ -13,17 +13,19 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { FlightWithParticipants, Instructor, FlightStatus } from '@/types/domain'
 
-const STATUS_CONFIG: Record<FlightStatus, { label: string; className: string }> = {
-  SCHEDULED: { label: 'Programado', className: 'bg-zinc-700 text-zinc-300' },
-  BOARDING: { label: 'Embarcando', className: 'bg-blue-900 text-blue-300' },
-  IN_AIR: { label: 'En vuelo', className: 'bg-sky-900 text-sky-300' },
-  COMPLETED: { label: 'Completado', className: 'bg-emerald-900 text-emerald-300' },
-  DELAYED: { label: 'Retrasado', className: 'bg-yellow-900 text-yellow-300' },
-  CANCELLED: { label: 'Cancelado', className: 'bg-red-950 text-red-400' },
+// Matches prototype status colors exactly
+const STATUS_CONFIG: Record<FlightStatus, { label: string; bg: string; color: string }> = {
+  SCHEDULED: { label: 'Programado', bg: '#F4F4F5', color: '#71717A' },
+  BOARDING:  { label: 'Embarcando', bg: '#EFF6FF', color: '#3B82F6' },
+  IN_AIR:    { label: 'En vuelo',   bg: '#F0F9FF', color: '#0284C7' },
+  COMPLETED: { label: 'Completado', bg: '#F0FDF4', color: '#16A34A' },
+  DELAYED:   { label: 'Retrasado',  bg: '#FEFCE8', color: '#CA8A04' },
+  CANCELLED: { label: 'Cancelado',  bg: '#FFF1F2', color: '#E11D48' },
 }
 
 interface FlightCardProps {
@@ -38,9 +40,7 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: 
   const [isPending, startTransition] = useTransition()
   const [editingTime, setEditingTime] = useState(false)
   const [time, setTime] = useState(flight.estimatedDepartureTime ?? '')
-  const [confirmDelete, setConfirmDelete] = useState(false)
 
-  // Sortable for flight reordering
   const {
     attributes,
     listeners,
@@ -53,7 +53,6 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: 
     data: { type: 'flight' },
   })
 
-  // Droppable zone for participant drops
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: `drop-${flight.id}`,
     data: { type: 'flight', flightId: flight.id },
@@ -69,8 +68,7 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: 
   function handleTimeSave() {
     setEditingTime(false)
     const trimmed = time.trim() || null
-    const current = flight.estimatedDepartureTime
-    if (trimmed === current) return
+    if (trimmed === flight.estimatedDepartureTime) return
     startTransition(async () => {
       const result = await updateFlight(flight.id, { estimatedDepartureTime: trimmed })
       if (result.error) toast.error(result.error)
@@ -86,38 +84,43 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: 
     })
   }
 
-  function handleDelete() {
-    setConfirmDelete(false)
-    onDelete()
-  }
-
   return (
     <div
       ref={setSortableRef}
       style={style}
-      className={`w-72 flex-shrink-0 flex flex-col rounded-xl border transition-all ${
+      className={`w-full rounded-[10px] border overflow-hidden transition-all ${
         isDragging
-          ? 'opacity-50 border-sky-600 bg-zinc-800'
-          : 'border-zinc-700 bg-zinc-900'
+          ? 'opacity-50 border-primary/30 shadow-lg'
+          : 'border-border shadow-[0_1px_4px_rgba(0,0,0,0.05)]'
       }`}
     >
-      {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-zinc-800">
+      {/* Header — slightly lighter than card body to create subtle depth */}
+      <div
+        className={`flex items-center gap-2.5 px-3.5 py-2.5 ${flight.participants.length > 0 ? 'border-b border-border' : ''}`}
+        style={{ background: 'oklch(0.991 0.003 55)' }}
+      >
         {/* Drag handle */}
         <button
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing text-zinc-600 hover:text-zinc-400 flex-shrink-0 touch-none"
+          className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none flex items-center"
+          style={{ opacity: 0.35 }}
         >
-          <GripVertical size={14} />
+          <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
+            <circle cx="3" cy="2.5" r="1.2"/><circle cx="7" cy="2.5" r="1.2"/>
+            <circle cx="3" cy="7"   r="1.2"/><circle cx="7" cy="7"   r="1.2"/>
+            <circle cx="3" cy="11.5" r="1.2"/><circle cx="7" cy="11.5" r="1.2"/>
+          </svg>
         </button>
 
         {/* Flight number */}
-        <span className="font-mono text-sm font-semibold text-zinc-100">
+        <span className="font-extrabold text-sm text-foreground flex-shrink-0" style={{ letterSpacing: '-0.3px' }}>
           #{flight.flightNumber}
         </span>
 
-        {/* Time (inline edit) */}
+        <span className="text-border font-normal text-[13px] flex-shrink-0">·</span>
+
+        {/* Time */}
         {editingTime ? (
           <input
             type="time"
@@ -131,34 +134,36 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: 
                 setEditingTime(false)
               }
             }}
-            className="bg-zinc-700 border border-zinc-600 rounded px-1 py-0 text-xs text-white outline-none focus:ring-1 focus:ring-sky-500 w-20"
+            className="bg-background border border-input rounded px-1 py-0 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring w-20 flex-shrink-0"
             autoFocus
           />
         ) : (
           <button
             onClick={() => setEditingTime(true)}
-            className="text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 px-1 py-0.5 rounded transition-colors min-w-[44px]"
+            className="text-[13.5px] text-muted-foreground font-medium hover:text-foreground hover:bg-secondary px-1 py-0.5 rounded transition-colors flex-shrink-0 tabular-nums"
           >
-            {flight.estimatedDepartureTime ?? '- - : - -'}
+            {flight.estimatedDepartureTime ?? '-- : --'}
           </button>
         )}
 
-        {/* Status */}
+        {/* Status badge */}
         <DropdownMenu>
           <DropdownMenuTrigger
             disabled={isPending}
-            className={`ml-auto text-[10px] font-medium px-1.5 py-0.5 rounded transition-colors ${statusCfg.className} flex-shrink-0`}
+            className="flex-shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded transition-colors"
+            style={{ background: statusCfg.bg, color: statusCfg.color }}
           >
             {statusCfg.label}
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-700">
+          <DropdownMenuContent align="start">
             {(Object.entries(STATUS_CONFIG) as [FlightStatus, typeof statusCfg][]).map(
               ([status, cfg]) => (
                 <DropdownMenuItem
                   key={status}
                   onClick={() => handleStatusChange(status)}
-                  className={`text-xs cursor-pointer ${cfg.className}`}
+                  className="text-xs cursor-pointer"
                 >
+                  <span className="inline-block w-2 h-2 rounded-sm mr-2 flex-shrink-0" style={{ background: cfg.color, opacity: 0.7 }} />
                   {cfg.label}
                 </DropdownMenuItem>
               )
@@ -166,60 +171,61 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: 
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Delete */}
-        <div className="flex-shrink-0 ml-1">
-          {confirmDelete ? (
-            <div className="flex items-center gap-1">
-              <button
-                onClick={handleDelete}
-                disabled={isPending}
-                className="text-[10px] text-red-400 hover:text-red-300"
-              >
-                Sí
-              </button>
-              <button
-                onClick={() => setConfirmDelete(false)}
-                className="text-[10px] text-zinc-500 hover:text-zinc-300"
-              >
-                No
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setConfirmDelete(true)}
-              className="text-zinc-600 hover:text-red-400 transition-colors"
+        <span className="text-xs text-muted-foreground flex-shrink-0">
+          {flight.participants.length} {flight.participants.length === 1 ? 'participante' : 'participantes'}
+        </span>
+
+        <div className="flex-1" />
+
+        {/* + Añadir — bordered ghost */}
+        <button
+          onClick={onAddParticipant}
+          className="flex items-center gap-1 text-[12.5px] font-medium text-muted-foreground hover:text-foreground px-2.5 py-1 rounded-md border border-border bg-transparent transition-colors flex-shrink-0"
+          style={{ letterSpacing: '-0.1px' }}
+        >
+          + Añadir
+        </button>
+
+        {/* ⋮ Options — bordered ghost */}
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex items-center justify-center text-muted-foreground hover:text-foreground p-1.5 rounded-md border border-border bg-transparent transition-colors flex-shrink-0">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <circle cx="8" cy="3.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="8" cy="12.5" r="1.2"/>
+            </svg>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={onDelete}
+              className="text-destructive focus:text-destructive cursor-pointer text-xs"
             >
-              <Trash2 size={13} />
-            </button>
-          )}
-        </div>
+              <Trash2 size={12} className="mr-2" />
+              Eliminar vuelo
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      {/* Participants drop zone */}
+      {/* Participants — flat rows with border-bottom, no individual cards */}
       <div
         ref={setDropRef}
-        className={`flex-1 p-2 space-y-1.5 min-h-[64px] rounded-b-xl transition-colors ${
-          isOver ? 'bg-sky-950/30 ring-1 ring-inset ring-sky-800' : ''
-        }`}
+        className={`transition-colors ${isOver ? 'bg-secondary/50 ring-1 ring-inset ring-primary/20' : 'bg-card'}`}
       >
-        {flight.participants.map((participant) => (
-          <ParticipantRow
-            key={participant.id}
-            participant={participant}
-            flightId={flight.id}
-            instructors={instructors}
-          />
-        ))}
+        {flight.participants.length === 0 ? (
+          <div className="flex items-center justify-center py-4 text-xs text-muted-foreground/40 select-none">
+            Suelta participantes aquí
+          </div>
+        ) : (
+          flight.participants.map((participant) => (
+            <ParticipantRow
+              key={participant.id}
+              participant={participant}
+              flightId={flight.id}
+              instructors={instructors}
+            />
+          ))
+        )}
       </div>
-
-      {/* Add participant */}
-      <button
-        onClick={onAddParticipant}
-        className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/60 border-t border-zinc-800 rounded-b-xl transition-colors"
-      >
-        <Plus size={13} />
-        Añadir participante
-      </button>
     </div>
   )
 }

@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>iJump — Prototipo v2</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:            oklch(0.985 0.006 55);
+      --sidebar-bg:    oklch(0.972 0.009 55);
+      --surface:       oklch(0.999 0.002 55);
+      --surface-hover: oklch(0.993 0.005 55);
+      --border:        oklch(0.912 0.009 55);
+      --border-strong: oklch(0.860 0.012 55);
+      --text:          oklch(0.175 0.015 55);
+      --text-muted:    oklch(0.480 0.012 55);
+      --text-subtle:   oklch(0.680 0.008 55);
+      --brand:         oklch(0.640 0.175 42);
+      --brand-hover:   oklch(0.595 0.182 42);
+      --brand-light:   oklch(0.957 0.038 55);
+      --brand-muted:   oklch(0.882 0.068 50);
+      --radius-sm: 5px;
+      --radius:    8px;
+      --radius-lg: 12px;
+    }
+
+    html, body, #root {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    button { cursor: pointer; font-family: inherit; }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+    .nav-btn { transition: background 0.1s, color 0.1s; }
+    .nav-btn:hover:not(.active) { background: var(--surface-hover) !important; color: var(--text) !important; }
+
+    .day-cell-empty:hover { background: var(--brand-light) !important; border-color: var(--brand-muted) !important; }
+    .day-cell-empty:hover .day-num { color: var(--brand) !important; }
+
+    .day-cell-active:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.09) !important; border-color: var(--brand-muted) !important; }
+
+    .add-flight-btn:hover { border-color: var(--brand-muted) !important; color: var(--brand) !important; background: var(--brand-light) !important; }
+
+    .participant-row:hover { background: var(--bg) !important; }
+    .ghost-btn:hover { border-color: var(--border-strong) !important; color: var(--text) !important; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState } = React;
+
+    // ─── Static data ─────────────────────────────────────────────────────────────
+
+    const DAYS_WITH_DATA = {
+      3:  { flights: 2, jumps: 5  },
+      10: { flights: 4, jumps: 9  },
+      15: { flights: 3, jumps: 7  },
+      17: { flights: 2, jumps: 4  },
+      24: { flights: 5, jumps: 11 },
+      25: { flights: 3, jumps: 8  },
+      28: { flights: 4, jumps: 7  },
+    };
+
+    const FLIGHTS = [
+      {
+        id: 1, number: 1, time: '09:00',
+        status: 'Programado', statusBg: '#F4F4F5', statusColor: '#71717A',
+        participants: [
+          {
+            name: 'Juan García', statusLabel: 'Pendiente', statusBg: '#F4F4F5', statusColor: '#71717A',
+            pkg: 'HC',   pkgBg: '#EFF6FF', pkgColor: '#3B82F6',
+            instructor: 'Carlos R.', w: false, c: false, g: false, weight: 75, payment: '65€',
+          },
+          {
+            name: 'Ana Martínez', statusLabel: 'Check-in',  statusBg: '#EFF6FF', statusColor: '#3B82F6',
+            pkg: 'Solo', pkgBg: '#F4F4F5', pkgColor: '#71717A',
+            instructor: '—', w: true, c: true, g: false, weight: 60, payment: null,
+          },
+        ],
+      },
+      {
+        id: 2, number: 2, time: '10:30',
+        status: 'Embarcando', statusBg: '#EFF6FF', statusColor: '#3B82F6',
+        participants: [
+          {
+            name: 'Pedro Sánchez', statusLabel: 'Equipado', statusBg: '#FFF7ED', statusColor: '#EA580C',
+            pkg: 'HC+F', pkgBg: '#EFF6FF', pkgColor: '#3B82F6',
+            instructor: 'Luis M.', w: true, c: true, g: true, weight: 82, payment: '190€',
+          },
+          {
+            name: 'María López', statusLabel: 'Briefed', statusBg: '#FEFCE8', statusColor: '#CA8A04',
+            pkg: 'VE',   pkgBg: '#EEF2FF', pkgColor: '#6366F1',
+            instructor: 'Carlos R.', w: true, c: true, g: false, weight: 58, payment: '225€',
+          },
+        ],
+      },
+      {
+        id: 3, number: 3, time: '11:45',
+        status: 'Programado', statusBg: '#F4F4F5', statusColor: '#71717A',
+        participants: [
+          {
+            name: 'Roberto Silva', statusLabel: 'Pendiente', statusBg: '#F4F4F5', statusColor: '#71717A',
+            pkg: 'Solo', pkgBg: '#F4F4F5', pkgColor: '#71717A',
+            instructor: '—', w: false, c: false, g: false, weight: 71, payment: null,
+          },
+        ],
+      },
+    ];
+
+    // ─── Icons (inline SVG, no lib needed) ───────────────────────────────────────
+
+    const IconCalendar = () => (
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="3" width="12" height="12" rx="2"/>
+        <path d="M5 1v4M11 1v4M2 7h12"/>
+      </svg>
+    );
+
+    const IconSun = () => (
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+        <circle cx="8" cy="8" r="3"/>
+        <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41"/>
+      </svg>
+    );
+
+    const IconArrowLeft = () => (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M10 3L5 8l5 5"/>
+      </svg>
+    );
+
+    const IconDots = () => (
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+        <circle cx="8" cy="3.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="8" cy="12.5" r="1.2"/>
+      </svg>
+    );
+
+    const IconGrip = () => (
+      <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" opacity="0.35">
+        <circle cx="3" cy="2.5" r="1.2"/><circle cx="7" cy="2.5" r="1.2"/>
+        <circle cx="3" cy="7"   r="1.2"/><circle cx="7" cy="7"   r="1.2"/>
+        <circle cx="3" cy="11.5" r="1.2"/><circle cx="7" cy="11.5" r="1.2"/>
+      </svg>
+    );
+
+    // ─── Sidebar ──────────────────────────────────────────────────────────────────
+
+    function Sidebar({ view, onViewChange }) {
+      const navItems = [
+        { id: 'calendar', label: 'Calendario', Icon: IconCalendar },
+        { id: 'day',      label: 'Hoy · 26 mayo', Icon: IconSun   },
+      ];
+
+      return (
+        <aside style={{
+          width: 224, flexShrink: 0,
+          background: 'var(--sidebar-bg)',
+          borderRight: '1px solid var(--border)',
+          display: 'flex', flexDirection: 'column',
+          height: '100vh',
+        }}>
+          {/* Logo */}
+          <div style={{ padding: '18px 16px 16px', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <div style={{
+                width: 30, height: 30, borderRadius: 8,
+                background: 'var(--brand)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="white">
+                  <path d="M10 2C6 2 2 6 2 10c0 2.5 1.2 4.7 3 6.1L10 18l5-1.9C16.8 14.7 18 12.5 18 10c0-4-4-8-8-8z" opacity="0.9"/>
+                  <circle cx="10" cy="10" r="2.5" fill="rgba(255,255,255,0.9)"/>
+                </svg>
+              </div>
+              <span style={{ fontWeight: 700, fontSize: 15.5, color: 'var(--text)', letterSpacing: '-0.4px' }}>iJump</span>
+            </div>
+          </div>
+
+          {/* Nav */}
+          <nav style={{ padding: '8px 8px 0', flex: 1 }}>
+            {navItems.map(({ id, label, Icon }) => {
+              const active = view === id;
+              return (
+                <button
+                  key={id}
+                  className={`nav-btn${active ? ' active' : ''}`}
+                  onClick={() => onViewChange(id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 9,
+                    width: '100%', padding: '7px 10px', borderRadius: 7,
+                    border: 'none',
+                    background: active ? 'var(--brand-light)' : 'transparent',
+                    color: active ? 'var(--brand)' : 'var(--text-muted)',
+                    fontWeight: active ? 600 : 400,
+                    fontSize: 13.5, textAlign: 'left',
+                    marginBottom: 1,
+                  }}
+                >
+                  <Icon />
+                  {label}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Bottom */}
+          <div style={{ padding: '12px 12px 14px', borderTop: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: 12.5, color: 'var(--text)', fontWeight: 500 }}>Admin</div>
+                <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 1 }}>admin@ijump.es</div>
+              </div>
+              <button style={{
+                padding: '5px 9px', borderRadius: 6,
+                border: '1px solid var(--border)',
+                background: 'transparent', color: 'var(--text-subtle)',
+                fontSize: 11.5,
+              }}>
+                Salir
+              </button>
+            </div>
+          </div>
+        </aside>
+      );
+    }
+
+    // ─── Calendar View ────────────────────────────────────────────────────────────
+
+    function CalendarView({ onDayClick }) {
+      // May 2026: starts on Friday → Mon-indexed offset = 4
+      const OFFSET = 4;
+      const DAYS   = 31;
+      const TODAY  = 26;
+      const WDS    = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+      const cells = [
+        ...Array(OFFSET).fill(null),
+        ...Array.from({ length: DAYS }, (_, i) => i + 1),
+      ];
+
+      return (
+        <div style={{ padding: '28px 32px', maxWidth: 980, margin: '0 auto' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button style={{ padding: '5px 9px', borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: 15 }}>‹</button>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.5px', minWidth: 148 }}>
+                Mayo 2026
+              </h2>
+              <button style={{ padding: '5px 9px', borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: 15 }}>›</button>
+              <button style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-subtle)', fontSize: 12.5 }}>Hoy</button>
+            </div>
+            <button style={{
+              padding: '8px 18px', borderRadius: 8,
+              background: 'var(--brand)', color: 'white',
+              border: 'none', fontSize: 13.5, fontWeight: 600,
+              letterSpacing: '-0.2px',
+            }}>
+              + Nueva Jornada
+            </button>
+          </div>
+
+          {/* Weekday headers */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
+            {WDS.map(d => (
+              <div key={d} style={{
+                textAlign: 'center', fontSize: 11, fontWeight: 600,
+                color: 'var(--text-subtle)', padding: '3px 0',
+                textTransform: 'uppercase', letterSpacing: '0.06em',
+              }}>{d}</div>
+            ))}
+          </div>
+
+          {/* Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+            {cells.map((day, idx) => {
+              if (!day) return <div key={`e${idx}`} style={{ minHeight: 82 }} />;
+
+              const data    = DAYS_WITH_DATA[day];
+              const isToday = day === TODAY;
+              const is28    = day === 28;
+
+              if (data) {
+                return (
+                  <div
+                    key={day}
+                    className="day-cell-active"
+                    onClick={() => is28 && onDayClick()}
+                    style={{
+                      minHeight: 82, borderRadius: 9, padding: '9px 11px',
+                      background: 'var(--surface)',
+                      border: `1px solid ${isToday ? 'var(--brand-muted)' : 'var(--border)'}`,
+                      borderTop: `2px solid ${isToday ? 'var(--brand)' : is28 ? 'var(--brand-muted)' : 'var(--border)'}`,
+                      cursor: is28 ? 'pointer' : 'default',
+                      display: 'flex', flexDirection: 'column',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                      transition: 'box-shadow 0.12s, border-color 0.12s',
+                    }}
+                  >
+                    <span className="day-num" style={{
+                      fontSize: 14, fontWeight: 700, lineHeight: 1,
+                      color: isToday ? 'var(--brand)' : 'var(--text)',
+                    }}>{day}</span>
+                    <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{data.flights} vuelos</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{data.jumps} saltos</span>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <button
+                  key={day}
+                  className="day-cell-empty"
+                  style={{
+                    minHeight: 82, borderRadius: 9, padding: '9px 11px',
+                    background: 'transparent',
+                    border: `1px solid ${isToday ? 'var(--brand-muted)' : 'var(--border)'}`,
+                    borderTop: `2px solid ${isToday ? 'var(--brand)' : 'var(--border)'}`,
+                    textAlign: 'left', display: 'flex', flexDirection: 'column',
+                    transition: 'background 0.12s, border-color 0.12s',
+                  }}
+                >
+                  <span className="day-num" style={{
+                    fontSize: 14, fontWeight: isToday ? 700 : 400, lineHeight: 1,
+                    color: isToday ? 'var(--brand)' : 'var(--text-subtle)',
+                    transition: 'color 0.12s',
+                  }}>{day}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    // ─── Participant Row ──────────────────────────────────────────────────────────
+
+    function ParticipantRow({ p }) {
+      return (
+        <div
+          className="participant-row"
+          style={{
+            display: 'flex', alignItems: 'center',
+            padding: '8px 14px',
+            borderBottom: '1px solid var(--border)',
+            background: 'var(--surface)',
+            gap: 8, fontSize: 12.5,
+            transition: 'background 0.08s',
+          }}
+        >
+          {/* Grip */}
+          <span style={{ flexShrink: 0, cursor: 'grab', display: 'flex', alignItems: 'center' }}>
+            <IconGrip />
+          </span>
+
+          {/* Name */}
+          <span style={{ fontWeight: 500, color: 'var(--text)', minWidth: 116, flexShrink: 0 }}>
+            {p.name}
+          </span>
+
+          {/* Status */}
+          <span style={{
+            padding: '2px 7px', borderRadius: 5,
+            background: p.statusBg, color: p.statusColor,
+            fontSize: 11, fontWeight: 600, flexShrink: 0, letterSpacing: '-0.1px',
+          }}>{p.statusLabel}</span>
+
+          {/* Package */}
+          <span style={{
+            padding: '2px 7px', borderRadius: 5,
+            background: p.pkgBg, color: p.pkgColor,
+            fontSize: 11, fontWeight: 700, flexShrink: 0,
+          }}>{p.pkg}</span>
+
+          {/* Instructor */}
+          <span style={{
+            color: 'var(--text-muted)', fontSize: 12, flexShrink: 0,
+            minWidth: 70, fontStyle: p.instructor === '—' ? 'normal' : 'normal',
+          }}>{p.instructor}</span>
+
+          {/* Toggles W / C / G */}
+          <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+            {[
+              { l: 'W', v: p.w, bg: '#FAF5FF', c: '#9333EA' },
+              { l: 'C', v: p.c, bg: '#EFF6FF', c: '#3B82F6' },
+              { l: 'G', v: p.g, bg: '#FFF7ED', c: '#EA580C' },
+            ].map(({ l, v, bg, c }) => (
+              <div key={l} style={{
+                width: 20, height: 20, borderRadius: 4,
+                background: v ? bg : 'transparent',
+                border: `1px solid ${v ? c + '55' : 'var(--border)'}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: v ? 9 : 9, fontWeight: 700,
+                color: v ? c : 'var(--text-subtle)',
+                cursor: 'pointer', userSelect: 'none', flexShrink: 0,
+              }}>
+                {v ? '✓' : l}
+              </div>
+            ))}
+          </div>
+
+          {/* Weight */}
+          <span style={{
+            fontSize: 12, color: 'var(--text-muted)',
+            minWidth: 36, textAlign: 'right', flexShrink: 0,
+          }}>
+            {p.weight ? `${p.weight}kg` : <span style={{ color: 'var(--text-subtle)' }}>—</span>}
+          </span>
+
+          {/* Payment */}
+          <div style={{ marginLeft: 'auto', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+            {p.payment ? (
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: '#059669' }}>{p.payment}</span>
+            ) : (
+              <button style={{
+                padding: '2px 7px', borderRadius: 5,
+                border: '1px solid var(--border)',
+                background: 'transparent', color: 'var(--text-subtle)',
+                fontSize: 11,
+              }}>+ Pago</button>
+            )}
+          </div>
+
+          {/* Remove */}
+          <button style={{
+            color: 'var(--text-subtle)', background: 'none', border: 'none',
+            fontSize: 15, padding: '0 3px', flexShrink: 0, lineHeight: 1,
+          }}>×</button>
+        </div>
+      );
+    }
+
+    // ─── Flight Card ──────────────────────────────────────────────────────────────
+
+    function FlightCard({ flight }) {
+      const hasParticipants = flight.participants.length > 0;
+
+      return (
+        <div style={{
+          borderRadius: 10,
+          border: '1px solid var(--border)',
+          background: 'var(--surface)',
+          overflow: 'hidden',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+          transition: 'box-shadow 0.12s',
+        }}>
+          {/* Flight header */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '10px 14px',
+            borderBottom: hasParticipants ? '1px solid var(--border)' : 'none',
+            background: 'oklch(0.991 0.003 55)',
+          }}>
+            <span style={{ cursor: 'grab', display: 'flex', flexShrink: 0 }}><IconGrip /></span>
+
+            <span style={{ fontWeight: 800, fontSize: 14, color: 'var(--text)', letterSpacing: '-0.3px' }}>
+              #{flight.number}
+            </span>
+
+            <span style={{ color: 'var(--border-strong)', fontSize: 13 }}>·</span>
+
+            <span style={{ fontSize: 13.5, color: 'var(--text-muted)', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+              {flight.time}
+            </span>
+
+            <span style={{
+              padding: '2px 8px', borderRadius: 5,
+              background: flight.statusBg, color: flight.statusColor,
+              fontSize: 11, fontWeight: 600,
+            }}>{flight.status}</span>
+
+            <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>
+              {flight.participants.length} {flight.participants.length === 1 ? 'participante' : 'participantes'}
+            </span>
+
+            <div style={{ flex: 1 }} />
+
+            <button className="ghost-btn" style={{
+              padding: '5px 11px', borderRadius: 6,
+              border: '1px solid var(--border)',
+              background: 'transparent', color: 'var(--text-muted)',
+              fontSize: 12.5, fontWeight: 500,
+              display: 'flex', alignItems: 'center', gap: 4,
+              transition: 'border-color 0.1s, color 0.1s',
+            }}>
+              + Añadir
+            </button>
+
+            <button style={{
+              padding: '5px 7px', borderRadius: 6,
+              border: '1px solid var(--border)',
+              background: 'transparent', color: 'var(--text-subtle)',
+              display: 'flex', alignItems: 'center',
+            }}>
+              <IconDots />
+            </button>
+          </div>
+
+          {/* Participants */}
+          {flight.participants.map((p, i) => (
+            <ParticipantRow key={i} p={p} />
+          ))}
+        </div>
+      );
+    }
+
+    // ─── Day View ─────────────────────────────────────────────────────────────────
+
+    function DayView({ onBack }) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          {/* Day header */}
+          <div style={{
+            padding: '18px 28px 16px',
+            borderBottom: '1px solid var(--border)',
+            background: 'var(--bg)', flexShrink: 0,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button
+                onClick={onBack}
+                style={{
+                  background: 'none', border: 'none', color: 'var(--text-muted)',
+                  display: 'flex', alignItems: 'center', padding: '4px 2px',
+                }}
+              >
+                <IconArrowLeft />
+              </button>
+
+              <div>
+                <h1 style={{
+                  fontSize: 18, fontWeight: 700, color: 'var(--text)',
+                  letterSpacing: '-0.5px', textTransform: 'capitalize',
+                }}>
+                  Miércoles, 28 de mayo de 2026
+                </h1>
+                <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 2 }}>
+                  4 vuelos · 7 participantes
+                </p>
+              </div>
+
+              {/* Weather */}
+              <div style={{
+                marginLeft: 8, padding: '4px 11px', borderRadius: 7,
+                border: '1px solid #BBF7D0',
+                background: '#F0FDF4', color: '#16A34A',
+                fontSize: 12, fontWeight: 600,
+                display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
+              }}>
+                <IconSun />
+                OK
+              </div>
+
+              {/* Notes field */}
+              <button style={{
+                marginLeft: 4, padding: '4px 11px', borderRadius: 7,
+                border: '1px dashed var(--border)',
+                background: 'transparent', color: 'var(--text-subtle)',
+                fontSize: 12, flexShrink: 0,
+              }}>
+                + Notas del día
+              </button>
+            </div>
+          </div>
+
+          {/* Flights list */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px 16px' }}>
+            <div style={{ maxWidth: 880, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {FLIGHTS.map(f => <FlightCard key={f.id} flight={f} />)}
+
+              {/* Add flight */}
+              <button
+                className="add-flight-btn"
+                style={{
+                  padding: '13px 20px', borderRadius: 10,
+                  border: '2px dashed var(--border)',
+                  background: 'transparent', color: 'var(--text-subtle)',
+                  fontSize: 13.5, fontWeight: 500,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  transition: 'all 0.12s',
+                }}
+              >
+                + Añadir vuelo
+              </button>
+            </div>
+          </div>
+
+          {/* Summary panel */}
+          <div style={{
+            borderTop: '1px solid var(--border)',
+            background: 'var(--surface)',
+            padding: '10px 28px',
+            flexShrink: 0,
+          }}>
+            <div style={{ maxWidth: 880, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 0 }}>
+              <span style={{
+                fontSize: 10.5, fontWeight: 700, color: 'var(--text-subtle)',
+                textTransform: 'uppercase', letterSpacing: '0.08em',
+                marginRight: 20,
+              }}>Resumen</span>
+
+              {/* Stats */}
+              {[
+                { value: '4',      label: 'vuelos',   color: 'var(--text)'  },
+                { value: '7',      label: 'saltos',   color: 'var(--text)'  },
+                { value: '1.450€', label: 'ingresos', color: 'var(--brand)' },
+              ].map(({ value, label, color }, i) => (
+                <React.Fragment key={label}>
+                  {i > 0 && <div style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 20px' }} />}
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+                    <span style={{ fontSize: 15, fontWeight: 800, color, letterSpacing: '-0.4px' }}>{value}</span>
+                    <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{label}</span>
+                  </div>
+                </React.Fragment>
+              ))}
+
+              {/* Right side breakdown */}
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 18, alignItems: 'center' }}>
+                {[
+                  { l: 'HC', v: 2 }, { l: 'Video', v: 1 },
+                  { l: 'Directo', v: 3 }, { l: 'Groupon', v: 0 },
+                ].map(({ l, v }) => (
+                  <div key={l} style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    {l}: <strong style={{ color: v > 0 ? 'var(--text)' : 'var(--text-subtle)', fontWeight: 700 }}>{v}</strong>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── App ─────────────────────────────────────────────────────────────────────
+
+    function App() {
+      const [view, setView] = useState('calendar');
+
+      return (
+        <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)' }}>
+          <Sidebar view={view} onViewChange={setView} />
+          <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            {view === 'calendar' ? (
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <CalendarView onDayClick={() => setView('day')} />
+              </div>
+            ) : (
+              <DayView onBack={() => setView('calendar')} />
+            )}
+          </main>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

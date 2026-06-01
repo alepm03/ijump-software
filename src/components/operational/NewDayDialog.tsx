@@ -51,56 +51,49 @@ export function NewDayDialog({ open, initialDate, onOpenChange }: NewDayDialogPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-zinc-900 border-zinc-700 text-white sm:max-w-sm">
+      <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Nueva Jornada</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="date" className="text-zinc-300">
-              Fecha
-            </Label>
+            <Label htmlFor="date">Fecha</Label>
             <Input
               id="date"
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               required
-              className="bg-zinc-800 border-zinc-700 text-white"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="startTime" className="text-zinc-300">
-              Hora del primer vuelo
-            </Label>
+            <Label htmlFor="startTime">Hora del primer vuelo</Label>
             <Input
               id="startTime"
               type="time"
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
               required
-              className="bg-zinc-800 border-zinc-700 text-white"
             />
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-muted-foreground">
               Se crearán 5 vuelos automáticamente cada hora desde esta hora.
             </p>
           </div>
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <DialogFooter>
             <Button
               type="button"
               variant="ghost"
               onClick={() => onOpenChange(false)}
-              className="text-zinc-400"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               disabled={isPending}
-              className="bg-sky-600 hover:bg-sky-500 text-white"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               {isPending ? 'Creando...' : 'Crear jornada'}
             </Button>

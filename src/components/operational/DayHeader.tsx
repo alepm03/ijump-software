@@ -17,21 +17,21 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { OperationalDayWithDetails, WeatherStatus } from '@/types/domain'
 
-const WEATHER_CONFIG: Record<WeatherStatus, { label: string; icon: React.ReactNode; className: string }> = {
+const WEATHER_CONFIG: Record<WeatherStatus, { label: string; icon: React.ReactNode; bg: string; border: string; color: string }> = {
   OK: {
     label: 'OK',
-    icon: <Sun size={14} />,
-    className: 'text-emerald-400 border-emerald-800 hover:bg-emerald-900/30',
+    icon: <Sun size={13} />,
+    bg: '#F0FDF4', border: '#BBF7D0', color: '#16A34A',
   },
   MARGINAL: {
     label: 'Marginal',
-    icon: <Cloud size={14} />,
-    className: 'text-yellow-400 border-yellow-800 hover:bg-yellow-900/30',
+    icon: <Cloud size={13} />,
+    bg: '#FEFCE8', border: '#FDE68A', color: '#CA8A04',
   },
   CANCELLED: {
     label: 'Cancelado',
-    icon: <CloudOff size={14} />,
-    className: 'text-red-400 border-red-800 hover:bg-red-900/30',
+    icon: <CloudOff size={13} />,
+    bg: '#FFF1F2', border: '#FECDD3', color: '#E11D48',
   },
 }
 
@@ -49,6 +49,10 @@ export function DayHeader({ day }: DayHeaderProps) {
   const weather = WEATHER_CONFIG[day.weatherStatus]
 
   const totalJumps = day.flights.reduce((acc, f) => acc + f.participants.length, 0)
+
+  // "martes, 26 de mayo de 2026" — capitalize only first letter
+  const rawDate = format(date, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })
+  const dateDisplay = rawDate.charAt(0).toUpperCase() + rawDate.slice(1)
 
   function handleWeatherChange(status: WeatherStatus) {
     startTransition(async () => {
@@ -71,17 +75,17 @@ export function DayHeader({ day }: DayHeaderProps) {
   }
 
   return (
-    <div className="border-b border-zinc-800 bg-zinc-900/90 backdrop-blur-sm px-4 py-3 sticky top-0 z-10">
-      <div className="flex items-center gap-3 max-w-screen-2xl mx-auto">
-        <Link href="/" className="text-zinc-400 hover:text-zinc-200 transition-colors">
-          <ArrowLeft size={18} />
+    <div className="flex-shrink-0 border-b border-border px-7 py-[18px]" style={{ background: 'var(--background)' }}>
+      <div className="flex items-center gap-3 max-w-[880px] mx-auto">
+        <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors flex items-center p-1">
+          <ArrowLeft size={16} />
         </Link>
 
-        <div className="min-w-0">
-          <h1 className="text-base font-semibold text-white capitalize leading-tight">
-            {format(date, "EEEE d 'de' MMMM yyyy", { locale: es })}
+        <div>
+          <h1 className="text-[18px] font-bold text-foreground leading-tight" style={{ letterSpacing: '-0.5px' }}>
+            {dateDisplay}
           </h1>
-          <p className="text-xs text-zinc-500 leading-tight">
+          <p className="text-[12.5px] text-muted-foreground mt-0.5">
             {day.flights.length} vuelos · {totalJumps} participantes
           </p>
         </div>
@@ -90,18 +94,20 @@ export function DayHeader({ day }: DayHeaderProps) {
         <DropdownMenu>
           <DropdownMenuTrigger
             disabled={isPending}
-            className={`flex items-center gap-1.5 text-xs h-7 px-2.5 bg-transparent border rounded-md transition-colors ${weather.className}`}
+            className="flex items-center gap-1.5 text-xs font-semibold h-7 px-2.5 rounded-[7px] border transition-colors flex-shrink-0 ml-2"
+            style={{ background: weather.bg, borderColor: weather.border, color: weather.color }}
           >
             {weather.icon}
             {weather.label}
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="bg-zinc-900 border-zinc-700">
+          <DropdownMenuContent align="start">
             {(Object.entries(WEATHER_CONFIG) as [WeatherStatus, typeof weather][]).map(
               ([status, cfg]) => (
                 <DropdownMenuItem
                   key={status}
                   onClick={() => handleWeatherChange(status)}
-                  className={`flex items-center gap-2 cursor-pointer ${cfg.className}`}
+                  className="flex items-center gap-2 cursor-pointer text-xs"
+                  style={{ color: cfg.color }}
                 >
                   {cfg.icon}
                   {cfg.label}
@@ -112,32 +118,26 @@ export function DayHeader({ day }: DayHeaderProps) {
         </DropdownMenu>
 
         {/* Notes */}
-        <div className="flex-1 min-w-0 max-w-xs">
+        <div className="flex-1 min-w-0 max-w-xs ml-1">
           {editingNotes ? (
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               onBlur={handleNotesSave}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  handleNotesSave()
-                }
-                if (e.key === 'Escape') {
-                  setNotes(day.notes ?? '')
-                  setEditingNotes(false)
-                }
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleNotesSave() }
+                if (e.key === 'Escape') { setNotes(day.notes ?? ''); setEditingNotes(false) }
               }}
               placeholder="Notas del día..."
-              className="text-xs h-8 min-h-0 py-1 bg-zinc-800 border-zinc-700 text-zinc-200 placeholder:text-zinc-600 resize-none"
+              className="text-xs h-8 min-h-0 py-1 resize-none"
               autoFocus
             />
           ) : (
             <button
               onClick={() => setEditingNotes(true)}
-              className="text-xs text-zinc-500 hover:text-zinc-300 truncate block w-full text-left px-1 py-1 rounded hover:bg-zinc-800/60 transition-colors"
+              className="text-xs px-2.5 py-1 rounded-[7px] border border-dashed border-border bg-transparent text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
             >
-              {notes || 'Añadir notas...'}
+              {notes || '+ Notas del día'}
             </button>
           )}
         </div>

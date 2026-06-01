@@ -19,14 +19,25 @@ export function DayCard({ day, isToday }: DayCardProps) {
     <Link
       href={`/${day.date}`}
       className={`
-        flex flex-col gap-1 rounded-lg border p-2 h-full min-h-[80px]
-        transition-colors hover:border-sky-500 hover:bg-zinc-800/60
-        ${isToday ? 'border-sky-600 bg-zinc-800/40' : 'border-zinc-700 bg-zinc-900/60'}
+        flex flex-col gap-1 rounded-[9px] p-2.5 h-full min-h-[82px]
+        transition-all hover:shadow-md
         ${day.weatherStatus === 'CANCELLED' ? 'opacity-60' : ''}
       `}
+      style={{
+        background: 'var(--card)',
+        borderWidth: isToday ? '1px' : '1px',
+        borderStyle: 'solid',
+        borderColor: isToday ? 'oklch(0.882 0.068 50)' : 'var(--border)',
+        borderTopWidth: '2px',
+        borderTopColor: isToday ? 'var(--primary)' : 'oklch(0.882 0.068 50)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+      }}
     >
       <div className="flex items-start justify-between gap-1">
-        <span className={`text-sm font-semibold leading-none ${isToday ? 'text-sky-400' : 'text-zinc-200'}`}>
+        <span
+          className="text-sm font-bold leading-none"
+          style={{ color: isToday ? 'var(--primary)' : 'var(--foreground)' }}
+        >
           {day.date.slice(8)}
         </span>
         {weatherBadge && (
@@ -36,10 +47,10 @@ export function DayCard({ day, isToday }: DayCardProps) {
         )}
       </div>
       <div className="mt-auto flex flex-col gap-0.5">
-        <span className="text-xs text-zinc-400">
+        <span className="text-[11px] text-muted-foreground">
           {day.flightCount} {day.flightCount === 1 ? 'vuelo' : 'vuelos'}
         </span>
-        <span className="text-xs text-zinc-400">
+        <span className="text-[11px] text-muted-foreground">
           {day.jumpCount} {day.jumpCount === 1 ? 'salto' : 'saltos'}
         </span>
       </div>

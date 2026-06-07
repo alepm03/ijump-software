@@ -276,29 +276,41 @@ export type Database = {
         Row: {
           accepted: boolean
           created_at: string
+          document_type: string
+          form_data: Json | null
           id: string
           participant_id: string
           pdf_url: string | null
           signature_url: string | null
           signed_at: string
+          status: string
+          token: string
         }
         Insert: {
           accepted?: boolean
           created_at?: string
+          document_type?: string
+          form_data?: Json | null
           id?: string
           participant_id: string
           pdf_url?: string | null
           signature_url?: string | null
           signed_at?: string
+          status?: string
+          token?: string
         }
         Update: {
           accepted?: boolean
           created_at?: string
+          document_type?: string
+          form_data?: Json | null
           id?: string
           participant_id?: string
           pdf_url?: string | null
           signature_url?: string | null
           signed_at?: string
+          status?: string
+          token?: string
         }
         Relationships: [
           {

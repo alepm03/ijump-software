@@ -14,9 +14,9 @@ import {
   parseISO,
 } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { DayCard } from './DayCard'
 import { NewDayDialog } from './NewDayDialog'
-import { Button } from '@/components/ui/button'
 import type { OperationalDaySummary } from '@/types/domain'
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
@@ -35,15 +35,14 @@ export function CalendarView({ month, days }: CalendarViewProps) {
   const monthStart = startOfMonth(currentMonth)
   const monthEnd = endOfMonth(currentMonth)
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd })
-
   const startOffset = (getDay(monthStart) + 6) % 7
-
   const daysByDate = new Map(days.map((d) => [d.date, d]))
 
+  const rawMonth = format(currentMonth, 'MMMM yyyy', { locale: es })
+  const monthLabel = rawMonth.charAt(0).toUpperCase() + rawMonth.slice(1)
+
   function navigate(direction: 'prev' | 'next') {
-    const target = direction === 'prev'
-      ? subMonths(currentMonth, 1)
-      : addMonths(currentMonth, 1)
+    const target = direction === 'prev' ? subMonths(currentMonth, 1) : addMonths(currentMonth, 1)
     router.push(`/?month=${format(target, 'yyyy-MM')}`)
   }
 
@@ -53,66 +52,75 @@ export function CalendarView({ month, days }: CalendarViewProps) {
   }
 
   return (
-    // h-full + overflow-y-auto so calendar scrolls inside the fixed-height main area
     <div className="h-full overflow-y-auto">
-      <div className="p-8 max-w-5xl mx-auto">
+      <div className="px-8 py-7 max-w-5xl mx-auto">
+
         {/* Header */}
-        <div className="flex items-center justify-between mb-7">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={() => navigate('prev')}
-              className="px-2.5 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground text-[15px] bg-transparent transition-colors"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
             >
-              ‹
+              <ChevronLeft size={16} strokeWidth={2} />
             </button>
-            <h2 className="text-xl font-bold text-foreground capitalize min-w-[148px] text-center" style={{ letterSpacing: '-0.5px' }}>
-              {format(currentMonth, 'MMMM yyyy', { locale: es })}
-            </h2>
             <button
               onClick={() => navigate('next')}
-              className="px-2.5 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground text-[15px] bg-transparent transition-colors"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
             >
-              ›
+              <ChevronRight size={16} strokeWidth={2} />
             </button>
+            <h2
+              className="text-[22px] font-semibold text-foreground ml-1"
+              style={{ letterSpacing: '-0.5px' }}
+            >
+              {monthLabel}
+            </h2>
             <button
               onClick={() => router.push('/')}
-              className="px-2.5 py-1 rounded-lg border border-border text-muted-foreground hover:text-foreground text-xs bg-transparent transition-colors ml-1"
+              className="ml-2 px-2.5 py-1 rounded-md text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary border border-border transition-colors"
             >
               Hoy
             </button>
           </div>
-          <Button
+
+          <button
             onClick={() => openNewDay(undefined)}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-primary text-primary-foreground text-[13px] font-semibold hover:bg-primary/90 transition-colors"
             style={{ letterSpacing: '-0.2px' }}
           >
-            + Nueva Jornada
-          </Button>
+            <span className="text-[16px] leading-none font-light">+</span>
+            Nueva Jornada
+          </button>
         </div>
 
         {/* Weekday headers */}
-        <div className="grid grid-cols-7 gap-1 mb-1">
+        <div className="grid grid-cols-7 mb-2">
           {WEEKDAYS.map((wd) => (
-            <div key={wd} className="text-center text-[11px] font-semibold text-muted-foreground py-1 uppercase tracking-wider">
+            <div
+              key={wd}
+              className="text-center text-[12px] font-medium text-muted-foreground py-1.5"
+            >
               {wd}
             </div>
           ))}
         </div>
 
-        {/* Calendar grid */}
-        <div className="grid grid-cols-7 gap-1">
+        {/* Grid */}
+        <div className="grid grid-cols-7 gap-1.5">
           {Array.from({ length: startOffset }).map((_, i) => (
-            <div key={`empty-start-${i}`} className="min-h-[82px]" />
+            <div key={`empty-start-${i}`} className="min-h-[96px]" />
           ))}
 
           {daysInMonth.map((date) => {
             const dateStr = format(date, 'yyyy-MM-dd')
             const dayData = daysByDate.get(dateStr)
             const today = dateFnsIsToday(date)
+            const dayNum = format(date, 'd')
 
             if (dayData) {
               return (
-                <div key={dateStr} className="min-h-[82px]">
+                <div key={dateStr}>
                   <DayCard day={dayData} isToday={today} />
                 </div>
               )
@@ -122,17 +130,35 @@ export function CalendarView({ month, days }: CalendarViewProps) {
               <button
                 key={dateStr}
                 onClick={() => openNewDay(dateStr)}
-                className={`
-                  min-h-[82px] rounded-[9px] text-left p-2.5 w-full flex flex-col
-                  transition-all group
-                  ${today
-                    ? 'border-2 border-t-[2px] border-primary/40 bg-transparent'
-                    : 'border border-border bg-transparent hover:bg-secondary/50 hover:border-primary/30'
+                className="min-h-[96px] rounded-xl p-3 w-full flex flex-col items-start group transition-all hover:bg-card"
+                style={{
+                  boxShadow: today
+                    ? '0 0 0 1.5px var(--primary)'
+                    : 'none',
+                }}
+                onMouseEnter={(e) => {
+                  if (!today) {
+                    ;(e.currentTarget as HTMLElement).style.boxShadow =
+                      '0 0 0 1px var(--border), 0 1px 3px rgba(0,0,0,0.04)'
                   }
-                `}
+                }}
+                onMouseLeave={(e) => {
+                  ;(e.currentTarget as HTMLElement).style.boxShadow = today
+                    ? '0 0 0 1.5px var(--primary)'
+                    : 'none'
+                }}
               >
-                <span className={`text-sm font-medium leading-none transition-colors ${today ? 'text-primary font-bold' : 'text-muted-foreground'} group-hover:text-primary`}>
-                  {format(date, 'd')}
+                {today ? (
+                  <span className="w-[26px] h-[26px] rounded-full flex items-center justify-center text-[12.5px] font-bold bg-primary text-primary-foreground leading-none">
+                    {dayNum}
+                  </span>
+                ) : (
+                  <span className="text-[14px] font-medium text-muted-foreground/50 group-hover:text-foreground transition-colors leading-none">
+                    {dayNum}
+                  </span>
+                )}
+                <span className="mt-auto text-[11px] text-muted-foreground/0 group-hover:text-muted-foreground/50 transition-colors">
+                  + Jornada
                 </span>
               </button>
             )

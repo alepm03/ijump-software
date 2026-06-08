@@ -44,15 +44,18 @@ export async function proxy(request: NextRequest) {
     return supabaseResponse
   }
 
-  const isAuthRoute = request.nextUrl.pathname.startsWith('/login')
+  const { pathname } = request.nextUrl
+  const isPublicRoute =
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/waiver/')
 
-  if (!user && !isAuthRoute) {
+  if (!user && !isPublicRoute) {
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/login'
     return NextResponse.redirect(loginUrl)
   }
 
-  if (user && isAuthRoute) {
+  if (user && pathname.startsWith('/login')) {
     const homeUrl = request.nextUrl.clone()
     homeUrl.pathname = '/'
     return NextResponse.redirect(homeUrl)

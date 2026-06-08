@@ -101,13 +101,41 @@ export interface Instructor {
   createdAt: string
 }
 
+export type WaiverDocumentType = 'WAIVER' | 'RGPD'
+export type WaiverStatus = 'PENDING' | 'COMPLETED' | 'EXPIRED'
+
+// Fields collected from the client during the signing flow.
+// Kept as a flat interface so each template can use/omit what it needs.
+export interface WaiverFormData {
+  // Personal data (both documents)
+  fullName: string
+  email: string
+  phone?: string
+  // WAIVER-specific
+  dni?: string
+  dateOfBirth?: string
+  address?: string
+  emergencyContactName?: string
+  emergencyContactPhone?: string
+  // Health declaration checkboxes (WAIVER)
+  healthDeclaration?: Record<string, boolean>
+  // RGPD consent checkboxes
+  dataProcessingConsent?: boolean
+  imageRightsConsent?: boolean
+  marketingConsent?: boolean
+}
+
 export interface Waiver {
   id: string
   participantId: string
-  signedAt: string
+  token: string
+  documentType: WaiverDocumentType
+  status: WaiverStatus
+  formData: WaiverFormData | null
   pdfUrl: string | null
   signatureUrl: string | null
-  accepted: boolean
+  signedAt: string
+  createdAt: string
 }
 
 export interface DailySummary {

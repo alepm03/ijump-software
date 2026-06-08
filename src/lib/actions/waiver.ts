@@ -136,8 +136,20 @@ export async function submitWaiver(
   if (existing.status === 'COMPLETED') return {}
   if (existing.status === 'EXPIRED') return { error: 'expired' }
 
-  // Upload PDF
-  const pdfPath = `${existing.participant_id}/${existing.document_type}/${existing.id}.pdf`
+  // Build paths: NombreCliente/WAIVER/NombreCliente-YYYY-MM-DD-WAIVER.pdf
+  const safeName = (formData.fullName || 'participante')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')  // strip accents
+    .replace(/[^a-zA-Z0-9 ]/g, '')   // remove special chars
+    .trim()
+    .replace(/\s+/g, '-')
+    .substring(0, 40)
+  const dateStr = new Date().toISOString().split('T')[0]
+  const docLabel = existing.document_type  // 'WAIVER' | 'RGPD'
+  const baseName = `${safeName}-${dateStr}-${docLabel}`
+
+  // Upload PDF — NombreCliente/WAIVER/NombreCliente-Fecha-WAIVER.pdf
+  const pdfPath = `${safeName}/${docLabel}/${baseName}.pdf`
   const pdfBuffer = Buffer.from(pdfBase64, 'base64')
   const { error: pdfError } = await supabase.storage
     .from('waiver-documents')
@@ -145,8 +157,8 @@ export async function submitWaiver(
 
   if (pdfError) return { error: `PDF upload failed: ${pdfError.message}` }
 
-  // Upload signature image
-  const sigPath = `${existing.participant_id}/${existing.document_type}/${existing.id}-signature.png`
+  // Upload signature image — NombreCliente/WAIVER/NombreCliente-Fecha-WAIVER-firma.png
+  const sigPath = `${safeName}/${docLabel}/${baseName}-firma.png`
   const sigBuffer = Buffer.from(signatureBase64.replace(/^data:image\/png;base64,/, ''), 'base64')
   const { error: sigError } = await supabase.storage
     .from('waiver-documents')

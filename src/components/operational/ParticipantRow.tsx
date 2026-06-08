@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useRef } from 'react'
+import { useState, useTransition, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useDraggable } from '@dnd-kit/core'
 import { GripVertical } from 'lucide-react'
@@ -35,6 +35,8 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { User } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
+import { createWaiverToken, getParticipantWaivers } from '@/lib/actions/waiver'
 import type {
   ParticipantWithDetails,
   Instructor,
@@ -43,6 +45,8 @@ import type {
   PaymentMethod,
   PaymentStage,
   Payment,
+  Waiver,
+  WaiverDocumentType,
 } from '@/types/domain'
 
 // ─── Status / Package config ─────────────────────────────────────────────────
@@ -368,6 +372,145 @@ function PaymentCell({
   )
 }
 
+// ─── Waiver / documents section ──────────────────────────────────────────────
+
+const DOC_CONFIG: Record<WaiverDocumentType, { label: string }> = {
+  WAIVER: { label: 'Exención de responsabilidad' },
+  RGPD:   { label: 'Protección de datos' },
+}
+
+function WaiverSection({ participantId }: { participantId: string }) {
+  const [waivers, setWaivers] = useState<Waiver[]>([])
+  const [loading, setLoading] = useState(true)
+  const [qrOpen, setQrOpen] = useState(false)
+  const [qrToken, setQrToken] = useState<string | null>(null)
+  const [qrDocType, setQrDocType] = useState<WaiverDocumentType | null>(null)
+  const [generating, setGenerating] = useState<WaiverDocumentType | null>(null)
+  const [origin, setOrigin] = useState('')
+
+  useEffect(() => {
+    setOrigin(window.location.origin)
+    getParticipantWaivers(participantId).then(({ waivers: w }) => {
+      setWaivers(w ?? [])
+      setLoading(false)
+    })
+  }, [participantId])
+
+  async function handleQR(docType: WaiverDocumentType) {
+    setGenerating(docType)
+    const result = await createWaiverToken(participantId, docType)
+    setGenerating(null)
+    if (result.error) {
+      toast.error(result.error)
+    } else if (result.token) {
+      setQrToken(result.token)
+      setQrDocType(docType)
+      setQrOpen(true)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-2 py-1">
+        {[0, 1].map((i) => (
+          <div key={i} className="h-7 rounded bg-secondary animate-pulse" />
+        ))}
+      </div>
+    )
+  }
+
+  const qrUrl = qrToken ? `${origin}/waiver/${qrToken}` : ''
+
+  return (
+    <>
+      <div>
+        {(['WAIVER', 'RGPD'] as WaiverDocumentType[]).map((docType) => {
+          const doc = waivers.find((w) => w.documentType === docType)
+          const completed = doc?.status === 'COMPLETED'
+          const pending = doc?.status === 'PENDING'
+
+          return (
+            <div
+              key={docType}
+              className="flex items-center gap-2 py-2.5 border-b border-border/50 last:border-0"
+            >
+              <span
+                className="text-[9.5px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
+                style={
+                  completed
+                    ? { background: '#ECFDF5', color: '#059669' }
+                    : pending
+                      ? { background: '#EEF2FF', color: '#6366F1' }
+                      : { background: '#F4F4F5', color: '#71717A' }
+                }
+              >
+                {docType}
+              </span>
+
+              <span className="text-sm text-foreground flex-1 truncate">
+                {DOC_CONFIG[docType].label}
+              </span>
+
+              {completed ? (
+                doc?.pdfUrl ? (
+                  <a
+                    href={doc.pdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-primary hover:text-primary/80 font-medium flex-shrink-0 transition-colors"
+                  >
+                    PDF ↗
+                  </a>
+                ) : (
+                  <span
+                    className="text-[11px] font-semibold flex-shrink-0"
+                    style={{ color: '#059669' }}
+                  >
+                    Firmado ✓
+                  </span>
+                )
+              ) : (
+                <button
+                  onClick={() => handleQR(docType)}
+                  disabled={generating === docType}
+                  className="flex-shrink-0 text-[11px] px-2.5 py-1 rounded border border-border bg-transparent text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors disabled:opacity-40"
+                >
+                  {generating === docType ? '…' : pending ? 'Ver QR' : 'Generar QR'}
+                </button>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      <Dialog open={qrOpen} onOpenChange={(open) => setQrOpen(open)}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="text-sm">
+              {qrDocType ? DOC_CONFIG[qrDocType].label : 'Firma'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-2">
+            {qrUrl && (
+              <>
+                <div className="p-3 rounded-xl border border-border bg-white">
+                  <QRCodeSVG value={qrUrl} size={200} />
+                </div>
+                <p className="text-xs text-muted-foreground text-center leading-relaxed">
+                  Muestra este código al participante para que firme el documento en su móvil.
+                </p>
+                <p className="text-[9.5px] text-muted-foreground/40 font-mono break-all text-center">
+                  {qrUrl}
+                </p>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
 // ─── Participant info sheet ───────────────────────────────────────────────────
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -576,6 +719,9 @@ function ParticipantInfoSheet({
 
           <SectionLabel>Notas</SectionLabel>
           <NotesField value={p.notes ?? ''} onSave={(v) => save({ notes: v || null })} />
+
+          <SectionLabel>Documentos</SectionLabel>
+          <WaiverSection participantId={p.id} />
         </div>
       </SheetContent>
     </Sheet>

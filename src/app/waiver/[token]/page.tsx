@@ -7,9 +7,15 @@ export default async function WaiverPage({
   params: Promise<{ token: string }>
 }) {
   const { token } = await params
-  const { waiver, participantName, error } = await getWaiverByToken(token)
 
-  if (error === 'not_found' || !waiver) {
+  let waiver, participantName, error
+  try {
+    ;({ waiver, participantName, error } = await getWaiverByToken(token))
+  } catch {
+    error = 'server_error'
+  }
+
+  if (error || !waiver) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-8 text-center">
         <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center mb-6">

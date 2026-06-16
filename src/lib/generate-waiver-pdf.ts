@@ -95,7 +95,7 @@ export async function generateWaiverPdf(
 
   // ── Checkboxes ───────────────────────────────────────────────────────────────
   if (documentType === 'WAIVER') {
-    sectionTitle('DECLARACION DE SALUD')
+    sectionTitle('DECLARACIONES DE SEGURIDAD')
     doc.setFont('helvetica', 'normal')
 
     for (const [key, label] of Object.entries(HEALTH_ITEMS)) {
@@ -112,11 +112,11 @@ export async function generateWaiverPdf(
       y += 1
     }
   } else {
-    sectionTitle('CONSENTIMIENTOS RGPD')
+    sectionTitle('CONSENTIMIENTOS')
     doc.setFont('helvetica', 'normal')
 
     for (const item of CONSENT_ITEMS) {
-      const checked = (formData as unknown as Record<string, unknown>)[item.key] === true
+      const checked = formData.consents?.[item.key] === true
       const prefix = checked ? '[X]' : '[ ]'
       const required = item.required ? ' (obligatorio)' : ' (opcional)'
       const lines = doc.splitTextToSize(`${prefix} ${item.label}${required}`, contentW - 4)

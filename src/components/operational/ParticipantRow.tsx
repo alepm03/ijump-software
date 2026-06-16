@@ -376,7 +376,7 @@ function PaymentCell({
 
 const DOC_CONFIG: Record<WaiverDocumentType, { label: string }> = {
   WAIVER: { label: 'Exención de responsabilidad' },
-  RGPD:   { label: 'Protección de datos' },
+  RGPD:   { label: 'Consentimiento informado' },
 }
 
 function WaiverSection({ participantId }: { participantId: string }) {

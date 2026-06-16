@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useId, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   DndContext,
@@ -31,6 +31,7 @@ interface DayManifestProps {
 
 export function DayManifest({ day, instructors }: DayManifestProps) {
   const router = useRouter()
+  const dndId = useId()
   const [isPending, startTransition] = useTransition()
   const [flights, setFlights] = useState<FlightWithParticipants[]>(day.flights)
   const [addToFlightId, setAddToFlightId] = useState<string | null>(null)
@@ -154,6 +155,7 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
       {/* Scrollable flights area */}
       <div className="flex-1 overflow-y-auto">
         <DndContext
+          id={dndId}
           sensors={sensors}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}

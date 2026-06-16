@@ -4,12 +4,11 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import type { Instructor } from '@/types/domain'
 
-export async function getInstructors(): Promise<Instructor[]> {
+export async function getInstructors(activeOnly = false): Promise<Instructor[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('instructors')
-    .select('*')
-    .order('name')
+  let query = supabase.from('instructors').select('*').order('name')
+  if (activeOnly) query = query.eq('active', true)
+  const { data, error } = await query
 
   if (error) throw new Error(error.message)
 

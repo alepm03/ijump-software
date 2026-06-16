@@ -175,11 +175,11 @@
 
 ## MÓDULO 8 — Gestión de Instructores
 
-- [ ] Página de administración `/admin/instructors`
-- [ ] Listado de instructores activos/inactivos
-- [ ] Formulario crear instructor
-- [ ] Toggle activo/inactivo
-- [ ] Los instructores inactivos no aparecen en dropdowns operacionales
+- [x] Página de administración `/admin/instructors`
+- [x] Listado de instructores activos/inactivos
+- [x] Formulario crear instructor
+- [x] Toggle activo/inactivo
+- [x] Los instructores inactivos no aparecen en dropdowns operacionales
 
 ---
 

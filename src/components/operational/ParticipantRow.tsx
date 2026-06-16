@@ -861,7 +861,13 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
         disabled={isPending}
       >
         <SelectTrigger className="h-5 text-[11px] px-1.5 py-0 min-w-[72px] max-w-[96px] flex-shrink-0">
-          <SelectValue placeholder="Instructor" />
+          <SelectValue>
+            <span className={p.assignedInstructorId ? '' : 'text-muted-foreground'}>
+              {p.assignedInstructorId
+                ? (instructors.find((i) => i.id === p.assignedInstructorId)?.name ?? '—')
+                : 'Instructor'}
+            </span>
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="" className="text-muted-foreground text-xs">—</SelectItem>

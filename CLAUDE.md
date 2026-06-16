@@ -8,7 +8,7 @@ Sistema operacional para un centro de paracaidismo tándem. Sustituye un Excel +
 
 ## Stack tecnológico
 
-- **Frontend**: Next.js 15 (App Router), React, TypeScript, Tailwind CSS, shadcn/ui
+- **Frontend**: Next.js 16 (App Router), React, TypeScript, Tailwind CSS, shadcn/ui
 - **State**: Zustand (estado local UI), TanStack Table (tablas), DnD Kit (drag & drop)
 - **Backend**: Next.js Server Actions + Route Handlers (sin backend separado)
 - **DB**: PostgreSQL via Supabase

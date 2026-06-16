@@ -33,16 +33,10 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  // Must use getUser() for security — getSession() is not verified by Auth server
-  let user = null
-  try {
-    const { data } = await supabase.auth.getUser()
-    user = data.user
-  } catch {
-    // If auth server is unreachable, let the request through
-    // The page/layout will handle the auth check
-    return supabaseResponse
-  }
+  // getSession() reads the cookie locally — no network call, ~0ms.
+  // Sufficient for redirect logic; actual data security is enforced in Server Actions.
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user ?? null
 
   const { pathname } = request.nextUrl
   const isPublicRoute =

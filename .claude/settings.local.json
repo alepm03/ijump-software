@@ -14,7 +14,8 @@
       "Bash(git pull *)",
       "Bash(npm run *)",
       "Bash(npx skills *)",
-      "Skill(impeccable)"
+      "Skill(impeccable)",
+      "Bash(npx tsc *)"
     ]
   }
 }

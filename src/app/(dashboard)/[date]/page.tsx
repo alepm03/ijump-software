@@ -11,7 +11,7 @@ export default async function DayPage({
   const { date } = await params
   const [day, instructors] = await Promise.all([
     getOperationalDay(date),
-    getInstructors(),
+    getInstructors(true),
   ])
 
   if (!day) return <EmptyDayState date={date} />

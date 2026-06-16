@@ -1,68 +1,74 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// RGPD TEMPLATE — Consentimiento de protección de datos
-//
-// Para sustituir por el documento real:
-//   1. Edita RGPD_LEGAL_TEXT con el texto oficial.
-//   2. Ajusta CONSENT_ITEMS si los consentimientos cambian.
-//   3. El resto del flujo funciona sin tocar nada más.
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const RGPD_TITLE = 'Consentimiento de Protección de Datos (RGPD)'
+export const RGPD_TITLE = 'Consentimiento Informado para la Práctica de Paracaidismo Deportivo'
 
 export const RGPD_LEGAL_TEXT = `
-[DOCUMENTO DE PRUEBA — Sustituir por texto legal oficial]
+C.D. I JUMP SKYDIVE PURA VIDA — CIF G-23600968
+Aeródromo de Casas de los Pinos. N-301, Km 190, carretera de los Higuerones s/n. 16612 (Cuenca)
 
-En cumplimiento del Reglamento (UE) 2016/679 (RGPD) y la Ley Orgánica 3/2018
-de Protección de Datos Personales (LOPDGDD), iJump le informa:
+MANIFIESTA: que consecuencia de mi petición he sido invitado por C.D. I JUMP SKYDIVE PURA VIDA a realizar un vuelo de divulgación/paseo o saltos de paracaidismo, tándem, en la aeronave a lo largo todo el año actual. El salto tándem es el primer salto de bautismo como socio.
 
-RESPONSABLE: iJump · [Dirección] · [CIF] · [Email de contacto]
+Que ante la eventualidad de un accidente durante el tiempo que dure la realización del vuelo y maniobras directamente relacionadas con el mismo, sabiendo que la práctica del Paracaidismo es un deporte de alto riesgo:
 
-FINALIDAD: Gestión de su participación en actividades de paracaidismo tándem,
-emisión de documentación, y comunicaciones relacionadas con el servicio.
+DECLARO: expresa y libremente, en el pleno ejercicio de mis facultades, tanto físicas como mentales, que HE SIDO INFORMADO y reconozco mi deseo de realizar saltos de paracaidismo/vuelo deportivo desde avión, organizado por el club por lo que renuncio de forma voluntaria al derecho de solicitar, mediante el ejercicio de acción personal, ante todos los instructores, pilotos de aeronave y directivos de este centro de paracaidismo, cualquier tipo de indemnización que pueda resultar procedente, siempre que dicha renuncia no contravenga lo establecido en el apartado 2 del artículo 6º del vigente Código Civil (*), por cualquier posible daño que pueda derivarse de la realización de ambos deportes.
 
-LEGITIMACIÓN: Consentimiento del interesado y ejecución de contrato.
+No se entenderá en modo alguno comprendida en dicha renuncia, el ejercicio de aquellos derechos derivados de la ejecución de las pólizas de seguros, individuales o colectivos, de cualquier tipo que puedan tener suscritas el piloto, propietarios de la aeronave, así como el club organizador y sus correspondientes directivos e instructores.
 
-DESTINATARIOS: No se cederán datos a terceros salvo obligación legal.
+Asimismo asumo personalmente los daños que yo mismo pudiera causar a terceros reconociendo haber recibido la enseñanza del reglamento básico de paracaidismo por parte de este club, establecido por la Real Federación Aeronáutica Española.
 
-DERECHOS: Puede ejercer sus derechos de acceso, rectificación, supresión,
-portabilidad y oposición dirigiéndose a [email].
+DECLARO: Haber recibido las clases teóricas y prácticas para la realización del curso de paracaidismo deportivo por un instructor cualificado habiendo obtenido la calificación de APTO/A según el Reglamento Básico de Paracaidismo editado por la Real Federación Aeronáutica Española.
 
-PLAZO DE CONSERVACIÓN: Los datos se conservarán durante el tiempo necesario
-para la prestación del servicio y el cumplimiento de obligaciones legales.
+Asimismo, DECLARO haber recibido las instrucciones oportunas de las posibles emergencias que se pudieran originar en el salto con paracaídas y haber recibido clases del manejo de campana, así como la toma de tierra asistida o no asistida. También DECLARO estar informado de la cobertura en caso de accidente por negligencia en el salto, así como tener cobertura sanitaria propia, pública o privada, para el caso de necesidad de atención sanitaria.
+
+He sido informado de la prohibición de la práctica de submarinismo deportivo 24 horas antes del salto, y que respetaré mi descanso personal no habiendo trasnochado la noche anterior a la práctica de este deporte.
+
+Artículo 6.2 Código Civil*: La exclusión voluntaria de la Ley aplicable y la renuncia de los derechos en ella reconocidos solo serán válidas cuando no contraríen el interés o el orden público ni perjudique a tercero.
 `.trim()
 
-// Checkboxes de consentimiento. El campo `required` indica si bloquea el envío.
 export const CONSENT_ITEMS: Array<{
-  key: 'dataProcessingConsent' | 'imageRightsConsent' | 'marketingConsent'
+  key: string
   label: string
   description: string
   required: boolean
 }> = [
   {
-    key: 'dataProcessingConsent',
-    label: 'Tratamiento de datos personales',
+    key: 'liabilityWaiver',
+    label: 'Renuncia voluntaria a indemnización',
     description:
-      'Consiento el tratamiento de mis datos personales para la gestión del servicio contratado.',
+      'Renuncio de forma voluntaria al derecho de solicitar cualquier tipo de indemnización a todos los instructores, pilotos de aeronave y directivos de este centro de paracaidismo, por cualquier posible daño que pueda derivarse de la realización de esta actividad.',
     required: true,
   },
   {
     key: 'imageRightsConsent',
     label: 'Derechos de imagen',
     description:
-      'Autorizo a iJump a utilizar fotografías y vídeos de mi salto con fines promocionales y en redes sociales.',
+      'Autorizo la utilización de mi grabación o fotografías tomadas a mi persona con fines publicitarios para este centro, no pudiendo éste realizar mal uso de las mismas.',
     required: false,
   },
   {
-    key: 'marketingConsent',
-    label: 'Comunicaciones comerciales',
+    key: 'medicalConsent',
+    label: 'Consentimiento médico',
     description:
-      'Acepto recibir comunicaciones sobre ofertas, promociones y novedades de iJump.',
-    required: false,
+      'Doy el consentimiento a los centros hospitalarios para, en el caso de accidente y si así lo precisara, realizar cuantas transfusiones sanguíneas sean necesarias y requeridas.',
+    required: true,
+  },
+  {
+    key: 'sobrietyDeclaration',
+    label: 'Declaración de sobriedad',
+    description:
+      'Declaro no haber ingerido alcohol ni ningún tipo de estupefacientes, barbitúricos o fármacos que pudieran ocasionar somnolencia o distrofia muscular en las 24 horas previas al salto, y he respetado mi descanso personal no habiendo trasnochado la noche anterior.',
+    required: true,
   },
 ]
 
-// Campos del formulario (pre-rellenados desde el participante si existen).
 export const RGPD_FIELDS = [
-  { key: 'fullName', label: 'Nombre completo', type: 'text',  required: true  },
-  { key: 'email',    label: 'Email',            type: 'email', required: true  },
+  { key: 'fullName',                     label: 'Nombre completo',          type: 'text',  required: true  },
+  { key: 'dateOfBirth',                  label: 'Fecha de nacimiento',      type: 'date',  required: true  },
+  { key: 'dni',                          label: 'DNI / Pasaporte',          type: 'text',  required: true  },
+  { key: 'address',                      label: 'Domicilio',                type: 'text',  required: true  },
+  { key: 'province',                     label: 'Provincia',                type: 'text',  required: true  },
+  { key: 'phone',                        label: 'Teléfono',                 type: 'tel',   required: true  },
+  { key: 'email',                        label: 'Email',                    type: 'email', required: true  },
+  { key: 'sportsLicenseNumber',          label: 'Nº licencia deportiva',    type: 'text',  required: false },
+  { key: 'emergencyContactName',         label: 'Contacto de emergencia',   type: 'text',  required: true  },
+  { key: 'emergencyContactRelationship', label: 'Parentesco',               type: 'text',  required: true  },
+  { key: 'emergencyContactPhone',        label: 'Teléfono de emergencia',   type: 'tel',   required: true  },
 ] as const

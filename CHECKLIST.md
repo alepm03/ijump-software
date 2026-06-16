@@ -151,25 +151,25 @@
 
 ## MÓDULO 6 — Sistema de Pagos
 
-- [ ] Vista de pagos por participante (inline en ParticipantRow o modal)
-- [ ] Form de pago: importe, método, etapa
-- [ ] Edición y eliminación de pagos
-- [ ] Cálculo automático: total reserva, liquidación pendiente, suplementos
-- [ ] Indicador visual: pagado completo / pendiente / parcial
-- [ ] Resumen financiero del día en el panel
+- [x] Vista de pagos por participante (inline en ParticipantRow o modal)
+- [x] Form de pago: importe, método, etapa
+- [x] Edición y eliminación de pagos
+- [x] Cálculo automático: total reserva, liquidación pendiente, suplementos
+- [x] Indicador visual: pagado completo / pendiente / parcial
+- [x] Resumen financiero del día en el panel
 
 ---
 
 ## MÓDULO 7 — Documentación y Waivers
 
-- [ ] Configurar Supabase Storage bucket para documentos
-- [ ] Vista de estado documental por participante
-- [ ] Firma táctil (canvas) integrada en formulario waiver
-- [ ] Generación PDF del waiver con datos del participante y firma
-- [ ] Subida del PDF a Supabase Storage
-- [ ] Registro del waiver en tabla `waivers`
-- [ ] Indicador visual "Waiver firmado" en ParticipantRow
-- [ ] Acceso al PDF firmado desde el historial
+- [x] Configurar Supabase Storage bucket para documentos
+- [x] Vista de estado documental por participante
+- [x] Firma táctil (canvas) integrada en formulario waiver
+- [x] Generación PDF del waiver con datos del participante y firma
+- [x] Subida del PDF a Supabase Storage
+- [x] Registro del waiver en tabla `waivers`
+- [x] Indicador visual "Waiver firmado" en ParticipantRow
+- [x] Acceso al PDF firmado desde el historial
 
 ---
 

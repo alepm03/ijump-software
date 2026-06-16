@@ -166,12 +166,13 @@ export default function WaiverSigningForm({ waiver, participantName }: Props) {
         dni: values['dni'] || undefined,
         dateOfBirth: values['dateOfBirth'] || undefined,
         address: values['address'] || undefined,
+        province: values['province'] || undefined,
         emergencyContactName: values['emergencyContactName'] || undefined,
         emergencyContactPhone: values['emergencyContactPhone'] || undefined,
+        emergencyContactRelationship: values['emergencyContactRelationship'] || undefined,
+        sportsLicenseNumber: values['sportsLicenseNumber'] || undefined,
         healthDeclaration: isWaiver ? health : undefined,
-        dataProcessingConsent: !isWaiver ? consents['dataProcessingConsent'] : undefined,
-        imageRightsConsent: !isWaiver ? consents['imageRightsConsent'] : undefined,
-        marketingConsent: !isWaiver ? consents['marketingConsent'] : undefined,
+        consents: !isWaiver ? consents : undefined,
       }
 
       const signatureDataUrl = canvasRef.current!.toDataURL('image/png')
@@ -259,8 +260,8 @@ export default function WaiverSigningForm({ waiver, participantName }: Props) {
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             Texto legal
           </h2>
-          <div className="rounded-xl border border-border bg-card p-4 h-48 overflow-y-auto">
-            <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">
+          <div className="rounded-xl border border-border bg-card p-5">
+            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
               {legalText}
             </p>
           </div>
@@ -270,10 +271,10 @@ export default function WaiverSigningForm({ waiver, participantName }: Props) {
         {isWaiver && (
           <section className="space-y-3">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Declaración de salud
+              Declaraciones de seguridad
             </h2>
             <p className="text-xs text-muted-foreground">
-              Confirma que se aplican a ti todos los puntos siguientes:
+              Confirma que comprendes y aceptas cada uno de los siguientes puntos:
             </p>
             <div className="space-y-3">
               {Object.entries(HEALTH_ITEMS).map(([key, label]) => (

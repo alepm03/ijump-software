@@ -117,12 +117,13 @@ export interface WaiverFormData {
   address?: string
   emergencyContactName?: string
   emergencyContactPhone?: string
-  // Health declaration checkboxes (WAIVER)
+  province?: string
+  emergencyContactRelationship?: string
+  sportsLicenseNumber?: string
+  // Health/safety declaration checkboxes (WAIVER)
   healthDeclaration?: Record<string, boolean>
-  // RGPD consent checkboxes
-  dataProcessingConsent?: boolean
-  imageRightsConsent?: boolean
-  marketingConsent?: boolean
+  // Consent checkboxes (RGPD / Consentimiento Informado)
+  consents?: Record<string, boolean>
 }
 
 export interface Waiver {

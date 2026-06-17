@@ -159,7 +159,7 @@ function KpiCard({
   return (
     <div className="rounded-xl border border-border p-4">
       <div className="text-xs text-muted-foreground mb-1">{label}</div>
-      <div className={`text-[18px] leading-tight ${bold ? 'font-bold' : 'font-semibold'} ${color}`}>
+      <div className={`text-title leading-tight ${bold ? 'font-bold' : 'font-semibold'} ${color}`}>
         {value}
       </div>
     </div>

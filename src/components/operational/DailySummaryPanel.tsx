@@ -66,43 +66,43 @@ export function DailySummaryPanel({ flights }: DailySummaryPanelProps) {
   return (
     <div className="flex-shrink-0 border-t border-border bg-card">
       <div className="flex items-center px-7 py-4 max-w-[880px] mx-auto gap-0">
-        <span className="text-[11px] font-bold text-muted-foreground/50 uppercase tracking-[0.1em] mr-6 flex-shrink-0">
+        <span className="text-xs font-bold text-muted-foreground/50 uppercase tracking-[0.1em] mr-6 flex-shrink-0">
           Resumen
         </span>
 
         <div className="flex items-baseline gap-1.5 flex-shrink-0">
-          <span className="text-[22px] font-extrabold text-foreground leading-none" style={{ letterSpacing: '-0.6px' }}>
+          <span className="text-display font-extrabold text-foreground leading-none" style={{ letterSpacing: '-0.6px' }}>
             {s.totalFlights}
           </span>
-          <span className="text-[13px] text-muted-foreground">vuelos</span>
+          <span className="text-sm text-muted-foreground">vuelos</span>
         </div>
 
         <div className="w-px h-5 bg-border mx-6" />
 
         <div className="flex items-baseline gap-1.5 flex-shrink-0">
-          <span className="text-[22px] font-extrabold text-foreground leading-none" style={{ letterSpacing: '-0.6px' }}>
+          <span className="text-display font-extrabold text-foreground leading-none" style={{ letterSpacing: '-0.6px' }}>
             {s.totalJumps}
           </span>
-          <span className="text-[13px] text-muted-foreground">saltos</span>
+          <span className="text-sm text-muted-foreground">saltos</span>
         </div>
 
         <div className="w-px h-5 bg-border mx-6" />
 
         <div className="flex items-baseline gap-1.5 flex-shrink-0">
-          <span className="text-[22px] font-extrabold text-primary leading-none" style={{ letterSpacing: '-0.6px' }}>
+          <span className="text-display font-extrabold text-primary leading-none" style={{ letterSpacing: '-0.6px' }}>
             {s.totalRevenue.toFixed(0)}€
           </span>
-          <span className="text-[13px] text-muted-foreground">ingresos</span>
+          <span className="text-sm text-muted-foreground">ingresos</span>
         </div>
 
         <div className="ml-auto flex items-center gap-5 flex-wrap">
           {s.handycamCount > 0 && (
-            <span className="text-[12.5px] text-muted-foreground">
+            <span className="text-sm text-muted-foreground">
               HC: <strong className="text-foreground font-bold">{s.handycamCount}</strong>
             </span>
           )}
           {s.externalCount > 0 && (
-            <span className="text-[12.5px] text-muted-foreground">
+            <span className="text-sm text-muted-foreground">
               Video: <strong className="text-foreground font-bold">{s.externalCount}</strong>
             </span>
           )}
@@ -110,7 +110,7 @@ export function DailySummaryPanel({ flights }: DailySummaryPanelProps) {
             .filter(([, v]) => v > 0)
             .sort((a, b) => b[1] - a[1])
             .map(([src, count]) => (
-              <span key={src} className="text-[12.5px] text-muted-foreground">
+              <span key={src} className="text-sm text-muted-foreground">
                 {SOURCE_LABELS[src]}: <strong className="text-foreground font-bold">{count}</strong>
               </span>
             ))}
@@ -118,7 +118,7 @@ export function DailySummaryPanel({ flights }: DailySummaryPanelProps) {
             .filter(([, v]) => v > 0)
             .sort((a, b) => b[1] - a[1])
             .map(([method, amount]) => (
-              <span key={method} className="text-[12.5px] text-muted-foreground">
+              <span key={method} className="text-sm text-muted-foreground">
                 {METHOD_LABELS[method]}: <strong className="text-foreground font-bold">{amount.toFixed(0)}€</strong>
               </span>
             ))}

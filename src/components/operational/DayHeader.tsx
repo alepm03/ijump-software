@@ -17,21 +17,25 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { OperationalDayWithDetails, WeatherStatus } from '@/types/domain'
 
-const WEATHER_CONFIG: Record<WeatherStatus, { label: string; icon: React.ReactNode; bg: string; border: string; color: string }> = {
+// WEATHER_CONFIG uses token class names — no hex (Phase 1)
+const WEATHER_CONFIG: Record<WeatherStatus, { label: string; icon: React.ReactNode; triggerClass: string; itemClass: string }> = {
   OK: {
     label: 'OK',
     icon: <Sun size={13} />,
-    bg: '#F0FDF4', border: '#BBF7D0', color: '#16A34A',
+    triggerClass: 'bg-weather-ok-bg border-state-success text-weather-ok',
+    itemClass: 'text-weather-ok',
   },
   MARGINAL: {
     label: 'Marginal',
     icon: <Cloud size={13} />,
-    bg: '#FEFCE8', border: '#FDE68A', color: '#CA8A04',
+    triggerClass: 'bg-weather-marginal-bg border-state-warning text-weather-marginal',
+    itemClass: 'text-weather-marginal',
   },
   CANCELLED: {
     label: 'Cancelado',
     icon: <CloudOff size={13} />,
-    bg: '#FFF1F2', border: '#FECDD3', color: '#E11D48',
+    triggerClass: 'bg-weather-cancelled-bg border-state-danger text-weather-cancelled',
+    itemClass: 'text-weather-cancelled',
   },
 }
 
@@ -75,17 +79,17 @@ export function DayHeader({ day }: DayHeaderProps) {
   }
 
   return (
-    <div className="flex-shrink-0 border-b border-border px-7 py-[18px]" style={{ background: 'var(--background)' }}>
+    <div className="flex-shrink-0 border-b border-border px-7 py-[18px] bg-background">
       <div className="flex items-center gap-3 max-w-[880px] mx-auto">
         <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors flex items-center p-1">
           <ArrowLeft size={16} />
         </Link>
 
         <div>
-          <h1 className="text-[18px] font-bold text-foreground leading-tight" style={{ letterSpacing: '-0.5px' }}>
+          <h1 className="text-title font-bold text-foreground leading-tight" style={{ letterSpacing: '-0.5px' }}>
             {dateDisplay}
           </h1>
-          <p className="text-[12.5px] text-muted-foreground mt-0.5">
+          <p className="text-sm text-muted-foreground mt-0.5">
             {day.flights.length} vuelos · {totalJumps} participantes
           </p>
         </div>
@@ -94,8 +98,7 @@ export function DayHeader({ day }: DayHeaderProps) {
         <DropdownMenu>
           <DropdownMenuTrigger
             disabled={isPending}
-            className="flex items-center gap-1.5 text-xs font-semibold h-7 px-2.5 rounded-[7px] border transition-colors flex-shrink-0 ml-2"
-            style={{ background: weather.bg, borderColor: weather.border, color: weather.color }}
+            className={`flex items-center gap-1.5 text-xs font-semibold h-7 px-2.5 rounded-[7px] border transition-colors flex-shrink-0 ml-2 ${weather.triggerClass}`}
           >
             {weather.icon}
             {weather.label}
@@ -106,8 +109,7 @@ export function DayHeader({ day }: DayHeaderProps) {
                 <DropdownMenuItem
                   key={status}
                   onClick={() => handleWeatherChange(status)}
-                  className="flex items-center gap-2 cursor-pointer text-xs"
-                  style={{ color: cfg.color }}
+                  className={`flex items-center gap-2 cursor-pointer text-xs ${cfg.itemClass}`}
                 >
                   {cfg.icon}
                   {cfg.label}

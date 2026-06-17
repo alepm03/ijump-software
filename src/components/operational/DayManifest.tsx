@@ -171,7 +171,7 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className="px-3 py-2.5 text-[13px] font-medium transition-colors capitalize"
+            className="px-3 py-2.5 text-sm font-medium transition-colors capitalize"
             style={{
               color: activeTab === tab ? 'var(--primary)' : 'var(--muted-foreground)',
               borderBottom: activeTab === tab ? '2px solid var(--primary)' : '2px solid transparent',
@@ -218,7 +218,7 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
                   <button
                     onClick={handleAddFlight}
                     disabled={isPending}
-                    className="w-full flex items-center justify-center gap-1.5 py-3.5 rounded-[10px] border-2 border-dashed border-border hover:border-primary/30 hover:bg-secondary/40 hover:text-primary text-muted-foreground transition-all disabled:opacity-50 text-[13.5px] font-medium"
+                    className="w-full flex items-center justify-center gap-1.5 py-3.5 rounded-[10px] border-2 border-dashed border-border hover:border-primary/30 hover:bg-secondary/40 hover:text-primary text-muted-foreground transition-all disabled:opacity-50 text-sm font-medium"
                   >
                     <Plus size={15} />
                     Añadir vuelo

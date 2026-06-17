@@ -48,27 +48,27 @@ import type {
   WaiverDocumentType,
 } from '@/types/domain'
 
-// ─── Status / Package config ─────────────────────────────────────────────────
+// ─── Status / Package config — tokens only, no hex ───────────────────────────
 
-const STATUS_CONFIG: Record<OperationalStatus, { label: string; bg: string; color: string }> = {
-  PENDING:          { label: 'Pendiente',  bg: '#F4F4F5', color: '#71717A' },
-  CHECKED_IN:       { label: 'Check-in',  bg: '#EFF6FF', color: '#3B82F6' },
-  WAIVER_SIGNED:    { label: 'Waiver',    bg: '#FAF5FF', color: '#9333EA' },
-  BRIEFED:          { label: 'Briefed',   bg: '#FEFCE8', color: '#CA8A04' },
-  GEARED_UP:        { label: 'Equipado',  bg: '#FFF7ED', color: '#EA580C' },
-  READY:            { label: 'Listo',     bg: '#F0FDF4', color: '#16A34A' },
-  COMPLETED:        { label: 'Completado',bg: '#ECFDF5', color: '#059669' },
-  CANCELLED:        { label: 'Cancelado', bg: '#FFF1F2', color: '#E11D48' },
-  NO_SHOW:          { label: 'No show',   bg: '#FFF1F2', color: '#E11D48' },
-  WEATHER_CANCELLED:{ label: 'Wx cancel.',bg: '#FFF1F2', color: '#E11D48' },
+const STATUS_CONFIG: Record<OperationalStatus, { label: string; className: string; dotClassName: string }> = {
+  PENDING:          { label: 'Pendiente',   className: 'bg-status-pending-bg text-status-pending',           dotClassName: 'bg-status-pending' },
+  CHECKED_IN:       { label: 'Check-in',    className: 'bg-status-checked-in-bg text-status-checked-in',     dotClassName: 'bg-status-checked-in' },
+  WAIVER_SIGNED:    { label: 'Waiver',      className: 'bg-status-waiver-signed-bg text-status-waiver-signed', dotClassName: 'bg-status-waiver-signed' },
+  BRIEFED:          { label: 'Briefed',     className: 'bg-status-briefed-bg text-status-briefed',           dotClassName: 'bg-status-briefed' },
+  GEARED_UP:        { label: 'Equipado',    className: 'bg-status-geared-up-bg text-status-geared-up',       dotClassName: 'bg-status-geared-up' },
+  READY:            { label: 'Listo',       className: 'bg-status-ready-bg text-status-ready',               dotClassName: 'bg-status-ready' },
+  COMPLETED:        { label: 'Completado',  className: 'bg-status-completed-bg text-status-completed',       dotClassName: 'bg-status-completed' },
+  CANCELLED:        { label: 'Cancelado',   className: 'bg-status-cancelled-bg text-status-cancelled',       dotClassName: 'bg-status-cancelled' },
+  NO_SHOW:          { label: 'No show',     className: 'bg-status-no-show-bg text-status-no-show',           dotClassName: 'bg-status-no-show' },
+  WEATHER_CANCELLED:{ label: 'Wx cancel.',  className: 'bg-status-weather-cancelled-bg text-status-weather-cancelled', dotClassName: 'bg-status-weather-cancelled' },
 }
 
-const PACKAGE_CONFIG: Record<PackageType, { label: string; bg: string; color: string }> = {
-  SOLO:           { label: 'Solo',  bg: '#F4F4F5', color: '#71717A' },
-  HANDYCAM:       { label: 'HC',   bg: '#EFF6FF', color: '#3B82F6' },
-  VIDEO_EXTERNO:  { label: 'VE',   bg: '#EEF2FF', color: '#6366F1' },
-  FOTOS:          { label: 'Fotos',bg: '#F0FDFA', color: '#0D9488' },
-  HANDYCAM_FOTOS: { label: 'HC+F', bg: '#EFF6FF', color: '#3B82F6' },
+const PACKAGE_CONFIG: Record<PackageType, { label: string; className: string }> = {
+  SOLO:           { label: 'Solo',  className: 'bg-package-solo-bg text-package-solo' },
+  HANDYCAM:       { label: 'HC',   className: 'bg-package-handycam-bg text-package-handycam' },
+  VIDEO_EXTERNO:  { label: 'VE',   className: 'bg-package-video-externo-bg text-package-video-externo' },
+  FOTOS:          { label: 'Fotos',className: 'bg-package-fotos-bg text-package-fotos' },
+  HANDYCAM_FOTOS: { label: 'HC+F', className: 'bg-package-handycam-fotos-bg text-package-handycam-fotos' },
 }
 
 const METHOD_LABELS: Record<PaymentMethod, string> = {
@@ -85,10 +85,21 @@ const STAGE_LABELS: Record<PaymentStage, string> = {
   SUPLEMENTO: 'Suplemento',
 }
 
-const STAGE_COLORS: Record<PaymentStage, { bg: string; color: string }> = {
-  RESERVA:    { bg: '#EEF2FF', color: '#6366F1' },
-  LIQUIDACION:{ bg: '#ECFDF5', color: '#059669' },
-  SUPLEMENTO: { bg: '#FFF7ED', color: '#EA580C' },
+// Maps PaymentStage to token class pairs
+const STAGE_CONFIG: Record<PaymentStage, { className: string }> = {
+  RESERVA:    { className: 'bg-pay-reserva-bg text-pay-reserva' },
+  LIQUIDACION:{ className: 'bg-pay-liquidacion-bg text-pay-liquidacion' },
+  SUPLEMENTO: { className: 'bg-pay-suplemento-bg text-pay-suplemento' },
+}
+
+// ─── StatusBadge — reusable pill ─────────────────────────────────────────────
+
+function StatusBadge({ className, label }: { className: string; label: string }) {
+  return (
+    <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${className}`}>
+      {label}
+    </span>
+  )
 }
 
 // ─── Inline editable field ────────────────────────────────────────────────────
@@ -160,13 +171,23 @@ function getPaymentStatus(payments: Payment[]) {
   const total = payments.reduce((sum, p) => sum + p.amount, 0)
 
   if (hasLiquidacion) {
-    return { label: 'Pagado', total, isOW: hasSuplemento, color: '#059669', bg: '#ECFDF5' }
+    return {
+      label: 'Pagado',
+      total,
+      isOW: hasSuplemento,
+      className: 'bg-pay-paid-bg text-pay-paid',
+    }
   }
 
   const reservaTotal = payments
     .filter((p) => p.stage === 'RESERVA')
     .reduce((sum, p) => sum + p.amount, 0)
-  return { label: 'Reservado', total: reservaTotal, isOW: hasSuplemento, color: '#6366F1', bg: '#EEF2FF' }
+  return {
+    label: 'Reservado',
+    total: reservaTotal,
+    isOW: hasSuplemento,
+    className: 'bg-pay-reserved-bg text-pay-reserved',
+  }
 }
 
 // ─── Payment manager (inside Dialog) ─────────────────────────────────────────
@@ -228,12 +249,11 @@ function PaymentManager({
       {payments.length > 0 && (
         <div className="space-y-1.5">
           {payments.map((pmt) => {
-            const cfg = STAGE_COLORS[pmt.stage]
+            const cfg = STAGE_CONFIG[pmt.stage]
             return (
               <div key={pmt.id} className="flex items-center gap-2.5">
                 <span
-                  className="text-[11px] font-semibold px-2 py-0.5 rounded flex-shrink-0 min-w-[76px] text-center"
-                  style={{ background: cfg.bg, color: cfg.color }}
+                  className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 min-w-[76px] text-center ${cfg.className}`}
                 >
                   {STAGE_LABELS[pmt.stage]}
                 </span>
@@ -289,7 +309,7 @@ function PaymentManager({
 
       {/* Add payment form */}
       <div className="space-y-2.5 pt-1 border-t border-border">
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           Añadir pago
         </p>
         <div className="flex gap-2">
@@ -351,19 +371,18 @@ function PaymentCell({
     <Dialog>
       {status ? (
         <DialogTrigger
-          className="flex-shrink-0 text-[11.5px] font-semibold px-2 py-0.5 rounded transition-opacity hover:opacity-70 cursor-pointer"
-          style={{ background: status.bg, color: status.color }}
+          className={`flex-shrink-0 text-xs font-semibold px-2 py-0.5 rounded transition-opacity hover:opacity-70 cursor-pointer ${status.className}`}
         >
           {status.label} · {status.total.toFixed(0)}€
         </DialogTrigger>
       ) : (
-        <DialogTrigger className="flex-shrink-0 px-1.5 py-0.5 rounded border border-border bg-transparent text-muted-foreground text-[11px] hover:border-foreground/30 hover:text-foreground transition-colors cursor-pointer">
+        <DialogTrigger className="flex-shrink-0 px-1.5 py-0.5 rounded border border-border bg-transparent text-muted-foreground text-xs hover:border-foreground/30 hover:text-foreground transition-colors cursor-pointer">
           + Pago
         </DialogTrigger>
       )}
       <DialogContent className="w-full max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-[14px]">Pagos — {participantName}</DialogTitle>
+          <DialogTitle className="text-body">Pagos — {participantName}</DialogTitle>
         </DialogHeader>
         <PaymentManager participantId={participantId} payments={payments} />
       </DialogContent>
@@ -428,21 +447,19 @@ function WaiverSection({ participantId }: { participantId: string }) {
           const completed = doc?.status === 'COMPLETED'
           const pending = doc?.status === 'PENDING'
 
+          // Badge className: completed=success, pending=accent2, default=neutral
+          const badgeClass = completed
+            ? 'bg-status-completed-bg text-status-completed'
+            : pending
+              ? 'bg-status-waiver-signed-bg text-status-waiver-signed'
+              : 'bg-status-pending-bg text-status-pending'
+
           return (
             <div
               key={docType}
               className="flex items-center gap-2 py-2.5 border-b border-border/50 last:border-0"
             >
-              <span
-                className="text-[9.5px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
-                style={
-                  completed
-                    ? { background: '#ECFDF5', color: '#059669' }
-                    : pending
-                      ? { background: '#EEF2FF', color: '#6366F1' }
-                      : { background: '#F4F4F5', color: '#71717A' }
-                }
-              >
+              <span className={`text-micro font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${badgeClass}`}>
                 {docType}
               </span>
 
@@ -456,15 +473,12 @@ function WaiverSection({ participantId }: { participantId: string }) {
                     href={doc.pdfUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[11px] text-primary hover:text-primary/80 font-medium flex-shrink-0 transition-colors"
+                    className="text-xs text-primary hover:text-primary/80 font-medium flex-shrink-0 transition-colors"
                   >
                     PDF ↗
                   </a>
                 ) : (
-                  <span
-                    className="text-[11px] font-semibold flex-shrink-0"
-                    style={{ color: '#059669' }}
-                  >
+                  <span className="text-xs font-semibold flex-shrink-0 text-status-completed">
                     Firmado ✓
                   </span>
                 )
@@ -472,7 +486,7 @@ function WaiverSection({ participantId }: { participantId: string }) {
                 <button
                   onClick={() => handleQR(docType)}
                   disabled={generating === docType}
-                  className="flex-shrink-0 text-[11px] px-2.5 py-1 rounded border border-border bg-transparent text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors disabled:opacity-40"
+                  className="flex-shrink-0 text-xs px-2.5 py-1 rounded border border-border bg-transparent text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors disabled:opacity-40"
                 >
                   {generating === docType ? '…' : pending ? 'Ver QR' : 'Generar QR'}
                 </button>
@@ -498,7 +512,7 @@ function WaiverSection({ participantId }: { participantId: string }) {
                 <p className="text-xs text-muted-foreground text-center leading-relaxed">
                   Muestra este código al participante para que firme el documento en su móvil.
                 </p>
-                <p className="text-[9.5px] text-muted-foreground/40 font-mono break-all text-center">
+                <p className="text-micro text-muted-foreground/40 font-mono break-all text-center">
                   {qrUrl}
                 </p>
               </>
@@ -550,7 +564,7 @@ function EditableRow({
 
   return (
     <div className="flex items-baseline justify-between gap-4 py-2.5 border-b border-border/50 last:border-0">
-      <span className="text-[12px] text-muted-foreground flex-shrink-0 w-24">{label}</span>
+      <span className="text-sm text-muted-foreground flex-shrink-0 w-24">{label}</span>
       {editing ? (
         <input
           ref={inputRef}
@@ -581,11 +595,18 @@ function EditableRow({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[11.5px] font-semibold text-muted-foreground pt-5 pb-1 first:pt-0">
+    <p className="text-xs font-semibold text-muted-foreground pt-5 pb-1 first:pt-0">
       {children}
     </p>
   )
 }
+
+// Checklist item config — colors via token class names
+const CHECKLIST_ITEMS = [
+  { key: 'checkInCompleted', label: 'Check-in',      activeClass: 'bg-status-checked-in border-status-checked-in' },
+  { key: 'waiverSigned',     label: 'Waiver firmado', activeClass: 'bg-status-waiver-signed border-status-waiver-signed' },
+  { key: 'gearedUp',         label: 'Equipado',       activeClass: 'bg-status-geared-up border-status-geared-up' },
+] as const
 
 function ParticipantInfoSheet({
   participant: p,
@@ -609,17 +630,12 @@ function ParticipantInfoSheet({
         {/* Header */}
         <div className="px-6 pt-5 pb-4 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-3 pr-8">
-            <SheetTitle className="text-[16px] font-semibold leading-tight">
+            <SheetTitle className="text-title font-semibold leading-tight">
               {p.fullName || 'Sin nombre'}
             </SheetTitle>
-            <span
-              className="text-[11px] font-semibold px-2 py-0.5 rounded flex-shrink-0"
-              style={{ background: statusCfg.bg, color: statusCfg.color }}
-            >
-              {statusCfg.label}
-            </span>
+            <StatusBadge className={statusCfg.className} label={statusCfg.label} />
             {p.reservationGroup && (
-              <p className="text-[12.5px] text-muted-foreground ml-2">
+              <p className="text-sm text-muted-foreground ml-2">
                 {SOURCE_LABELS[p.reservationGroup.source] ?? p.reservationGroup.source}
                 {p.reservationGroup.payerName && (
                   <span className="text-muted-foreground/60"> · {p.reservationGroup.payerName}</span>
@@ -685,13 +701,7 @@ function ParticipantInfoSheet({
           <div className="px-5 py-4 overflow-y-auto">
             <SectionLabel>Checklist</SectionLabel>
             <div className="space-y-1">
-              {(
-                [
-                  { key: 'checkInCompleted', label: 'Check-in', color: '#3B82F6' },
-                  { key: 'waiverSigned',     label: 'Waiver firmado', color: '#9333EA' },
-                  { key: 'gearedUp',         label: 'Equipado', color: '#EA580C' },
-                ] as const
-              ).map(({ key, label, color }) => {
+              {CHECKLIST_ITEMS.map(({ key, label, activeClass }) => {
                 const checked = p[key]
                 return (
                   <button
@@ -700,11 +710,9 @@ function ParticipantInfoSheet({
                     className="flex items-center gap-3 w-full px-1 py-2 rounded hover:bg-secondary transition-colors text-left group"
                   >
                     <span
-                      className="w-4 h-4 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors"
-                      style={checked
-                        ? { background: color, borderColor: color }
-                        : { background: 'transparent', borderColor: 'var(--border)' }
-                      }
+                      className={`w-4 h-4 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors ${
+                        checked ? activeClass : 'bg-transparent border-border'
+                      }`}
                     >
                       {checked && (
                         <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
@@ -807,7 +815,7 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
         value={p.fullName}
         placeholder="Nombre"
         onSave={(v) => save({ fullName: v })}
-        className="font-medium min-w-[110px] text-[12.5px]"
+        className="font-medium min-w-[110px] text-sm"
       />
       <ParticipantInfoSheet participant={p} save={save} />
 
@@ -815,8 +823,7 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
       <DropdownMenu>
         <DropdownMenuTrigger
           disabled={isPending}
-          className="flex-shrink-0 text-[11px] font-semibold px-1.5 py-0.5 rounded transition-colors"
-          style={{ background: statusCfg.bg, color: statusCfg.color, letterSpacing: '-0.1px' }}
+          className={`flex-shrink-0 text-xs font-semibold px-1.5 py-0.5 rounded transition-colors ${statusCfg.className}`}
         >
           {statusCfg.label}
         </DropdownMenuTrigger>
@@ -828,7 +835,7 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
                 onClick={() => save({ operationalStatus: status })}
                 className="text-xs cursor-pointer"
               >
-                <span className="inline-block w-2 h-2 rounded-sm mr-2 flex-shrink-0" style={{ background: cfg.color, opacity: 0.7 }} />
+                <span className={`inline-block w-2 h-2 rounded-sm mr-2 flex-shrink-0 opacity-70 ${cfg.dotClassName}`} />
                 {cfg.label}
               </DropdownMenuItem>
             )
@@ -840,8 +847,7 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
       <DropdownMenu>
         <DropdownMenuTrigger
           disabled={isPending}
-          className="flex-shrink-0 text-[11px] font-bold px-1.5 py-0.5 rounded transition-colors"
-          style={{ background: pkgCfg.bg, color: pkgCfg.color }}
+          className={`flex-shrink-0 text-xs font-bold px-1.5 py-0.5 rounded transition-colors ${pkgCfg.className}`}
         >
           {pkgCfg.label}
         </DropdownMenuTrigger>
@@ -866,7 +872,7 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
         onValueChange={(v) => save({ assignedInstructorId: v || null })}
         disabled={isPending}
       >
-        <SelectTrigger className="h-5 text-[11px] px-1.5 py-0 min-w-[72px] max-w-[96px] flex-shrink-0">
+        <SelectTrigger className="h-5 text-xs px-1.5 py-0 min-w-[72px] max-w-[96px] flex-shrink-0">
           <SelectValue>
             <span className={p.assignedInstructorId ? '' : 'text-muted-foreground'}>
               {p.assignedInstructorId
@@ -893,14 +899,11 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
             save({ weight: isNaN(n) ? null : n })
           }}
           inputType="number"
-          className="w-9 text-right text-muted-foreground text-[12px]"
+          className="w-9 text-right text-muted-foreground text-sm"
         />
-        {p.weight && <span className="text-[11px] text-muted-foreground">kg</span>}
+        {p.weight && <span className="text-xs text-muted-foreground">kg</span>}
         {hasOW && (
-          <span
-            className="text-[9.5px] font-bold px-1 py-0.5 rounded"
-            style={{ background: '#FFF7ED', color: '#EA580C' }}
-          >
+          <span className="text-micro font-bold px-1 py-0.5 rounded bg-status-geared-up-bg text-status-geared-up">
             OW
           </span>
         )}
@@ -919,13 +922,13 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
       <div className="flex-shrink-0 flex items-center ml-1">
         {confirmDelete ? (
           <div className="flex items-center gap-1">
-            <button onClick={handleDelete} disabled={isPending} className="text-[10px] text-destructive hover:text-destructive/80 px-1">Sí</button>
-            <button onClick={() => setConfirmDelete(false)} className="text-[10px] text-muted-foreground hover:text-foreground">No</button>
+            <button onClick={handleDelete} disabled={isPending} className="text-2xs text-destructive hover:text-destructive/80 px-1">Sí</button>
+            <button onClick={() => setConfirmDelete(false)} className="text-2xs text-muted-foreground hover:text-foreground">No</button>
           </div>
         ) : (
           <button
             onClick={() => setConfirmDelete(true)}
-            className="text-[15px] leading-none px-1 text-muted-foreground/30 hover:text-destructive transition-colors"
+            className="text-title leading-none px-1 text-muted-foreground/30 hover:text-destructive transition-colors"
           >
             ×
           </button>

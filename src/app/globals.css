@@ -5,6 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* ── Base color aliases ─────────────────────────────────────────── */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
@@ -39,6 +40,12 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
+  /* ── Extra neutral aliases (§2.2) ──────────────────────────────── */
+  --color-border-strong:     var(--border-strong);
+  --color-foreground-subtle: var(--foreground-subtle);
+
+  /* ── Radii ──────────────────────────────────────────────────────── */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -46,10 +53,67 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* ── Typography scale (§3.4) ────────────────────────────────────── */
+  --text-display: 1.375rem;   --text-display--line-height: 1.15;   --text-display--letter-spacing: -0.02em;
+  --text-title:   1rem;       --text-title--line-height: 1.25;     --text-title--letter-spacing: -0.01em;
+  --text-body:    0.875rem;   --text-body--line-height: 1.4;
+  --text-sm:      0.8125rem;  --text-sm--line-height: 1.35;        --text-sm--letter-spacing: -0.005em;
+  --text-xs:      0.71875rem; --text-xs--line-height: 1.3;
+  --text-2xs:     0.625rem;   --text-2xs--line-height: 1.2;
+  --text-micro:   0.59375rem; --text-micro--line-height: 1.2;      --text-micro--letter-spacing: 0.01em;
+
+  /* ── Shadows (§5.3) ─────────────────────────────────────────────── */
+  --shadow-card:       0 0 0 1px var(--border), 0 1px 3px oklch(0 0 0 / 0.04);
+  --shadow-card-hover: 0 0 0 1.5px oklch(0.640 0.175 42 / 0.35), 0 4px 12px oklch(0 0 0 / 0.08);
+  --shadow-card-today: 0 0 0 1.5px var(--primary), 0 1px 4px oklch(0 0 0 / 0.06);
+  --shadow-overlay:    0 8px 30px oklch(0 0 0 / 0.12);
+
+  /* ── State family color aliases (§2.3) ─────────────────────────── */
+  --color-state-neutral:    var(--state-neutral);    --color-state-neutral-bg:    var(--state-neutral-bg);
+  --color-state-info:       var(--state-info);       --color-state-info-bg:       var(--state-info-bg);
+  --color-state-accent2:    var(--state-accent2);    --color-state-accent2-bg:    var(--state-accent2-bg);
+  --color-state-purple:     var(--state-purple);     --color-state-purple-bg:     var(--state-purple-bg);
+  --color-state-warning:    var(--state-warning);    --color-state-warning-bg:    var(--state-warning-bg);
+  --color-state-brand:      var(--state-brand);      --color-state-brand-bg:      var(--state-brand-bg);
+  --color-state-success:    var(--state-success);    --color-state-success-bg:    var(--state-success-bg);
+  --color-state-danger:     var(--state-danger);     --color-state-danger-bg:     var(--state-danger-bg);
+  --color-state-teal:       var(--state-teal);       --color-state-teal-bg:       var(--state-teal-bg);
+
+  /* ── OperationalStatus aliases (§2.4) ──────────────────────────── */
+  --color-status-pending:              var(--status-pending);              --color-status-pending-bg:              var(--status-pending-bg);
+  --color-status-checked-in:           var(--status-checked-in);           --color-status-checked-in-bg:           var(--status-checked-in-bg);
+  --color-status-waiver-signed:        var(--status-waiver-signed);        --color-status-waiver-signed-bg:        var(--status-waiver-signed-bg);
+  --color-status-briefed:              var(--status-briefed);              --color-status-briefed-bg:              var(--status-briefed-bg);
+  --color-status-geared-up:            var(--status-geared-up);            --color-status-geared-up-bg:            var(--status-geared-up-bg);
+  --color-status-ready:                var(--status-ready);                --color-status-ready-bg:                var(--status-ready-bg);
+  --color-status-completed:            var(--status-completed);            --color-status-completed-bg:            var(--status-completed-bg);
+  --color-status-cancelled:            var(--status-cancelled);            --color-status-cancelled-bg:            var(--status-cancelled-bg);
+  --color-status-no-show:              var(--status-no-show);              --color-status-no-show-bg:              var(--status-no-show-bg);
+  --color-status-weather-cancelled:    var(--status-weather-cancelled);    --color-status-weather-cancelled-bg:    var(--status-weather-cancelled-bg);
+
+  /* ── PackageType aliases (§2.4) ────────────────────────────────── */
+  --color-package-solo:           var(--package-solo);           --color-package-solo-bg:           var(--package-solo-bg);
+  --color-package-handycam:       var(--package-handycam);       --color-package-handycam-bg:       var(--package-handycam-bg);
+  --color-package-video-externo:  var(--package-video-externo);  --color-package-video-externo-bg:  var(--package-video-externo-bg);
+  --color-package-fotos:          var(--package-fotos);          --color-package-fotos-bg:          var(--package-fotos-bg);
+  --color-package-handycam-fotos: var(--package-handycam-fotos); --color-package-handycam-fotos-bg: var(--package-handycam-fotos-bg);
+
+  /* ── PaymentStage aliases (§2.4) ───────────────────────────────── */
+  --color-pay-reserva:     var(--pay-reserva);     --color-pay-reserva-bg:     var(--pay-reserva-bg);
+  --color-pay-liquidacion: var(--pay-liquidacion); --color-pay-liquidacion-bg: var(--pay-liquidacion-bg);
+  --color-pay-suplemento:  var(--pay-suplemento);  --color-pay-suplemento-bg:  var(--pay-suplemento-bg);
+  --color-pay-paid:        var(--pay-paid);        --color-pay-paid-bg:        var(--pay-paid-bg);
+  --color-pay-reserved:    var(--pay-reserved);    --color-pay-reserved-bg:    var(--pay-reserved-bg);
+
+  /* ── WeatherStatus aliases (§2.4) ──────────────────────────────── */
+  --color-weather-ok:        var(--weather-ok);        --color-weather-ok-bg:        var(--weather-ok-bg);
+  --color-weather-marginal:  var(--weather-marginal);  --color-weather-marginal-bg:  var(--weather-marginal-bg);
+  --color-weather-cancelled: var(--weather-cancelled); --color-weather-cancelled-bg: var(--weather-cancelled-bg);
 }
 
 :root {
-  /* Base surfaces */
+  /* ── Base surfaces ──────────────────────────────────────────────── */
   --background:          oklch(0.985 0.006 55);
   --foreground:          oklch(0.175 0.015 55);
   --card:                oklch(0.999 0.002 55);
@@ -57,11 +121,11 @@
   --popover:             oklch(0.999 0.002 55);
   --popover-foreground:  oklch(0.175 0.015 55);
 
-  /* Brand — naranja corporativo */
+  /* ── Brand — naranja corporativo ────────────────────────────────── */
   --primary:             oklch(0.640 0.175 42);
   --primary-foreground:  oklch(0.998 0.002 55);
 
-  /* Muted / secondary surfaces */
+  /* ── Muted / secondary surfaces ─────────────────────────────────── */
   --secondary:           oklch(0.957 0.038 55);
   --secondary-foreground:oklch(0.640 0.175 42);
   --muted:               oklch(0.960 0.006 55);
@@ -69,15 +133,20 @@
   --accent:              oklch(0.957 0.038 55);
   --accent-foreground:   oklch(0.640 0.175 42);
 
-  /* Semantic */
+  /* ── Semantic ───────────────────────────────────────────────────── */
   --destructive:         oklch(0.560 0.220 27);
 
-  /* Structure */
+  /* ── Structure ──────────────────────────────────────────────────── */
   --border:              oklch(0.912 0.009 55);
   --input:               oklch(0.912 0.009 55);
   --ring:                oklch(0.640 0.175 42);
 
-  /* Charts */
+  /* ── Extra neutral tokens (§2.2) ────────────────────────────────── */
+  --border-strong:       oklch(0.860 0.012 55);
+  --foreground-subtle:   oklch(0.700 0.008 55);
+  --primary-hover:       oklch(0.600 0.180 42);
+
+  /* ── Charts ─────────────────────────────────────────────────────── */
   --chart-1: oklch(0.640 0.175 42);
   --chart-2: oklch(0.55 0.14 200);
   --chart-3: oklch(0.60 0.13 150);
@@ -86,7 +155,7 @@
 
   --radius: 0.5rem;
 
-  /* Sidebar */
+  /* ── Sidebar ────────────────────────────────────────────────────── */
   --sidebar:                  oklch(0.972 0.009 55);
   --sidebar-foreground:       oklch(0.175 0.015 55);
   --sidebar-primary:          oklch(0.640 0.175 42);
@@ -95,6 +164,48 @@
   --sidebar-accent-foreground:oklch(0.640 0.175 42);
   --sidebar-border:           oklch(0.912 0.009 55);
   --sidebar-ring:             oklch(0.640 0.175 42);
+
+  /* ── State families (§2.3) — 9 pairs ───────────────────────────── */
+  --state-neutral:    oklch(0.520 0.010 60);   --state-neutral-bg:  oklch(0.968 0.004 60);
+  --state-info:       oklch(0.580 0.180 256);  --state-info-bg:     oklch(0.970 0.025 256);
+  --state-accent2:    oklch(0.560 0.190 277);  --state-accent2-bg:  oklch(0.965 0.025 277);
+  --state-purple:     oklch(0.530 0.230 304);  --state-purple-bg:   oklch(0.970 0.025 312);
+  --state-warning:    oklch(0.620 0.150 80);   --state-warning-bg:  oklch(0.975 0.040 95);
+  --state-brand:      oklch(0.640 0.175 42);   --state-brand-bg:    oklch(0.962 0.038 55);
+  --state-success:    oklch(0.560 0.130 158);  --state-success-bg:  oklch(0.965 0.030 162);
+  --state-danger:     oklch(0.560 0.200 18);   --state-danger-bg:   oklch(0.970 0.025 18);
+  --state-teal:       oklch(0.560 0.090 185);  --state-teal-bg:     oklch(0.965 0.030 185);
+
+  /* ── OperationalStatus aliases (§2.4) ──────────────────────────── */
+  --status-pending:            var(--state-neutral);   --status-pending-bg:            var(--state-neutral-bg);
+  --status-checked-in:         var(--state-info);      --status-checked-in-bg:         var(--state-info-bg);
+  --status-waiver-signed:      var(--state-purple);    --status-waiver-signed-bg:      var(--state-purple-bg);
+  --status-briefed:            var(--state-warning);   --status-briefed-bg:            var(--state-warning-bg);
+  --status-geared-up:          var(--state-brand);     --status-geared-up-bg:          var(--state-brand-bg);
+  --status-ready:              var(--state-success);   --status-ready-bg:              var(--state-success-bg);
+  --status-completed:          var(--state-success);   --status-completed-bg:          var(--state-success-bg);
+  --status-cancelled:          var(--state-danger);    --status-cancelled-bg:          var(--state-danger-bg);
+  --status-no-show:            var(--state-danger);    --status-no-show-bg:            var(--state-danger-bg);
+  --status-weather-cancelled:  var(--state-danger);    --status-weather-cancelled-bg:  var(--state-danger-bg);
+
+  /* ── PackageType aliases (§2.4) ────────────────────────────────── */
+  --package-solo:            var(--state-neutral);   --package-solo-bg:            var(--state-neutral-bg);
+  --package-handycam:        var(--state-info);      --package-handycam-bg:        var(--state-info-bg);
+  --package-video-externo:   var(--state-accent2);   --package-video-externo-bg:   var(--state-accent2-bg);
+  --package-fotos:           var(--state-teal);      --package-fotos-bg:           var(--state-teal-bg);
+  --package-handycam-fotos:  var(--state-info);      --package-handycam-fotos-bg:  var(--state-info-bg);
+
+  /* ── PaymentStage aliases (§2.4) ───────────────────────────────── */
+  --pay-reserva:       var(--state-accent2);   --pay-reserva-bg:       var(--state-accent2-bg);
+  --pay-liquidacion:   var(--state-success);   --pay-liquidacion-bg:   var(--state-success-bg);
+  --pay-suplemento:    var(--state-brand);     --pay-suplemento-bg:    var(--state-brand-bg);
+  --pay-paid:          var(--state-success);   --pay-paid-bg:          var(--state-success-bg);
+  --pay-reserved:      var(--state-accent2);   --pay-reserved-bg:      var(--state-accent2-bg);
+
+  /* ── WeatherStatus aliases (§2.4) ──────────────────────────────── */
+  --weather-ok:        var(--state-success);   --weather-ok-bg:        var(--state-success-bg);
+  --weather-marginal:  var(--state-warning);   --weather-marginal-bg:  var(--state-warning-bg);
+  --weather-cancelled: var(--state-danger);    --weather-cancelled-bg: var(--state-danger-bg);
 }
 
 @layer base {

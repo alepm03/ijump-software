@@ -34,14 +34,14 @@ export function AppSidebar({ email }: AppSidebarProps) {
             <circle cx="10" cy="10" r="2.5" fill="rgba(255,255,255,0.9)"/>
           </svg>
         </div>
-        <span className="font-bold text-[15.5px] text-foreground" style={{ letterSpacing: '-0.4px' }}>iJump</span>
+        <span className="font-bold text-title text-foreground" style={{ letterSpacing: '-0.4px' }}>iJump</span>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 px-2 pt-2 space-y-0.5">
         <Link
           href="/"
-          className="flex items-center gap-[9px] w-full px-2.5 py-[7px] rounded-[7px] text-[13.5px] transition-colors"
+          className="flex items-center gap-[9px] w-full px-2.5 py-[7px] rounded-[7px] text-sm transition-colors"
           style={{
             background: isCalendar ? 'var(--brand-light, oklch(0.957 0.038 55))' : 'transparent',
             color: isCalendar ? 'var(--primary)' : 'var(--muted-foreground)',
@@ -54,7 +54,7 @@ export function AppSidebar({ email }: AppSidebarProps) {
 
         <Link
           href={`/${today}`}
-          className="flex items-center gap-[9px] w-full px-2.5 py-[7px] rounded-[7px] text-[13.5px] transition-colors"
+          className="flex items-center gap-[9px] w-full px-2.5 py-[7px] rounded-[7px] text-sm transition-colors"
           style={{
             background: isToday ? 'var(--brand-light, oklch(0.957 0.038 55))' : 'transparent',
             color: isToday ? 'var(--primary)' : 'var(--muted-foreground)',
@@ -67,7 +67,7 @@ export function AppSidebar({ email }: AppSidebarProps) {
 
         <Link
           href="/finanzas"
-          className="flex items-center gap-[9px] w-full px-2.5 py-[7px] rounded-[7px] text-[13.5px] transition-colors"
+          className="flex items-center gap-[9px] w-full px-2.5 py-[7px] rounded-[7px] text-sm transition-colors"
           style={{
             background: isFinanzas ? 'var(--brand-light, oklch(0.957 0.038 55))' : 'transparent',
             color: isFinanzas ? 'var(--primary)' : 'var(--muted-foreground)',
@@ -82,7 +82,7 @@ export function AppSidebar({ email }: AppSidebarProps) {
 
         <Link
           href="/admin/instructors"
-          className="flex items-center gap-[9px] w-full px-2.5 py-[7px] rounded-[7px] text-[13.5px] transition-colors"
+          className="flex items-center gap-[9px] w-full px-2.5 py-[7px] rounded-[7px] text-sm transition-colors"
           style={{
             background: isInstructors ? 'var(--brand-light, oklch(0.957 0.038 55))' : 'transparent',
             color: isInstructors ? 'var(--primary)' : 'var(--muted-foreground)',
@@ -95,7 +95,7 @@ export function AppSidebar({ email }: AppSidebarProps) {
 
         <Link
           href="/admin"
-          className="flex items-center gap-[9px] w-full px-2.5 py-[7px] rounded-[7px] text-[13.5px] transition-colors"
+          className="flex items-center gap-[9px] w-full px-2.5 py-[7px] rounded-[7px] text-sm transition-colors"
           style={{
             background: isAdmin ? 'var(--brand-light, oklch(0.957 0.038 55))' : 'transparent',
             color: isAdmin ? 'var(--primary)' : 'var(--muted-foreground)',
@@ -111,13 +111,13 @@ export function AppSidebar({ email }: AppSidebarProps) {
       <div className="px-3 py-3 border-t border-border">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <div className="text-[12.5px] text-foreground font-medium truncate">Admin</div>
-            <div className="text-[11px] text-muted-foreground truncate">{email}</div>
+            <div className="text-sm text-foreground font-medium truncate">Admin</div>
+            <div className="text-xs text-muted-foreground truncate">{email}</div>
           </div>
           <form action={logout}>
             <button
               type="submit"
-              className="flex-shrink-0 text-[11.5px] text-muted-foreground hover:text-foreground px-2 py-1 rounded-md border border-border bg-transparent transition-colors"
+              className="flex-shrink-0 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-md border border-border bg-transparent transition-colors"
             >
               Salir
             </button>

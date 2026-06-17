@@ -63,7 +63,7 @@ export function FinanceMonthView({ month, summary, instructorPayouts }: Props) {
             >
               <ChevronLeft size={16} />
             </button>
-            <span className="px-3 py-1.5 text-[13.5px] font-semibold text-foreground capitalize min-w-[140px] text-center">
+            <span className="px-3 py-1.5 text-sm font-semibold text-foreground capitalize min-w-[140px] text-center">
               {monthLabel}
             </span>
             <button
@@ -76,7 +76,7 @@ export function FinanceMonthView({ month, summary, instructorPayouts }: Props) {
           {summary.length > 0 && (
             <button
               onClick={() => router.push(`/finanzas/${month}`)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-[13px] font-medium hover:bg-primary/90 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
             >
               <ExternalLink size={13} />
               Ver detalle
@@ -187,7 +187,7 @@ export function FinanceMonthView({ month, summary, instructorPayouts }: Props) {
                 <div key={ip.instructorId} className="grid grid-cols-[1fr_80px_100px_120px] px-4 py-3 items-center">
                   <div className="flex items-center gap-2.5">
                     <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <span className="text-[10px] font-semibold text-primary">{initials}</span>
+                      <span className="text-2xs font-semibold text-primary">{initials}</span>
                     </div>
                     <span className="text-sm text-foreground font-medium">{ip.name}</span>
                   </div>

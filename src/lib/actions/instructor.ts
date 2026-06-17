@@ -16,6 +16,7 @@ export async function getInstructors(activeOnly = false): Promise<Instructor[]> 
     id: row.id,
     name: row.name,
     active: row.active,
+    feePerJump: row.fee_per_jump,
     createdAt: row.created_at,
   }))
 }
@@ -25,6 +26,20 @@ export async function createInstructor(
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
   const { error } = await supabase.from('instructors').insert({ name })
+  if (error) return { error: error.message }
+  revalidatePath('/', 'layout')
+  return {}
+}
+
+export async function updateInstructorFee(
+  id: string,
+  feePerJump: number
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('instructors')
+    .update({ fee_per_jump: feePerJump })
+    .eq('id', id)
   if (error) return { error: error.message }
   revalidatePath('/', 'layout')
   return {}

@@ -98,7 +98,96 @@ export interface Instructor {
   id: string
   name: string
   active: boolean
+  feePerJump: number
   createdAt: string
+}
+
+// ─── Finance ────────────────────────────────────────────────
+
+export interface FinancialSettings {
+  id: string
+  fuelPricePerFlight: number
+  hangarPricePerDay: number
+  packerFeePerJump: number
+  updatedAt: string
+}
+
+export type ExpenseType = 'FUEL_OVERRIDE' | 'HANGAR_OVERRIDE' | 'CUSTOM'
+
+export interface DayExpense {
+  id: string
+  operationalDayId: string
+  type: ExpenseType
+  description: string | null
+  amount: number
+  createdAt: string
+}
+
+export interface InstructorPayout {
+  instructorId: string
+  name: string
+  jumps: number
+  feePerJump: number
+  total: number
+}
+
+export interface DayFinancials {
+  date: string
+  operationalDayId: string
+  // Revenue
+  totalRevenue: number
+  revenueByMethod: Record<PaymentMethod, number>
+  // Costs
+  fuelCost: number
+  fuelIsOverride: boolean
+  fuelOverrideExpenseId: string | null
+  hangarCost: number
+  hangarIsOverride: boolean
+  hangarOverrideExpenseId: string | null
+  instructorPayouts: InstructorPayout[]
+  totalInstructorCost: number
+  packerCost: number
+  customExpenses: DayExpense[]
+  totalCosts: number
+  // Net
+  netProfit: number
+}
+
+export interface MonthFinancialSummary {
+  date: string
+  totalRevenue: number
+  totalCosts: number
+  netProfit: number
+  jumpCount: number
+  flightCount: number
+}
+
+export interface DayExpenseWithDate extends DayExpense {
+  date: string // YYYY-MM-DD of the operational day
+}
+
+export interface MonthFinancialsDetail {
+  month: string
+  // Counts
+  dayCount: number
+  flightCount: number
+  jumpCount: number
+  // Revenue
+  totalRevenue: number
+  revenueByMethod: Record<PaymentMethod, number>
+  // Fixed costs (may include per-day overrides)
+  totalFuelCost: number
+  totalHangarCost: number
+  totalPackerCost: number
+  // Instructors
+  instructorPayouts: InstructorPayout[]
+  totalInstructorCost: number
+  // Custom expenses
+  customExpenses: DayExpenseWithDate[]
+  totalCustomCost: number
+  // Totals
+  totalCosts: number
+  netProfit: number
 }
 
 export type WaiverDocumentType = 'WAIVER' | 'RGPD'

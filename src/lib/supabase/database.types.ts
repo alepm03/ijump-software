@@ -80,22 +80,84 @@ export type Database = {
           },
         ]
       }
+      day_expenses: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          operational_day_id: string
+          type: Database["public"]["Enums"]["expense_type"]
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          operational_day_id: string
+          type: Database["public"]["Enums"]["expense_type"]
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          operational_day_id?: string
+          type?: Database["public"]["Enums"]["expense_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "day_expenses_operational_day_id_fkey"
+            columns: ["operational_day_id"]
+            isOneToOne: false
+            referencedRelation: "operational_days"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_settings: {
+        Row: {
+          fuel_price_per_flight: number
+          hangar_price_per_day: number
+          id: string
+          packer_fee_per_jump: number
+          updated_at: string
+        }
+        Insert: {
+          fuel_price_per_flight?: number
+          hangar_price_per_day?: number
+          id?: string
+          packer_fee_per_jump?: number
+          updated_at?: string
+        }
+        Update: {
+          fuel_price_per_flight?: number
+          hangar_price_per_day?: number
+          id?: string
+          packer_fee_per_jump?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       instructors: {
         Row: {
           active: boolean
           created_at: string
+          fee_per_jump: number
           id: string
           name: string
         }
         Insert: {
           active?: boolean
           created_at?: string
+          fee_per_jump?: number
           id?: string
           name: string
         }
         Update: {
           active?: boolean
           created_at?: string
+          fee_per_jump?: number
           id?: string
           name?: string
         }
@@ -330,6 +392,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      expense_type: "FUEL_OVERRIDE" | "HANGAR_OVERRIDE" | "CUSTOM"
       flight_status:
         | "SCHEDULED"
         | "BOARDING"
@@ -493,6 +556,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      expense_type: ["FUEL_OVERRIDE", "HANGAR_OVERRIDE", "CUSTOM"],
       flight_status: [
         "SCHEDULED",
         "BOARDING",

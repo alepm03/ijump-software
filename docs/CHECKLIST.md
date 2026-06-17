@@ -84,50 +84,50 @@ Estado general de módulos. Cada módulo se desarrolla en su propia rama (`featu
 
 ---
 
-## Módulo 9 · Finanzas 🔲 ← EN CURSO
+## Módulo 9 · Finanzas ✅
 
-### 9.A · Base de datos y tipos
-- [ ] Migración: añadir `fee_per_jump` a tabla `instructors`
-- [ ] Migración: nueva tabla `financial_settings` (precios globales)
-- [ ] Migración: nueva tabla `day_expenses` (gastos y overrides por día)
-- [ ] Actualizar `src/lib/supabase/database.types.ts`
-- [ ] Añadir tipos de dominio en `src/types/domain.ts`
+### 9.A · Base de datos y tipos ✅
+- [x] Migración: añadir `fee_per_jump` a tabla `instructors`
+- [x] Migración: nueva tabla `financial_settings` (precios globales)
+- [x] Migración: nueva tabla `day_expenses` (gastos y overrides por día)
+- [x] Actualizar `src/lib/supabase/database.types.ts`
+- [x] Añadir tipos de dominio en `src/types/domain.ts`
 
-### 9.B · Server Actions
-- [ ] `src/lib/actions/finance.ts`
-  - [ ] `getFinancialSettings()` — leer precios globales
-  - [ ] `updateFinancialSettings()` — editar precios globales
-  - [ ] `getDayFinancials(date)` — P&L completo del día
-  - [ ] `upsertDayExpense()` — crear/editar gasto o override
-  - [ ] `deleteDayExpense()` — eliminar gasto
-  - [ ] `getMonthFinancials(month)` — resumen mensual
-  - [ ] `getInstructorPayouts(month)` — desglose por instructor
+### 9.B · Server Actions ✅
+- [x] `src/lib/actions/finance.ts`
+  - [x] `getFinancialSettings()` — leer precios globales
+  - [x] `updateFinancialSettings()` — editar precios globales
+  - [x] `getDayFinancials(date)` — P&L completo del día
+  - [x] `upsertDayExpense()` — crear/editar gasto o override
+  - [x] `deleteDayExpense()` — eliminar gasto
+  - [x] `getMonthFinancials(month)` — resumen mensual
+  - [x] `getInstructorPayouts(month)` — desglose por instructor
 
-### 9.C · Vista mensual `/finanzas`
-- [ ] Entrada "Finanzas" en sidebar (`AppSidebar.tsx`)
-- [ ] Página `src/app/(dashboard)/finanzas/page.tsx`
-- [ ] Selector de mes
-- [ ] Tabla resumen: día / ingresos / costes / neto
-- [ ] Totales del mes
-- [ ] Panel de pagos a instructores (instructor / saltos / importe)
-- [ ] `src/app/(dashboard)/finanzas/loading.tsx` — skeleton
+### 9.C · Vista mensual `/finanzas` ✅
+- [x] Entrada "Finanzas" en sidebar (`AppSidebar.tsx`)
+- [x] Página `src/app/(dashboard)/finanzas/page.tsx`
+- [x] Selector de mes
+- [x] Tabla resumen: día / ingresos / costes / neto
+- [x] Totales del mes
+- [x] Panel de pagos a instructores (instructor / saltos / importe)
+- [x] `src/app/(dashboard)/finanzas/loading.tsx` — skeleton
 
-### 9.D · Vista diaria — pestaña Finanzas
-- [ ] Añadir tab "Finanzas" en la vista del día (`/[date]`)
-- [ ] Desglose de ingresos (por método de pago)
-- [ ] Línea de gasolina (calculada + botón override)
-- [ ] Línea de hangar (calculada + botón override)
-- [ ] Desglose de instructores (por instructor: saltos × fee)
-- [ ] Línea de plegadores (saltos × fee)
-- [ ] Gastos extra libres (añadir / editar / eliminar)
-- [ ] Total costes y neto del día
+### 9.D · Vista diaria — pestaña Finanzas ✅
+- [x] Añadir tab "Finanzas" en la vista del día (`/[date]`)
+- [x] Desglose de ingresos (por método de pago)
+- [x] Línea de gasolina (calculada + botón override)
+- [x] Línea de hangar (calculada + botón override)
+- [x] Desglose de instructores (por instructor: saltos × fee)
+- [x] Línea de plegadores (saltos × fee)
+- [x] Gastos extra libres (añadir / editar / eliminar)
+- [x] Total costes y neto del día
 
-### 9.E · Ajustes de precios (Admin)
-- [ ] Sección de configuración financiera en `/admin`
-  - [ ] Precio gasolina por vuelo
-  - [ ] Precio hangar por día
-  - [ ] Fee plegador por salto
-- [ ] Edición del `fee_per_jump` de cada instructor en `/admin/instructores`
+### 9.E · Ajustes de precios (Admin) ✅
+- [x] Sección de configuración financiera en `/admin`
+  - [x] Precio gasolina por vuelo
+  - [x] Precio hangar por día
+  - [x] Fee plegador por salto
+- [x] Edición del `fee_per_jump` de cada instructor en `/admin/instructores`
 
 ---
 

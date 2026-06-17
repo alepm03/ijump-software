@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Calendar, Sun, Users } from 'lucide-react'
+import { Calendar, Sun, Users, TrendingUp, Settings } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { logout } from '@/lib/actions/auth'
@@ -20,7 +20,9 @@ export function AppSidebar({ email }: AppSidebarProps) {
 
   const isCalendar = pathname === '/' || pathname.startsWith('/?')
   const isToday = pathname === `/${today}`
+  const isFinanzas = pathname.startsWith('/finanzas')
   const isInstructors = pathname.startsWith('/admin/instructors')
+  const isAdmin = pathname === '/admin'
 
   return (
     <aside className="w-56 flex-shrink-0 flex flex-col border-r border-border h-full" style={{ background: 'var(--sidebar)' }}>
@@ -64,6 +66,21 @@ export function AppSidebar({ email }: AppSidebarProps) {
         </Link>
 
         <Link
+          href="/finanzas"
+          className="flex items-center gap-[9px] w-full px-2.5 py-[7px] rounded-[7px] text-[13.5px] transition-colors"
+          style={{
+            background: isFinanzas ? 'var(--brand-light, oklch(0.957 0.038 55))' : 'transparent',
+            color: isFinanzas ? 'var(--primary)' : 'var(--muted-foreground)',
+            fontWeight: isFinanzas ? 600 : 400,
+          }}
+        >
+          <TrendingUp size={14} />
+          Finanzas
+        </Link>
+
+        <div className="my-1.5 border-t border-border/50" />
+
+        <Link
           href="/admin/instructors"
           className="flex items-center gap-[9px] w-full px-2.5 py-[7px] rounded-[7px] text-[13.5px] transition-colors"
           style={{
@@ -74,6 +91,19 @@ export function AppSidebar({ email }: AppSidebarProps) {
         >
           <Users size={14} />
           Instructores
+        </Link>
+
+        <Link
+          href="/admin"
+          className="flex items-center gap-[9px] w-full px-2.5 py-[7px] rounded-[7px] text-[13.5px] transition-colors"
+          style={{
+            background: isAdmin ? 'var(--brand-light, oklch(0.957 0.038 55))' : 'transparent',
+            color: isAdmin ? 'var(--primary)' : 'var(--muted-foreground)',
+            fontWeight: isAdmin ? 600 : 400,
+          }}
+        >
+          <Settings size={14} />
+          Configuración
         </Link>
       </nav>
 

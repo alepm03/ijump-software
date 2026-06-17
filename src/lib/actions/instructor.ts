@@ -16,6 +16,7 @@ export async function getInstructors(activeOnly = false): Promise<Instructor[]> 
     id: row.id,
     name: row.name,
     active: row.active,
+    feePerJump: row.fee_per_jump,
     createdAt: row.created_at,
   }))
 }

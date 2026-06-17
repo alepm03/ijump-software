@@ -98,7 +98,65 @@ export interface Instructor {
   id: string
   name: string
   active: boolean
+  feePerJump: number
   createdAt: string
+}
+
+// ─── Finance ────────────────────────────────────────────────
+
+export interface FinancialSettings {
+  id: string
+  fuelPricePerFlight: number
+  hangarPricePerDay: number
+  packerFeePerJump: number
+  updatedAt: string
+}
+
+export type ExpenseType = 'FUEL_OVERRIDE' | 'HANGAR_OVERRIDE' | 'CUSTOM'
+
+export interface DayExpense {
+  id: string
+  operationalDayId: string
+  type: ExpenseType
+  description: string | null
+  amount: number
+  createdAt: string
+}
+
+export interface InstructorPayout {
+  instructorId: string
+  name: string
+  jumps: number
+  feePerJump: number
+  total: number
+}
+
+export interface DayFinancials {
+  date: string
+  // Revenue
+  totalRevenue: number
+  revenueByMethod: Record<PaymentMethod, number>
+  // Costs
+  fuelCost: number
+  fuelIsOverride: boolean
+  hangarCost: number
+  hangarIsOverride: boolean
+  instructorPayouts: InstructorPayout[]
+  totalInstructorCost: number
+  packerCost: number
+  customExpenses: DayExpense[]
+  totalCosts: number
+  // Net
+  netProfit: number
+}
+
+export interface MonthFinancialSummary {
+  date: string
+  totalRevenue: number
+  totalCosts: number
+  netProfit: number
+  jumpCount: number
+  flightCount: number
 }
 
 export type WaiverDocumentType = 'WAIVER' | 'RGPD'

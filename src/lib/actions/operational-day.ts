@@ -89,7 +89,7 @@ export async function getOperationalDay(
       createdAt: p.created_at,
       updatedAt: p.updated_at,
       instructor: p.instructor
-        ? { id: p.instructor.id, name: p.instructor.name, active: p.instructor.active, createdAt: p.instructor.created_at }
+        ? { id: p.instructor.id, name: p.instructor.name, active: p.instructor.active, feePerJump: p.instructor.fee_per_jump, createdAt: p.instructor.created_at }
         : null,
       payments: (p.payments ?? []).map((pmt) => ({
         id: pmt.id,

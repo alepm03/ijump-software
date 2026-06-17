@@ -8,6 +8,8 @@ import type {
   ExpenseType,
   DayFinancials,
   MonthFinancialSummary,
+  MonthFinancialsDetail,
+  DayExpenseWithDate,
   InstructorPayout,
   PaymentMethod,
 } from '@/types/domain'
@@ -425,4 +427,182 @@ export async function getInstructorPayouts(
   }
 
   return Array.from(instructorMap.values()).sort((a, b) => a.name.localeCompare(b.name))
+}
+
+// ─── Month financials detail ─────────────────────────────────
+
+function monthRange(month: string): { from: string; to: string } {
+  const year = parseInt(month.split('-')[0])
+  const monthNum = parseInt(month.split('-')[1])
+  const lastDay = new Date(year, monthNum, 0).getDate()
+  return {
+    from: `${month}-01`,
+    to: `${month}-${String(lastDay).padStart(2, '0')}`,
+  }
+}
+
+export async function getMonthFinancialsDetail(
+  month: string // YYYY-MM
+): Promise<MonthFinancialsDetail> {
+  const supabase = await createClient()
+  const { from, to } = monthRange(month)
+
+  const [daysResult, settingsResult] = await Promise.all([
+    supabase
+      .from('operational_days')
+      .select(`
+        id,
+        date,
+        flights (
+          id,
+          participants (
+            id,
+            assigned_instructor_id,
+            operational_status,
+            payments ( amount, method ),
+            instructor:instructors!participants_assigned_instructor_id_fkey (
+              id, name, fee_per_jump
+            )
+          )
+        )
+      `)
+      .gte('date', from)
+      .lte('date', to)
+      .order('date'),
+    supabase.from('financial_settings').select('*').single(),
+  ])
+
+  if (daysResult.error) throw new Error(daysResult.error.message)
+  if (settingsResult.error) throw new Error(settingsResult.error.message)
+
+  const days = daysResult.data ?? []
+  const settings = settingsResult.data
+
+  // Fetch all expenses for the month in one query
+  const dayIds = days.map((d) => d.id)
+  type DayExpenseRow = { id: string; operational_day_id: string; type: 'FUEL_OVERRIDE' | 'HANGAR_OVERRIDE' | 'CUSTOM'; description: string | null; amount: number; created_at: string }
+  let allExpenses: DayExpenseRow[] = []
+  let expensesError: { message: string } | null = null
+
+  if (dayIds.length) {
+    const result = await supabase.from('day_expenses').select('*').in('operational_day_id', dayIds)
+    if (result.error) expensesError = result.error
+    else allExpenses = result.data ?? []
+  }
+
+  if (expensesError) throw new Error(expensesError.message)
+
+  // Build a date lookup for expenses
+  const dayDateById = new Map(days.map((d) => [d.id, d.date]))
+
+  // Aggregate
+  let totalRevenue = 0
+  const revenueByMethod: Record<string, number> = {}
+  let totalFuelCost = 0
+  let totalHangarCost = 0
+  let totalPackerCost = 0
+  const instructorMap = new Map<string, InstructorPayout>()
+  const customExpenses: DayExpenseWithDate[] = []
+  let totalCustomCost = 0
+  let flightCount = 0
+  let jumpCount = 0
+
+  // Group expenses by day
+  const expensesByDay = new Map<string, DayExpenseRow[]>()
+  for (const e of allExpenses) {
+    if (!expensesByDay.has(e.operational_day_id)) expensesByDay.set(e.operational_day_id, [])
+    expensesByDay.get(e.operational_day_id)!.push(e)
+  }
+
+  for (const day of days) {
+    const dayFlights = day.flights ?? []
+    const dayExpenses = expensesByDay.get(day.id) ?? []
+    const allParticipants = dayFlights.flatMap((f) => f.participants ?? [])
+    const completedP = allParticipants.filter(
+      (p) =>
+        p.operational_status !== 'CANCELLED' &&
+        p.operational_status !== 'NO_SHOW' &&
+        p.operational_status !== 'WEATHER_CANCELLED'
+    )
+
+    flightCount += dayFlights.length
+    jumpCount += completedP.length
+
+    // Revenue
+    for (const p of allParticipants) {
+      for (const pmt of p.payments ?? []) {
+        totalRevenue += pmt.amount
+        revenueByMethod[pmt.method] = (revenueByMethod[pmt.method] ?? 0) + pmt.amount
+      }
+    }
+
+    // Fuel
+    const fuelOverride = dayExpenses.find((e) => e.type === 'FUEL_OVERRIDE')
+    totalFuelCost += fuelOverride
+      ? fuelOverride.amount
+      : settings.fuel_price_per_flight * dayFlights.length
+
+    // Hangar
+    const hangarOverride = dayExpenses.find((e) => e.type === 'HANGAR_OVERRIDE')
+    totalHangarCost += hangarOverride ? hangarOverride.amount : settings.hangar_price_per_day
+
+    // Packers
+    totalPackerCost += settings.packer_fee_per_jump * completedP.length
+
+    // Instructors
+    for (const p of completedP) {
+      if (!p.instructor || !p.assigned_instructor_id) continue
+      const key = p.assigned_instructor_id
+      if (!instructorMap.has(key)) {
+        instructorMap.set(key, {
+          instructorId: key,
+          name: p.instructor.name,
+          jumps: 0,
+          feePerJump: p.instructor.fee_per_jump,
+          total: 0,
+        })
+      }
+      const entry = instructorMap.get(key)!
+      entry.jumps += 1
+      entry.total = entry.jumps * entry.feePerJump
+    }
+
+    // Custom expenses
+    for (const e of dayExpenses.filter((e) => e.type === 'CUSTOM')) {
+      totalCustomCost += e.amount
+      customExpenses.push({
+        id: e.id,
+        operationalDayId: e.operational_day_id,
+        type: e.type,
+        description: e.description,
+        amount: e.amount,
+        createdAt: e.created_at,
+        date: dayDateById.get(e.operational_day_id) ?? '',
+      })
+    }
+  }
+
+  const instructorPayouts = Array.from(instructorMap.values()).sort((a, b) =>
+    a.name.localeCompare(b.name)
+  )
+  const totalInstructorCost = instructorPayouts.reduce((s, ip) => s + ip.total, 0)
+  const totalCosts = totalFuelCost + totalHangarCost + totalPackerCost + totalInstructorCost + totalCustomCost
+
+  return {
+    month,
+    dayCount: days.length,
+    flightCount,
+    jumpCount,
+    totalRevenue,
+    revenueByMethod: revenueByMethod as Record<PaymentMethod, number>,
+    totalFuelCost,
+    totalHangarCost,
+    totalPackerCost,
+    instructorPayouts,
+    totalInstructorCost,
+    customExpenses,
+    totalCustomCost,
+    totalCosts,
+    netProfit: totalRevenue - totalCosts,
+  }
 }

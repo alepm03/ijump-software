@@ -162,6 +162,34 @@ export interface MonthFinancialSummary {
   flightCount: number
 }
 
+export interface DayExpenseWithDate extends DayExpense {
+  date: string // YYYY-MM-DD of the operational day
+}
+
+export interface MonthFinancialsDetail {
+  month: string
+  // Counts
+  dayCount: number
+  flightCount: number
+  jumpCount: number
+  // Revenue
+  totalRevenue: number
+  revenueByMethod: Record<PaymentMethod, number>
+  // Fixed costs (may include per-day overrides)
+  totalFuelCost: number
+  totalHangarCost: number
+  totalPackerCost: number
+  // Instructors
+  instructorPayouts: InstructorPayout[]
+  totalInstructorCost: number
+  // Custom expenses
+  customExpenses: DayExpenseWithDate[]
+  totalCustomCost: number
+  // Totals
+  totalCosts: number
+  netProfit: number
+}
+
 export type WaiverDocumentType = 'WAIVER' | 'RGPD'
 export type WaiverStatus = 'PENDING' | 'COMPLETED' | 'EXPIRED'
 

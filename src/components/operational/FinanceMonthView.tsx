@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react'
 import { format, addMonths, subMonths, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type { MonthFinancialSummary, InstructorPayout } from '@/types/domain'
@@ -55,22 +55,33 @@ export function FinanceMonthView({ month, summary, instructorPayouts }: Props) {
           <h1 className="text-xl font-bold text-foreground">Finanzas</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Resumen económico del centro</p>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => navigate(-1)}
-            className="w-9 h-9 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <span className="px-3 py-1.5 text-[13.5px] font-semibold text-foreground capitalize min-w-[140px] text-center">
-            {monthLabel}
-          </span>
-          <button
-            onClick={() => navigate(1)}
-            className="w-9 h-9 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          >
-            <ChevronRight size={16} />
-          </button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => navigate(-1)}
+              className="w-9 h-9 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <span className="px-3 py-1.5 text-[13.5px] font-semibold text-foreground capitalize min-w-[140px] text-center">
+              {monthLabel}
+            </span>
+            <button
+              onClick={() => navigate(1)}
+              className="w-9 h-9 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+          {summary.length > 0 && (
+            <button
+              onClick={() => router.push(`/finanzas/${month}`)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-[13px] font-medium hover:bg-primary/90 transition-colors"
+            >
+              <ExternalLink size={13} />
+              Ver detalle
+            </button>
+          )}
         </div>
       </div>
 

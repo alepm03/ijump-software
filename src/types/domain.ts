@@ -133,14 +133,17 @@ export interface InstructorPayout {
 
 export interface DayFinancials {
   date: string
+  operationalDayId: string
   // Revenue
   totalRevenue: number
   revenueByMethod: Record<PaymentMethod, number>
   // Costs
   fuelCost: number
   fuelIsOverride: boolean
+  fuelOverrideExpenseId: string | null
   hangarCost: number
   hangarIsOverride: boolean
+  hangarOverrideExpenseId: string | null
   instructorPayouts: InstructorPayout[]
   totalInstructorCost: number
   packerCost: number

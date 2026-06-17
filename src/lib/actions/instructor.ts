@@ -31,6 +31,20 @@ export async function createInstructor(
   return {}
 }
 
+export async function updateInstructorFee(
+  id: string,
+  feePerJump: number
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('instructors')
+    .update({ fee_per_jump: feePerJump })
+    .eq('id', id)
+  if (error) return { error: error.message }
+  revalidatePath('/', 'layout')
+  return {}
+}
+
 export async function toggleInstructorActive(
   id: string
 ): Promise<{ error?: string }> {

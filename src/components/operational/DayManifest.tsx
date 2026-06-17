@@ -21,6 +21,7 @@ import { DayHeader } from './DayHeader'
 import { FlightCard } from './FlightCard'
 import { DailySummaryPanel } from './DailySummaryPanel'
 import { AddParticipantDrawer } from './AddParticipantDrawer'
+import { DayFinanceTab } from './DayFinanceTab'
 import { useRealtimeManifest } from '@/hooks/useRealtimeManifest'
 import type { FlightWithParticipants, Instructor, OperationalDayWithDetails } from '@/types/domain'
 
@@ -36,6 +37,7 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
   const [flights, setFlights] = useState<FlightWithParticipants[]>(day.flights)
   const [addToFlightId, setAddToFlightId] = useState<string | null>(null)
   const [dragType, setDragType] = useState<'flight' | 'participant' | null>(null)
+  const [activeTab, setActiveTab] = useState<'manifest' | 'finanzas'>('manifest')
 
   useEffect(() => {
     setFlights(day.flights)
@@ -152,53 +154,82 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
     <div className="h-full flex flex-col">
       <DayHeader day={{ ...day, flights }} />
 
-      {/* Scrollable flights area */}
-      <div className="flex-1 overflow-y-auto">
-        <DndContext
-          id={dndId}
-          sensors={sensors}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={flights.map((f) => f.id)}
-            strategy={verticalListSortingStrategy}
+      {/* Tab bar */}
+      <div className="flex-shrink-0 border-b border-border px-7 flex gap-1">
+        {(['manifest', 'finanzas'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className="px-3 py-2.5 text-[13px] font-medium transition-colors capitalize"
+            style={{
+              color: activeTab === tab ? 'var(--primary)' : 'var(--muted-foreground)',
+              borderBottom: activeTab === tab ? '2px solid var(--primary)' : '2px solid transparent',
+              marginBottom: '-1px',
+            }}
           >
-            <div className="flex flex-col gap-2.5 px-7 py-5 max-w-[880px] mx-auto">
-              {flights.map((flight) => (
-                <FlightCard
-                  key={flight.id}
-                  flight={flight}
-                  instructors={instructors}
-                  onAddParticipant={() => setAddToFlightId(flight.id)}
-                  onDelete={() => handleDeleteFlight(flight.id)}
-                />
-              ))}
-
-              <button
-                onClick={handleAddFlight}
-                disabled={isPending}
-                className="w-full flex items-center justify-center gap-1.5 py-3.5 rounded-[10px] border-2 border-dashed border-border hover:border-primary/30 hover:bg-secondary/40 hover:text-primary text-muted-foreground transition-all disabled:opacity-50 text-[13.5px] font-medium"
-              >
-                <Plus size={15} />
-                Añadir vuelo
-              </button>
-            </div>
-          </SortableContext>
-
-          <DragOverlay>
-            {dragType === 'flight' && (
-              <div className="max-w-[880px] h-14 rounded-[10px] border border-primary/30 bg-card opacity-80 shadow-md" />
-            )}
-            {dragType === 'participant' && (
-              <div className="h-9 rounded-md border border-primary/30 bg-card opacity-80 shadow-sm" />
-            )}
-          </DragOverlay>
-        </DndContext>
+            {tab === 'manifest' ? 'Manifest' : 'Finanzas'}
+          </button>
+        ))}
       </div>
 
-      {/* Summary bar — flex-shrink-0 keeps it always visible at the bottom */}
-      <DailySummaryPanel flights={flights} />
+      {/* Finance tab */}
+      {activeTab === 'finanzas' && (
+        <div className="flex-1 overflow-y-auto">
+          <DayFinanceTab date={day.date} />
+        </div>
+      )}
+
+      {/* Manifest tab: scrollable flights + summary pinned */}
+      {activeTab === 'manifest' && (
+        <>
+          <div className="flex-1 overflow-y-auto">
+            <DndContext
+              id={dndId}
+              sensors={sensors}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={flights.map((f) => f.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="flex flex-col gap-2.5 px-7 py-5 max-w-[880px] mx-auto">
+                  {flights.map((flight) => (
+                    <FlightCard
+                      key={flight.id}
+                      flight={flight}
+                      instructors={instructors}
+                      onAddParticipant={() => setAddToFlightId(flight.id)}
+                      onDelete={() => handleDeleteFlight(flight.id)}
+                    />
+                  ))}
+
+                  <button
+                    onClick={handleAddFlight}
+                    disabled={isPending}
+                    className="w-full flex items-center justify-center gap-1.5 py-3.5 rounded-[10px] border-2 border-dashed border-border hover:border-primary/30 hover:bg-secondary/40 hover:text-primary text-muted-foreground transition-all disabled:opacity-50 text-[13.5px] font-medium"
+                  >
+                    <Plus size={15} />
+                    Añadir vuelo
+                  </button>
+                </div>
+              </SortableContext>
+
+              <DragOverlay>
+                {dragType === 'flight' && (
+                  <div className="max-w-[880px] h-14 rounded-[10px] border border-primary/30 bg-card opacity-80 shadow-md" />
+                )}
+                {dragType === 'participant' && (
+                  <div className="h-9 rounded-md border border-primary/30 bg-card opacity-80 shadow-sm" />
+                )}
+              </DragOverlay>
+            </DndContext>
+          </div>
+
+          {/* Summary bar — flex-shrink-0 keeps it always visible at the bottom */}
+          <DailySummaryPanel flights={flights} />
+        </>
+      )}
 
       <AddParticipantDrawer
         flightId={addToFlightId}

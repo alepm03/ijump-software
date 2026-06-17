@@ -30,7 +30,6 @@ import {
 import {
   Sheet,
   SheetContent,
-  SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
@@ -606,122 +605,129 @@ function ParticipantInfoSheet({
         <User size={11} />
       </SheetTrigger>
 
-      <SheetContent side="right" className="w-[340px] sm:max-w-[340px] p-0 flex flex-col">
+      <SheetContent side="top" className="h-[52vh] p-0 flex flex-col gap-0">
         {/* Header */}
-        <div className="px-5 pt-5 pb-4 border-b border-border">
-          <div className="flex items-start justify-between gap-2 mb-1">
+        <div className="px-6 pt-5 pb-4 border-b border-border flex-shrink-0">
+          <div className="flex items-center gap-3 pr-8">
             <SheetTitle className="text-[16px] font-semibold leading-tight">
               {p.fullName || 'Sin nombre'}
             </SheetTitle>
             <span
-              className="text-[11px] font-semibold px-2 py-0.5 rounded flex-shrink-0 mt-0.5"
+              className="text-[11px] font-semibold px-2 py-0.5 rounded flex-shrink-0"
               style={{ background: statusCfg.bg, color: statusCfg.color }}
             >
               {statusCfg.label}
             </span>
+            {p.reservationGroup && (
+              <p className="text-[12.5px] text-muted-foreground ml-2">
+                {SOURCE_LABELS[p.reservationGroup.source] ?? p.reservationGroup.source}
+                {p.reservationGroup.payerName && (
+                  <span className="text-muted-foreground/60"> · {p.reservationGroup.payerName}</span>
+                )}
+              </p>
+            )}
           </div>
-          {p.reservationGroup && (
-            <p className="text-[12.5px] text-muted-foreground">
-              {SOURCE_LABELS[p.reservationGroup.source] ?? p.reservationGroup.source}
-              {p.reservationGroup.payerName && (
-                <span className="text-muted-foreground/60"> · {p.reservationGroup.payerName}</span>
-              )}
-            </p>
-          )}
         </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 pb-6">
-          <SectionLabel>Contacto</SectionLabel>
-          <div>
-            <EditableRow
-              label="Nombre"
-              value={p.fullName}
-              placeholder="Sin nombre"
-              onSave={(v) => save({ fullName: v })}
-            />
-            <EditableRow
-              label="Teléfono"
-              value={p.phone ?? ''}
-              placeholder="—"
-              onSave={(v) => save({ phone: v || null })}
-              inputType="tel"
-            />
-            <EditableRow
-              label="Email"
-              value={p.email ?? ''}
-              placeholder="—"
-              onSave={(v) => save({ email: v || null })}
-              inputType="email"
-            />
+        {/* Body — 3 columnas */}
+        <div className="grid grid-cols-3 divide-x divide-border flex-1 overflow-y-auto">
+          {/* Col 1: Contacto + Datos físicos */}
+          <div className="px-5 py-4 overflow-y-auto">
+            <SectionLabel>Contacto</SectionLabel>
+            <div>
+              <EditableRow
+                label="Nombre"
+                value={p.fullName}
+                placeholder="Sin nombre"
+                onSave={(v) => save({ fullName: v })}
+              />
+              <EditableRow
+                label="Teléfono"
+                value={p.phone ?? ''}
+                placeholder="—"
+                onSave={(v) => save({ phone: v || null })}
+                inputType="tel"
+              />
+              <EditableRow
+                label="Email"
+                value={p.email ?? ''}
+                placeholder="—"
+                onSave={(v) => save({ email: v || null })}
+                inputType="email"
+              />
+            </div>
+            <SectionLabel>Datos físicos</SectionLabel>
+            <div>
+              <EditableRow
+                label="Peso"
+                value={p.weight ? `${p.weight} kg` : ''}
+                placeholder="—"
+                onSave={(v) => {
+                  const n = parseFloat(v)
+                  save({ weight: isNaN(n) ? null : n })
+                }}
+                inputType="number"
+              />
+              <EditableRow
+                label="Supl. OW"
+                value={p.overweightFee ? `${p.overweightFee} €` : ''}
+                placeholder="0 €"
+                onSave={(v) => {
+                  const n = parseFloat(v)
+                  save({ overweightFee: isNaN(n) ? 0 : n })
+                }}
+                inputType="number"
+              />
+            </div>
           </div>
 
-          <SectionLabel>Datos físicos</SectionLabel>
-          <div>
-            <EditableRow
-              label="Peso"
-              value={p.weight ? `${p.weight} kg` : ''}
-              placeholder="—"
-              onSave={(v) => {
-                const n = parseFloat(v)
-                save({ weight: isNaN(n) ? null : n })
-              }}
-              inputType="number"
-            />
-            <EditableRow
-              label="Supl. OW"
-              value={p.overweightFee ? `${p.overweightFee} €` : ''}
-              placeholder="0 €"
-              onSave={(v) => {
-                const n = parseFloat(v)
-                save({ overweightFee: isNaN(n) ? 0 : n })
-              }}
-              inputType="number"
-            />
-          </div>
-
-          <SectionLabel>Checklist</SectionLabel>
-          <div className="space-y-1">
-            {(
-              [
-                { key: 'checkInCompleted', label: 'Check-in', color: '#3B82F6' },
-                { key: 'waiverSigned',     label: 'Waiver firmado', color: '#9333EA' },
-                { key: 'gearedUp',         label: 'Equipado', color: '#EA580C' },
-              ] as const
-            ).map(({ key, label, color }) => {
-              const checked = p[key]
-              return (
-                <button
-                  key={key}
-                  onClick={() => save({ [key]: !checked })}
-                  className="flex items-center gap-3 w-full px-1 py-2 rounded hover:bg-secondary transition-colors text-left group"
-                >
-                  <span
-                    className="w-4 h-4 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors"
-                    style={checked
-                      ? { background: color, borderColor: color }
-                      : { background: 'transparent', borderColor: 'var(--border)' }
-                    }
+          {/* Col 2: Checklist */}
+          <div className="px-5 py-4 overflow-y-auto">
+            <SectionLabel>Checklist</SectionLabel>
+            <div className="space-y-1">
+              {(
+                [
+                  { key: 'checkInCompleted', label: 'Check-in', color: '#3B82F6' },
+                  { key: 'waiverSigned',     label: 'Waiver firmado', color: '#9333EA' },
+                  { key: 'gearedUp',         label: 'Equipado', color: '#EA580C' },
+                ] as const
+              ).map(({ key, label, color }) => {
+                const checked = p[key]
+                return (
+                  <button
+                    key={key}
+                    onClick={() => save({ [key]: !checked })}
+                    className="flex items-center gap-3 w-full px-1 py-2 rounded hover:bg-secondary transition-colors text-left group"
                   >
-                    {checked && (
-                      <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-                        <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    )}
-                  </span>
-                  <span className={`text-sm transition-colors ${checked ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                    {label}
-                  </span>
-                </button>
-              )
-            })}
+                    <span
+                      className="w-4 h-4 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors"
+                      style={checked
+                        ? { background: color, borderColor: color }
+                        : { background: 'transparent', borderColor: 'var(--border)' }
+                      }
+                    >
+                      {checked && (
+                        <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                          <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                    </span>
+                    <span className={`text-sm transition-colors ${checked ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                      {label}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
-          <SectionLabel>Notas</SectionLabel>
-          <NotesField value={p.notes ?? ''} onSave={(v) => save({ notes: v || null })} />
-
-          <SectionLabel>Documentos</SectionLabel>
-          <WaiverSection participantId={p.id} />
+          {/* Col 3: Notas + Documentos */}
+          <div className="px-5 py-4 overflow-y-auto">
+            <SectionLabel>Notas</SectionLabel>
+            <NotesField value={p.notes ?? ''} onSave={(v) => save({ notes: v || null })} />
+            <SectionLabel>Documentos</SectionLabel>
+            <WaiverSection participantId={p.id} />
+          </div>
         </div>
       </SheetContent>
     </Sheet>

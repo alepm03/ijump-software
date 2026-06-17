@@ -130,7 +130,18 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
 
   function handleAddFlight() {
     startTransition(async () => {
-      const result = await createFlight(day.id, {})
+      const times = flights
+        .map((f) => f.estimatedDepartureTime)
+        .filter((t): t is string => t !== null)
+        .sort()
+      const latest = times.at(-1)
+      let estimatedDepartureTime: string | null = null
+      if (latest) {
+        const [h, m] = latest.split(':').map(Number)
+        const next = h + 1
+        if (next < 24) estimatedDepartureTime = `${String(next).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+      }
+      const result = await createFlight(day.id, { estimatedDepartureTime })
       if (result.error) toast.error(result.error)
       else router.refresh()
     })

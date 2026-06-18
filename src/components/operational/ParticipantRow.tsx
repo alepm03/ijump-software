@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useDraggable } from '@dnd-kit/core'
-import { GripVertical } from 'lucide-react'
+import { GripVertical, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateParticipant, deleteParticipant } from '@/lib/actions/participant'
 import { createPayment, updatePayment, deletePayment } from '@/lib/actions/payment'
@@ -791,9 +791,11 @@ interface ParticipantRowProps {
   participant: ParticipantWithDetails
   flightId: string
   instructors: Instructor[]
+  selected?: boolean
+  onToggleSelect?: (id: string) => void
 }
 
-export function ParticipantRow({ participant: p, flightId, instructors }: ParticipantRowProps) {
+export function ParticipantRow({ participant: p, flightId, instructors, selected = false, onToggleSelect }: ParticipantRowProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -831,6 +833,18 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
     >
       {/* ── lg+: single-row grid aligned with ManifestColHead ── */}
       <div className="hidden lg:flex items-center px-3.5 py-2">
+        {/* Selection checkbox — same width (w-5) as the checkbox spacer in ManifestColHead */}
+        <div className="flex-shrink-0 w-5 flex items-center justify-center">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => onToggleSelect?.(p.id)}
+            onClick={(e) => e.stopPropagation()}
+            className="w-3.5 h-3.5 rounded-sm border border-border-strong accent-primary cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+            title="Seleccionar participante"
+          />
+        </div>
+
         {/* Drag handle — fixed width before grid, matches col-head padding offset */}
         <button
           {...attributes}
@@ -849,8 +863,21 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
             alignItems: 'center',
           }}
         >
-          {/* Col 1: Participante (name + info icon) */}
+          {/* Col 1: Participante — Complete button (first), then name, then info icon */}
           <div className="flex items-center gap-1.5 min-w-0 px-3">
+            {/* Complete toggle — circular button, prominent */}
+            <button
+              onClick={() => save({ operationalStatus: p.operationalStatus === 'COMPLETED' ? 'PENDING' : 'COMPLETED' })}
+              disabled={isPending}
+              title={p.operationalStatus === 'COMPLETED' ? 'Marcar pendiente' : 'Marcar completado'}
+              className={`flex-shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 p-[5px] ${
+                p.operationalStatus === 'COMPLETED'
+                  ? 'bg-status-completed text-card border border-status-completed'
+                  : 'bg-transparent border border-border-strong text-transparent hover:border-status-completed'
+              }`}
+            >
+              <Check size={10} strokeWidth={3} className={p.operationalStatus === 'COMPLETED' ? 'text-card' : 'text-transparent'} />
+            </button>
             <InlineField
               value={p.fullName}
               placeholder="Nombre"
@@ -996,6 +1023,18 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
 
       {/* ── md/mobile: flex-wrap layout (Phase 5 preserved) ── */}
       <div className="flex lg:hidden items-center flex-wrap gap-2 px-3.5 py-2">
+        {/* Selection checkbox */}
+        <div className="flex-shrink-0 flex items-center justify-center order-0">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => onToggleSelect?.(p.id)}
+            onClick={(e) => e.stopPropagation()}
+            className="w-3.5 h-3.5 rounded-sm border border-border-strong accent-primary cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+            title="Seleccionar participante"
+          />
+        </div>
+
         {/* Drag handle */}
         <button
           {...attributes}
@@ -1005,16 +1044,30 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
           <GripVertical size={13} />
         </button>
 
+        {/* Complete toggle — first thing in the "participant" visual group */}
+        <button
+          onClick={() => save({ operationalStatus: p.operationalStatus === 'COMPLETED' ? 'PENDING' : 'COMPLETED' })}
+          disabled={isPending}
+          title={p.operationalStatus === 'COMPLETED' ? 'Marcar pendiente' : 'Marcar completado'}
+          className={`flex-shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 p-[5px] order-2 ${
+            p.operationalStatus === 'COMPLETED'
+              ? 'bg-status-completed text-card border border-status-completed'
+              : 'bg-transparent border border-border-strong text-transparent hover:border-status-completed'
+          }`}
+        >
+          <Check size={10} strokeWidth={3} className={p.operationalStatus === 'COMPLETED' ? 'text-card' : 'text-transparent'} />
+        </button>
+
         {/* Name */}
         <InlineField
           value={p.fullName}
           placeholder="Nombre"
           onSave={(v) => save({ fullName: v })}
-          className="font-medium min-w-[110px] text-sm order-2"
+          className="font-medium min-w-[110px] text-sm order-3"
         />
 
         {/* Info sheet icon */}
-        <span className="order-3">
+        <span className="order-4">
           <ParticipantInfoSheet participant={p} save={save} />
         </span>
 
@@ -1022,7 +1075,7 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
         <DropdownMenu>
           <DropdownMenuTrigger
             disabled={isPending}
-            className={`flex-shrink-0 text-xs font-semibold px-2 py-1 rounded-full transition-colors min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 order-4 ${statusCfg.className}`}
+            className={`flex-shrink-0 text-xs font-semibold px-2 py-1 rounded-full transition-colors min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 order-5 ${statusCfg.className}`}
           >
             {statusCfg.label}
           </DropdownMenuTrigger>
@@ -1046,7 +1099,7 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
         <DropdownMenu>
           <DropdownMenuTrigger
             disabled={isPending}
-            className="flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-md min-h-[32px] flex items-center order-5"
+            className="flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-md min-h-[32px] flex items-center order-6"
           >
             <PackageBadge label={pkgCfg.label} />
           </DropdownMenuTrigger>
@@ -1066,7 +1119,7 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
         </DropdownMenu>
 
         {/* Payment */}
-        <div className="order-6 lg:order-9 ml-auto">
+        <div className="order-7 ml-auto">
           <PaymentCell
             participantId={p.id}
             participantName={p.fullName}
@@ -1075,7 +1128,7 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
         </div>
 
         {/* Delete */}
-        <div className="flex-shrink-0 flex items-center order-10">
+        <div className="flex-shrink-0 flex items-center order-11">
           {confirmDelete ? (
             <div className="flex items-center gap-1">
               <button
@@ -1103,7 +1156,7 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
         </div>
 
         {/* Invisible full-width break for row 2 */}
-        <div className="w-full order-7" />
+        <div className="w-full order-8" />
 
         {/* Instructor */}
         <Select
@@ -1111,7 +1164,7 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
           onValueChange={(v) => save({ assignedInstructorId: v || null })}
           disabled={isPending}
         >
-          <SelectTrigger className="h-8 text-xs px-1.5 py-0 min-w-[72px] max-w-[96px] flex-shrink-0 order-8">
+          <SelectTrigger className="h-8 text-xs px-1.5 py-0 min-w-[72px] max-w-[96px] flex-shrink-0 order-9">
             <SelectValue>
               <span className={p.assignedInstructorId ? '' : 'text-muted-foreground'}>
                 {p.assignedInstructorId
@@ -1129,7 +1182,7 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
         </Select>
 
         {/* Weight + OW */}
-        <div className="flex items-center gap-1 flex-shrink-0 order-9">
+        <div className="flex items-center gap-1 flex-shrink-0 order-10">
           <InlineField
             value={p.weight ? String(p.weight) : ''}
             placeholder="—"

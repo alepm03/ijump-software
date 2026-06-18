@@ -16,7 +16,7 @@ import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-ki
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { reorderFlights, createFlight, deleteFlight } from '@/lib/actions/flight'
-import { moveParticipant } from '@/lib/actions/participant'
+import { moveParticipant, swapParticipantFlights } from '@/lib/actions/participant'
 import { DayHeader } from './DayHeader'
 import { FlightCard } from './FlightCard'
 import { AddParticipantDrawer } from './AddParticipantDrawer'
@@ -42,6 +42,8 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
   const [flights, setFlights] = useState<FlightWithParticipants[]>(day.flights)
   const [addToFlightId, setAddToFlightId] = useState<string | null>(null)
   const [dragType, setDragType] = useState<'flight' | 'participant' | null>(null)
+  const [selectedParticipants, setSelectedParticipants] = useState<Set<string>>(new Set())
+  const [isSwapping, setIsSwapping] = useState(false)
 
   useEffect(() => {
     setFlights(day.flights)
@@ -151,6 +153,34 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
     })
   }
 
+  function handleToggleParticipantSelect(id: string) {
+    setSelectedParticipants((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  function handleSwap() {
+    const ids = Array.from(selectedParticipants)
+    if (ids.length !== 2) return
+    setIsSwapping(true)
+    startTransition(async () => {
+      const result = await swapParticipantFlights(ids[0], ids[1])
+      setIsSwapping(false)
+      if (result.error) {
+        toast.error(result.error)
+      } else {
+        setSelectedParticipants(new Set())
+        router.refresh()
+      }
+    })
+  }
+
   function handleDeleteFlight(flightId: string) {
     setFlights((prev) => prev.filter((f) => f.id !== flightId))
     startTransition(async () => {
@@ -196,6 +226,27 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
 
         {/* Manifest tab: scrollable flights */}
         <TabsContent value="manifest" className="flex-1 flex flex-col overflow-hidden mt-0">
+          {/* Selection action bar — sticky, appears when ≥1 participant selected */}
+          {selectedParticipants.size > 0 && (
+            <div className="flex-shrink-0 flex items-center gap-3 px-7 py-2.5 bg-secondary border-b border-border">
+              <span className="text-sm text-muted-foreground">
+                {selectedParticipants.size} {selectedParticipants.size === 1 ? 'seleccionado' : 'seleccionados'}
+              </span>
+              <button
+                onClick={handleSwap}
+                disabled={selectedParticipants.size !== 2 || isSwapping || isPending}
+                className="text-sm font-medium px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+              >
+                {isSwapping ? 'Intercambiando…' : 'Intercambiar'}
+              </button>
+              <button
+                onClick={() => setSelectedParticipants(new Set())}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+              >
+                Cancelar
+              </button>
+            </div>
+          )}
           <div className="flex-1 overflow-y-auto">
             <DndContext
               id={dndId}
@@ -215,6 +266,8 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
                       instructors={instructors}
                       onAddParticipant={() => setAddToFlightId(flight.id)}
                       onDelete={() => handleDeleteFlight(flight.id)}
+                      selectedParticipants={selectedParticipants}
+                      onToggleParticipantSelect={handleToggleParticipantSelect}
                     />
                   ))}
 

@@ -23,6 +23,12 @@ import { DailySummaryPanel } from './DailySummaryPanel'
 import { AddParticipantDrawer } from './AddParticipantDrawer'
 import { DayFinanceTab } from './DayFinanceTab'
 import { useRealtimeManifest } from '@/hooks/useRealtimeManifest'
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from '@/components/ui/tabs'
 import type { FlightWithParticipants, Instructor, OperationalDayWithDetails } from '@/types/domain'
 
 interface DayManifestProps {
@@ -37,7 +43,6 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
   const [flights, setFlights] = useState<FlightWithParticipants[]>(day.flights)
   const [addToFlightId, setAddToFlightId] = useState<string | null>(null)
   const [dragType, setDragType] = useState<'flight' | 'participant' | null>(null)
-  const [activeTab, setActiveTab] = useState<'manifest' | 'finanzas'>('manifest')
 
   useEffect(() => {
     setFlights(day.flights)
@@ -165,34 +170,23 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
     <div className="h-full flex flex-col">
       <DayHeader day={{ ...day, flights }} />
 
-      {/* Tab bar */}
-      <div className="flex-shrink-0 border-b border-border px-7 flex gap-1">
-        {(['manifest', 'finanzas'] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className="px-3 py-2.5 text-sm font-medium transition-colors capitalize"
-            style={{
-              color: activeTab === tab ? 'var(--primary)' : 'var(--muted-foreground)',
-              borderBottom: activeTab === tab ? '2px solid var(--primary)' : '2px solid transparent',
-              marginBottom: '-1px',
-            }}
-          >
-            {tab === 'manifest' ? 'Manifest' : 'Finanzas'}
-          </button>
-        ))}
-      </div>
+      {/* Tabs — replaces manual tab bar with style inline */}
+      <Tabs defaultValue="manifest" className="flex-1 flex flex-col overflow-hidden">
+        <TabsList
+          variant="line"
+          className="flex-shrink-0 px-7 w-full rounded-none border-b border-border justify-start"
+        >
+          <TabsTrigger value="manifest">Manifest</TabsTrigger>
+          <TabsTrigger value="finanzas">Finanzas</TabsTrigger>
+        </TabsList>
 
-      {/* Finance tab */}
-      {activeTab === 'finanzas' && (
-        <div className="flex-1 overflow-y-auto">
+        {/* Finance tab */}
+        <TabsContent value="finanzas" className="flex-1 overflow-y-auto mt-0">
           <DayFinanceTab date={day.date} />
-        </div>
-      )}
+        </TabsContent>
 
-      {/* Manifest tab: scrollable flights + summary pinned */}
-      {activeTab === 'manifest' && (
-        <>
+        {/* Manifest tab: scrollable flights + summary pinned */}
+        <TabsContent value="manifest" className="flex-1 flex flex-col overflow-hidden mt-0">
           <div className="flex-1 overflow-y-auto">
             <DndContext
               id={dndId}
@@ -218,7 +212,7 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
                   <button
                     onClick={handleAddFlight}
                     disabled={isPending}
-                    className="w-full flex items-center justify-center gap-1.5 py-3.5 rounded-[10px] border-2 border-dashed border-border hover:border-primary/30 hover:bg-secondary/40 hover:text-primary text-muted-foreground transition-all disabled:opacity-50 text-sm font-medium"
+                    className="w-full flex items-center justify-center gap-1.5 py-3.5 rounded-[10px] border-2 border-dashed border-border hover:border-primary/30 hover:bg-secondary/40 hover:text-primary text-muted-foreground transition-all disabled:opacity-50 text-sm font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
                   >
                     <Plus size={15} />
                     Añadir vuelo
@@ -239,8 +233,8 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
 
           {/* Summary bar — flex-shrink-0 keeps it always visible at the bottom */}
           <DailySummaryPanel flights={flights} />
-        </>
-      )}
+        </TabsContent>
+      </Tabs>
 
       <AddParticipantDrawer
         flightId={addToFlightId}

@@ -33,6 +33,13 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import { Button } from '@/components/ui/button'
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from '@/components/ui/tabs'
 import { User } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { createWaiverToken, getParticipantWaivers } from '@/lib/actions/waiver'
@@ -96,7 +103,7 @@ const STAGE_CONFIG: Record<PaymentStage, { className: string }> = {
 
 function StatusBadge({ className, label }: { className: string; label: string }) {
   return (
-    <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${className}`}>
+    <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${className}`}>
       {label}
     </span>
   )
@@ -144,7 +151,7 @@ function InlineField({
           if (e.key === 'Enter') commit()
           if (e.key === 'Escape') { setDraft(value); setEditing(false) }
         }}
-        className={`bg-background border border-input rounded px-1 py-0 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring min-w-0 ${className}`}
+        className={`bg-background border border-input rounded px-1 py-0 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 min-w-0 ${className}`}
         autoFocus
       />
     )
@@ -253,7 +260,7 @@ function PaymentManager({
             return (
               <div key={pmt.id} className="flex items-center gap-2.5">
                 <span
-                  className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 min-w-[76px] text-center ${cfg.className}`}
+                  className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 min-w-[76px] text-center ${cfg.className}`}
                 >
                   {STAGE_LABELS[pmt.stage]}
                 </span>
@@ -268,7 +275,7 @@ function PaymentManager({
                       if (e.key === 'Enter') handleUpdate(pmt.id)
                       if (e.key === 'Escape') setEditingId(null)
                     }}
-                    className="w-20 text-sm bg-background border border-input rounded px-2 py-0.5 text-foreground outline-none focus:ring-1 focus:ring-ring font-bold"
+                    className="w-20 text-sm bg-background border border-input rounded px-2 py-0.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 font-bold"
                     autoFocus
                   />
                 ) : (
@@ -316,7 +323,7 @@ function PaymentManager({
           <select
             value={stage}
             onChange={(e) => setStage(e.target.value as PaymentStage)}
-            className="text-sm bg-background border border-input rounded px-2 py-1.5 text-foreground outline-none focus:ring-1 focus:ring-ring flex-1"
+            className="text-sm bg-background border border-input rounded px-2 py-1.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 flex-1"
           >
             {(Object.entries(STAGE_LABELS) as [PaymentStage, string][]).map(([val, label]) => (
               <option key={val} value={val}>{label}</option>
@@ -325,7 +332,7 @@ function PaymentManager({
           <select
             value={method}
             onChange={(e) => setMethod(e.target.value as PaymentMethod)}
-            className="text-sm bg-background border border-input rounded px-2 py-1.5 text-foreground outline-none focus:ring-1 focus:ring-ring flex-1"
+            className="text-sm bg-background border border-input rounded px-2 py-1.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 flex-1"
           >
             {(Object.entries(METHOD_LABELS) as [PaymentMethod, string][]).map(([val, label]) => (
               <option key={val} value={val}>{label}</option>
@@ -339,15 +346,17 @@ function PaymentManager({
             onChange={(e) => setAmount(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
             placeholder="Importe €"
-            className="flex-1 text-sm bg-background border border-input rounded px-2 py-1.5 text-foreground outline-none focus:ring-1 focus:ring-ring"
+            className="flex-1 text-sm bg-background border border-input rounded px-2 py-1.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
           />
-          <button
+          <Button
             onClick={handleAdd}
             disabled={isPending || !amount}
-            className="px-4 py-1.5 rounded bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-40 hover:bg-primary/90 transition-colors flex-shrink-0"
+            variant="default"
+            size="sm"
+            className="flex-shrink-0"
           >
             Añadir
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -371,12 +380,12 @@ function PaymentCell({
     <Dialog>
       {status ? (
         <DialogTrigger
-          className={`flex-shrink-0 text-xs font-semibold px-2 py-0.5 rounded transition-opacity hover:opacity-70 cursor-pointer ${status.className}`}
+          className={`flex-shrink-0 text-xs font-semibold px-2 py-1 rounded-full transition-opacity hover:opacity-70 cursor-pointer min-h-[32px] flex items-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${status.className}`}
         >
           {status.label} · {status.total.toFixed(0)}€
         </DialogTrigger>
       ) : (
-        <DialogTrigger className="flex-shrink-0 px-1.5 py-0.5 rounded border border-border bg-transparent text-muted-foreground text-xs hover:border-foreground/30 hover:text-foreground transition-colors cursor-pointer">
+        <DialogTrigger className="flex-shrink-0 px-1.5 py-1 rounded-full border border-border bg-transparent text-muted-foreground text-xs hover:border-foreground/30 hover:text-foreground transition-colors cursor-pointer min-h-[32px] flex items-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1">
           + Pago
         </DialogTrigger>
       )}
@@ -459,7 +468,7 @@ function WaiverSection({ participantId }: { participantId: string }) {
               key={docType}
               className="flex items-center gap-2 py-2.5 border-b border-border/50 last:border-0"
             >
-              <span className={`text-micro font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${badgeClass}`}>
+              <span className={`text-micro font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${badgeClass}`}>
                 {docType}
               </span>
 
@@ -486,7 +495,7 @@ function WaiverSection({ participantId }: { participantId: string }) {
                 <button
                   onClick={() => handleQR(docType)}
                   disabled={generating === docType}
-                  className="flex-shrink-0 text-xs px-2.5 py-1 rounded border border-border bg-transparent text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors disabled:opacity-40"
+                  className="flex-shrink-0 text-xs px-2.5 py-1 rounded border border-border bg-transparent text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
                 >
                   {generating === docType ? '…' : pending ? 'Ver QR' : 'Generar QR'}
                 </button>
@@ -576,7 +585,7 @@ function EditableRow({
             if (e.key === 'Enter') commit()
             if (e.key === 'Escape') { setDraft(value); setEditing(false) }
           }}
-          className="flex-1 text-sm bg-background border border-input rounded px-2 py-0.5 text-foreground outline-none focus:ring-1 focus:ring-ring text-right"
+          className="flex-1 text-sm bg-background border border-input rounded px-2 py-0.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 text-right"
           autoFocus
         />
       ) : (
@@ -620,7 +629,7 @@ function ParticipantInfoSheet({
   return (
     <Sheet>
       <SheetTrigger
-        className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded text-muted-foreground/30 hover:text-muted-foreground hover:bg-secondary transition-colors cursor-pointer"
+        className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded text-muted-foreground/30 hover:text-muted-foreground hover:bg-secondary transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
         title="Ficha del cliente"
       >
         <User size={11} />
@@ -645,10 +654,16 @@ function ParticipantInfoSheet({
           </div>
         </div>
 
-        {/* Body — 3 columnas */}
-        <div className="grid grid-cols-3 divide-x divide-border flex-1 overflow-y-auto">
-          {/* Col 1: Contacto + Datos físicos */}
-          <div className="px-5 py-4 overflow-y-auto">
+        {/* Body — Tabs (responsive: stacks on md, was 3 columns) */}
+        <Tabs defaultValue="contacto" className="flex-1 overflow-hidden flex flex-col">
+          <TabsList variant="line" className="px-6 flex-shrink-0 w-full rounded-none border-b border-border justify-start">
+            <TabsTrigger value="contacto">Contacto</TabsTrigger>
+            <TabsTrigger value="checklist">Checklist</TabsTrigger>
+            <TabsTrigger value="documentos">Notas y docs</TabsTrigger>
+          </TabsList>
+
+          {/* Tab 1: Contacto + Datos físicos */}
+          <TabsContent value="contacto" className="px-5 py-4 overflow-y-auto">
             <SectionLabel>Contacto</SectionLabel>
             <div>
               <EditableRow
@@ -695,10 +710,10 @@ function ParticipantInfoSheet({
                 inputType="number"
               />
             </div>
-          </div>
+          </TabsContent>
 
-          {/* Col 2: Checklist */}
-          <div className="px-5 py-4 overflow-y-auto">
+          {/* Tab 2: Checklist */}
+          <TabsContent value="checklist" className="px-5 py-4 overflow-y-auto">
             <SectionLabel>Checklist</SectionLabel>
             <div className="space-y-1">
               {CHECKLIST_ITEMS.map(({ key, label, activeClass }) => {
@@ -707,7 +722,7 @@ function ParticipantInfoSheet({
                   <button
                     key={key}
                     onClick={() => save({ [key]: !checked })}
-                    className="flex items-center gap-3 w-full px-1 py-2 rounded hover:bg-secondary transition-colors text-left group"
+                    className="flex items-center gap-3 w-full px-1 py-2 rounded hover:bg-secondary transition-colors text-left group focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
                   >
                     <span
                       className={`w-4 h-4 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors ${
@@ -727,16 +742,16 @@ function ParticipantInfoSheet({
                 )
               })}
             </div>
-          </div>
+          </TabsContent>
 
-          {/* Col 3: Notas + Documentos */}
-          <div className="px-5 py-4 overflow-y-auto">
+          {/* Tab 3: Notas + Documentos */}
+          <TabsContent value="documentos" className="px-5 py-4 overflow-y-auto">
             <SectionLabel>Notas</SectionLabel>
             <NotesField value={p.notes ?? ''} onSave={(v) => save({ notes: v || null })} />
             <SectionLabel>Documentos</SectionLabel>
             <WaiverSection participantId={p.id} />
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </SheetContent>
     </Sheet>
   )
@@ -752,7 +767,7 @@ function NotesField({ value, onSave }: { value: string; onSave: (v: string) => v
       onBlur={() => { if (draft !== value) onSave(draft) }}
       placeholder="Sin notas"
       rows={3}
-      className="w-full text-sm bg-background border border-border rounded px-3 py-2 text-foreground outline-none resize-none focus:border-input focus:ring-1 focus:ring-ring transition-colors placeholder:text-muted-foreground/40"
+      className="w-full text-sm bg-background border border-border rounded px-3 py-2 text-foreground outline-none resize-none focus-visible:border-input focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 transition-colors placeholder:text-muted-foreground/40"
     />
   )
 }
@@ -799,31 +814,37 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
     <div
       ref={setNodeRef}
       style={{ opacity: isDragging ? 0.4 : 1 }}
-      className="flex items-center gap-2 px-3.5 py-2 border-b border-border bg-card hover:bg-secondary/20 transition-colors last:border-b-0"
+      className="flex items-center flex-wrap gap-2 px-3.5 py-2 border-b border-border bg-card hover:bg-secondary/20 transition-colors last:border-b-0"
     >
-      {/* Drag handle */}
+      {/* ── Row 1 (all breakpoints): handle · name · info icon · status · package ── */}
+
+      {/* Drag handle — 32px hit target */}
       <button
         {...attributes}
         {...listeners}
-        className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none text-muted-foreground/40 hover:text-muted-foreground flex items-center"
+        className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none text-muted-foreground/40 hover:text-muted-foreground flex items-center justify-center w-8 h-8 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded order-1"
       >
         <GripVertical size={13} />
       </button>
 
-      {/* Name + info */}
+      {/* Name */}
       <InlineField
         value={p.fullName}
         placeholder="Nombre"
         onSave={(v) => save({ fullName: v })}
-        className="font-medium min-w-[110px] text-sm"
+        className="font-medium min-w-[110px] text-sm order-2"
       />
-      <ParticipantInfoSheet participant={p} save={save} />
 
-      {/* Status */}
+      {/* Info sheet icon */}
+      <span className="order-3">
+        <ParticipantInfoSheet participant={p} save={save} />
+      </span>
+
+      {/* Status — rounded-full pill, min 32px hit target */}
       <DropdownMenu>
         <DropdownMenuTrigger
           disabled={isPending}
-          className={`flex-shrink-0 text-xs font-semibold px-1.5 py-0.5 rounded transition-colors ${statusCfg.className}`}
+          className={`flex-shrink-0 text-xs font-semibold px-2 py-1 rounded-full transition-colors min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 order-4 ${statusCfg.className}`}
         >
           {statusCfg.label}
         </DropdownMenuTrigger>
@@ -843,11 +864,11 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Package */}
+      {/* Package — rounded-full pill, min 32px hit target */}
       <DropdownMenu>
         <DropdownMenuTrigger
           disabled={isPending}
-          className={`flex-shrink-0 text-xs font-bold px-1.5 py-0.5 rounded transition-colors ${pkgCfg.className}`}
+          className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full transition-colors min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 order-5 ${pkgCfg.className}`}
         >
           {pkgCfg.label}
         </DropdownMenuTrigger>
@@ -866,13 +887,54 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
         </DropdownMenuContent>
       </DropdownMenu>
 
+      {/* Payment — md: end of row 1 (ml-auto); lg+: after weight, pushed right (ml-auto) */}
+      <div className="order-6 lg:order-9 ml-auto">
+        <PaymentCell
+          participantId={p.id}
+          participantName={p.fullName}
+          payments={p.payments}
+        />
+      </div>
+
+      {/* Delete — micro inline, native button with 32px hit target */}
+      <div className="flex-shrink-0 flex items-center order-10">
+        {confirmDelete ? (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleDelete}
+              disabled={isPending}
+              className="text-2xs text-destructive hover:text-destructive/80 px-1 py-1 min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
+            >
+              Sí
+            </button>
+            <button
+              onClick={() => setConfirmDelete(false)}
+              className="text-2xs text-muted-foreground hover:text-foreground py-1 min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
+            >
+              No
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="text-title leading-none w-8 h-8 flex items-center justify-center text-muted-foreground/30 hover:text-destructive transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
+          >
+            ×
+          </button>
+        )}
+      </div>
+
+      {/* ── Row 2 at md (below lg): instructor + weight/OW — full-width break then these items ── */}
+      {/* Invisible full-width element that forces a line break at md but not lg */}
+      <div className="w-full lg:hidden order-7" />
+
       {/* Instructor */}
       <Select
         value={p.assignedInstructorId ?? ''}
         onValueChange={(v) => save({ assignedInstructorId: v || null })}
         disabled={isPending}
       >
-        <SelectTrigger className="h-5 text-xs px-1.5 py-0 min-w-[72px] max-w-[96px] flex-shrink-0">
+        <SelectTrigger className="h-8 text-xs px-1.5 py-0 min-w-[72px] max-w-[96px] flex-shrink-0 order-8 lg:order-6">
           <SelectValue>
             <span className={p.assignedInstructorId ? '' : 'text-muted-foreground'}>
               {p.assignedInstructorId
@@ -890,7 +952,7 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
       </Select>
 
       {/* Weight + OW */}
-      <div className="flex items-center gap-1 flex-shrink-0">
+      <div className="flex items-center gap-1 flex-shrink-0 order-9 lg:order-7">
         <InlineField
           value={p.weight ? String(p.weight) : ''}
           placeholder="—"
@@ -903,35 +965,9 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
         />
         {p.weight && <span className="text-xs text-muted-foreground">kg</span>}
         {hasOW && (
-          <span className="text-micro font-bold px-1 py-0.5 rounded bg-status-geared-up-bg text-status-geared-up">
+          <span className="text-micro font-bold px-1 py-0.5 rounded-full bg-status-geared-up-bg text-status-geared-up">
             OW
           </span>
-        )}
-      </div>
-
-      <div className="flex-1" />
-
-      {/* Payment */}
-      <PaymentCell
-        participantId={p.id}
-        participantName={p.fullName}
-        payments={p.payments}
-      />
-
-      {/* Delete */}
-      <div className="flex-shrink-0 flex items-center ml-1">
-        {confirmDelete ? (
-          <div className="flex items-center gap-1">
-            <button onClick={handleDelete} disabled={isPending} className="text-2xs text-destructive hover:text-destructive/80 px-1">Sí</button>
-            <button onClick={() => setConfirmDelete(false)} className="text-2xs text-muted-foreground hover:text-foreground">No</button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setConfirmDelete(true)}
-            className="text-title leading-none px-1 text-muted-foreground/30 hover:text-destructive transition-colors"
-          >
-            ×
-          </button>
         )}
       </div>
     </div>

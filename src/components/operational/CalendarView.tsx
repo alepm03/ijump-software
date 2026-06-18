@@ -14,9 +14,10 @@ import {
   parseISO,
 } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { DayCard } from './DayCard'
 import { NewDayDialog } from './NewDayDialog'
+import { Button } from '@/components/ui/button'
 import type { OperationalDaySummary } from '@/types/domain'
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
@@ -58,37 +59,47 @@ export function CalendarView({ month, days }: CalendarViewProps) {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-1.5">
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => navigate('prev')}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              aria-label="Mes anterior"
             >
               <ChevronLeft size={16} strokeWidth={2} />
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => navigate('next')}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              aria-label="Mes siguiente"
             >
               <ChevronRight size={16} strokeWidth={2} />
-            </button>
+            </Button>
             <h2 className="text-display font-semibold text-foreground ml-1">
               {monthLabel}
             </h2>
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => router.push('/')}
-              className="ml-2 px-2.5 py-1 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary border border-border transition-colors"
+              className="ml-2"
             >
               Hoy
-            </button>
+            </Button>
           </div>
 
-          <button
+          <Button
+            variant="default"
             onClick={() => openNewDay(undefined)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
           >
-            <span className="text-title leading-none font-light">+</span>
+            <Plus size={14} />
             Nueva Jornada
-          </button>
+          </Button>
         </div>
+
+        {/* Calendar grid — horizontal scroll on mobile, full grid on md+ */}
+        <div className="overflow-x-auto -mx-8 px-8 md:overflow-visible md:mx-0 md:px-0">
+          <div className="min-w-[560px] md:min-w-0">
 
         {/* Weekday headers */}
         <div className="grid grid-cols-7 mb-2">
@@ -127,7 +138,7 @@ export function CalendarView({ month, days }: CalendarViewProps) {
               <button
                 key={dateStr}
                 onClick={() => openNewDay(dateStr)}
-                className={`min-h-[96px] rounded-xl p-3 w-full flex flex-col items-start group transition-all hover:bg-card ${
+                className={`min-h-[96px] rounded-xl p-3 w-full flex flex-col items-start group transition-all hover:bg-card focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                   today ? 'shadow-card-today' : 'hover:shadow-card'
                 }`}
               >
@@ -147,6 +158,9 @@ export function CalendarView({ month, days }: CalendarViewProps) {
             )
           })}
         </div>
+
+          </div>{/* end min-w wrapper */}
+        </div>{/* end overflow-x-auto */}
 
         <NewDayDialog
           open={dialogOpen}

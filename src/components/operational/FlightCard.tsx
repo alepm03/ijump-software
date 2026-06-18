@@ -9,6 +9,7 @@ import { GripVertical, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateFlight, deleteFlight as deleteFlightAction } from '@/lib/actions/flight'
 import { ParticipantRow } from './ParticipantRow'
+import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -135,23 +136,23 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: 
                 setEditingTime(false)
               }
             }}
-            className="bg-background border border-input rounded px-1 py-0 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring w-20 flex-shrink-0"
+            className="bg-background border border-input rounded px-1 py-0 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 w-20 flex-shrink-0"
             autoFocus
           />
         ) : (
           <button
             onClick={() => setEditingTime(true)}
-            className="text-sm text-muted-foreground font-medium hover:text-foreground hover:bg-secondary px-1 py-0.5 rounded transition-colors flex-shrink-0 tabular-nums"
+            className="text-sm text-muted-foreground font-medium hover:text-foreground hover:bg-secondary px-1 py-0.5 rounded transition-colors flex-shrink-0 tabular-nums focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
           >
             {flight.estimatedDepartureTime ?? '-- : --'}
           </button>
         )}
 
-        {/* Status badge */}
+        {/* Status badge — rounded-full pill, min 32px hit target */}
         <DropdownMenu>
           <DropdownMenuTrigger
             disabled={isPending}
-            className={`flex-shrink-0 text-xs font-semibold px-2 py-0.5 rounded transition-colors ${statusCfg.className}`}
+            className={`flex-shrink-0 text-xs font-semibold px-2 py-1 rounded-full transition-colors min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${statusCfg.className}`}
           >
             {statusCfg.label}
           </DropdownMenuTrigger>
@@ -177,13 +178,15 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: 
 
         <div className="flex-1" />
 
-        {/* + Añadir — bordered ghost */}
-        <button
+        {/* + Añadir — Button outline */}
+        <Button
+          variant="outline"
+          size="sm"
           onClick={onAddParticipant}
-          className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground px-2.5 py-1 rounded-md border border-border bg-transparent transition-colors flex-shrink-0"
+          className="flex-shrink-0"
         >
           + Añadir
-        </button>
+        </Button>
 
         {/* ⋮ Options — bordered ghost */}
         <DropdownMenu>

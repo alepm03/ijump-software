@@ -3,7 +3,9 @@
 import { useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { Plus } from 'lucide-react'
 import { NewDayDialog } from './NewDayDialog'
+import { Button } from '@/components/ui/button'
 
 interface EmptyDayStateProps {
   date: string
@@ -24,13 +26,10 @@ export function EmptyDayState({ date }: EmptyDayStateProps) {
           No hay jornada registrada para este día
         </p>
       </div>
-      <button
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
-      >
-        <span className="text-title leading-none font-light">+</span>
+      <Button variant="default" onClick={() => setOpen(true)}>
+        <Plus size={14} />
         Crear jornada
-      </button>
+      </Button>
       <NewDayDialog open={open} initialDate={date} onOpenChange={setOpen} />
     </div>
   )

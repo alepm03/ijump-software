@@ -18,7 +18,8 @@ export default async function DashboardLayout({
     <div className="flex h-screen bg-background">
       <AppSidebar email={user.email ?? ''} />
       {/* overflow-hidden so each page controls its own scroll — day view keeps summary pinned at bottom */}
-      <main className="flex-1 overflow-hidden flex flex-col">{children}</main>
+      {/* pt-12 on mobile offsets the fixed hamburger button; removed at md+ */}
+      <main className="flex-1 overflow-hidden flex flex-col pt-12 md:pt-0">{children}</main>
     </div>
   )
 }

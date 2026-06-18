@@ -30,6 +30,37 @@ const STATUS_CONFIG: Record<FlightStatus, { label: string; className: string; do
   CANCELLED: { label: 'Cancelado',  className: 'bg-status-cancelled-bg text-status-cancelled',  dotClassName: 'bg-status-cancelled' },
 }
 
+// ─── ManifestColHead — column header row (lg+ only, inside FlightCard) ───────
+// Rendered once per FlightCard when there are participants, before the rows.
+// px-3.5 (FlightCard padding) + w-8 handle = offset; grid then starts after.
+// Columns match --manifest-grid-cols: Participante|Estado|Paquete|Instructor|Peso|Pago
+export function ManifestColHead() {
+  return (
+    <div className="hidden lg:flex items-center px-3.5 border-b border-border bg-background/60">
+      {/* Spacer for the drag handle */}
+      <div className="w-8 flex-shrink-0" />
+      <div
+        className="flex-1 min-w-0"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'var(--manifest-grid-cols)',
+        }}
+      >
+        {(['Participante', 'Estado', 'Paquete', 'Instructor', 'Peso', 'Pago'] as const).map(
+          (col) => (
+            <div
+              key={col}
+              className="py-[8px] px-3 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground"
+            >
+              {col}
+            </div>
+          )
+        )}
+      </div>
+    </div>
+  )
+}
+
 interface FlightCardProps {
   flight: FlightWithParticipants
   instructors: Instructor[]
@@ -218,14 +249,18 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: 
             Suelta participantes aquí
           </div>
         ) : (
-          flight.participants.map((participant) => (
-            <ParticipantRow
-              key={participant.id}
-              participant={participant}
-              flightId={flight.id}
-              instructors={instructors}
-            />
-          ))
+          <>
+            {/* Column header — rendered once per flight card, lg+ only */}
+            <ManifestColHead />
+            {flight.participants.map((participant) => (
+              <ParticipantRow
+                key={participant.id}
+                participant={participant}
+                flightId={flight.id}
+                instructors={instructors}
+              />
+            ))}
+          </>
         )}
       </div>
     </div>

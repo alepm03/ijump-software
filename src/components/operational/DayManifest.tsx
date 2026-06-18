@@ -19,7 +19,6 @@ import { reorderFlights, createFlight, deleteFlight } from '@/lib/actions/flight
 import { moveParticipant } from '@/lib/actions/participant'
 import { DayHeader } from './DayHeader'
 import { FlightCard } from './FlightCard'
-import { DailySummaryPanel } from './DailySummaryPanel'
 import { AddParticipantDrawer } from './AddParticipantDrawer'
 import { DayFinanceTab } from './DayFinanceTab'
 import { useRealtimeManifest } from '@/hooks/useRealtimeManifest'
@@ -166,7 +165,7 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
   }
 
   return (
-    // h-full fills the main area; flex-col so summary bar pins to bottom
+    // h-full fills the main area; flex-col layout
     <div className="h-full flex flex-col">
       <DayHeader day={{ ...day, flights }} />
 
@@ -174,10 +173,20 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
       <Tabs defaultValue="manifest" className="flex-1 flex flex-col overflow-hidden">
         <TabsList
           variant="line"
-          className="flex-shrink-0 px-7 w-full rounded-none border-b border-border justify-start"
+          className="flex-shrink-0 px-7 w-full rounded-none border-b border-border justify-start bg-card"
         >
-          <TabsTrigger value="manifest">Manifest</TabsTrigger>
-          <TabsTrigger value="finanzas">Finanzas</TabsTrigger>
+          <TabsTrigger
+            value="manifest"
+            className="text-sm font-medium pb-[13px] pt-[14px] px-4 data-active:text-foreground data-active:font-semibold data-active:after:bg-primary"
+          >
+            Manifiesto
+          </TabsTrigger>
+          <TabsTrigger
+            value="finanzas"
+            className="text-sm font-medium pb-[13px] pt-[14px] px-4 data-active:text-foreground data-active:font-semibold data-active:after:bg-primary"
+          >
+            Finanzas
+          </TabsTrigger>
         </TabsList>
 
         {/* Finance tab */}
@@ -185,7 +194,7 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
           <DayFinanceTab date={day.date} />
         </TabsContent>
 
-        {/* Manifest tab: scrollable flights + summary pinned */}
+        {/* Manifest tab: scrollable flights */}
         <TabsContent value="manifest" className="flex-1 flex flex-col overflow-hidden mt-0">
           <div className="flex-1 overflow-y-auto">
             <DndContext
@@ -231,8 +240,6 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
             </DndContext>
           </div>
 
-          {/* Summary bar — flex-shrink-0 keeps it always visible at the bottom */}
-          <DailySummaryPanel flights={flights} />
         </TabsContent>
       </Tabs>
 

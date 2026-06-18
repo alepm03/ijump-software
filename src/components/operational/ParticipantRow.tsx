@@ -70,12 +70,13 @@ const STATUS_CONFIG: Record<OperationalStatus, { label: string; className: strin
   WEATHER_CANCELLED:{ label: 'Wx cancel.',  className: 'bg-status-weather-cancelled-bg text-status-weather-cancelled', dotClassName: 'bg-status-weather-cancelled' },
 }
 
-const PACKAGE_CONFIG: Record<PackageType, { label: string; className: string }> = {
-  SOLO:           { label: 'Solo',  className: 'bg-package-solo-bg text-package-solo' },
-  HANDYCAM:       { label: 'HC',   className: 'bg-package-handycam-bg text-package-handycam' },
-  VIDEO_EXTERNO:  { label: 'VE',   className: 'bg-package-video-externo-bg text-package-video-externo' },
-  FOTOS:          { label: 'Fotos',className: 'bg-package-fotos-bg text-package-fotos' },
-  HANDYCAM_FOTOS: { label: 'HC+F', className: 'bg-package-handycam-fotos-bg text-package-handycam-fotos' },
+// v4: package chip → neutral outline, sin color
+const PACKAGE_CONFIG: Record<PackageType, { label: string }> = {
+  SOLO:           { label: 'Solo' },
+  HANDYCAM:       { label: 'HC' },
+  VIDEO_EXTERNO:  { label: 'VE' },
+  FOTOS:          { label: 'Fotos' },
+  HANDYCAM_FOTOS: { label: 'HC+F' },
 }
 
 const METHOD_LABELS: Record<PaymentMethod, string> = {
@@ -104,6 +105,16 @@ const STAGE_CONFIG: Record<PaymentStage, { className: string }> = {
 function StatusBadge({ className, label }: { className: string; label: string }) {
   return (
     <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${className}`}>
+      {label}
+    </span>
+  )
+}
+
+// ─── PackageBadge — neutral outline chip (v4) ─────────────────────────────────
+
+function PackageBadge({ label }: { label: string }) {
+  return (
+    <span className="text-xs font-medium px-2 py-0.5 rounded-md border border-border-strong bg-card text-muted-foreground whitespace-nowrap">
       {label}
     </span>
   )
@@ -773,6 +784,8 @@ function NotesField({ value, onSave }: { value: string; onSave: (v: string) => v
 }
 
 // ─── ParticipantRow ───────────────────────────────────────────────────────────
+// v4: lg+ → grid layout aligned with ManifestColHead via --manifest-grid-cols
+// md/mobile → flex-wrap layout (preserved from Phase 5)
 
 interface ParticipantRowProps {
   participant: ParticipantWithDetails
@@ -814,161 +827,326 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
     <div
       ref={setNodeRef}
       style={{ opacity: isDragging ? 0.4 : 1 }}
-      className="flex items-center flex-wrap gap-2 px-3.5 py-2 border-b border-border bg-card hover:bg-secondary/20 transition-colors last:border-b-0"
+      className="border-b border-border bg-card hover:bg-secondary/20 transition-colors last:border-b-0"
     >
-      {/* ── Row 1 (all breakpoints): handle · name · info icon · status · package ── */}
-
-      {/* Drag handle — 32px hit target */}
-      <button
-        {...attributes}
-        {...listeners}
-        className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none text-muted-foreground/40 hover:text-muted-foreground flex items-center justify-center w-8 h-8 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded order-1"
-      >
-        <GripVertical size={13} />
-      </button>
-
-      {/* Name */}
-      <InlineField
-        value={p.fullName}
-        placeholder="Nombre"
-        onSave={(v) => save({ fullName: v })}
-        className="font-medium min-w-[110px] text-sm order-2"
-      />
-
-      {/* Info sheet icon */}
-      <span className="order-3">
-        <ParticipantInfoSheet participant={p} save={save} />
-      </span>
-
-      {/* Status — rounded-full pill, min 32px hit target */}
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          disabled={isPending}
-          className={`flex-shrink-0 text-xs font-semibold px-2 py-1 rounded-full transition-colors min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 order-4 ${statusCfg.className}`}
+      {/* ── lg+: single-row grid aligned with ManifestColHead ── */}
+      <div className="hidden lg:flex items-center px-3.5 py-2">
+        {/* Drag handle — fixed width before grid, matches col-head padding offset */}
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none text-muted-foreground/40 hover:text-muted-foreground flex items-center justify-center w-8 h-8 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
         >
-          {statusCfg.label}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="min-w-[140px]">
-          {(Object.entries(STATUS_CONFIG) as [OperationalStatus, typeof statusCfg][]).map(
-            ([status, cfg]) => (
-              <DropdownMenuItem
-                key={status}
-                onClick={() => save({ operationalStatus: status })}
-                className="text-xs cursor-pointer"
-              >
-                <span className={`inline-block w-2 h-2 rounded-sm mr-2 flex-shrink-0 opacity-70 ${cfg.dotClassName}`} />
-                {cfg.label}
-              </DropdownMenuItem>
-            )
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+          <GripVertical size={13} />
+        </button>
 
-      {/* Package — rounded-full pill, min 32px hit target */}
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          disabled={isPending}
-          className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full transition-colors min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 order-5 ${pkgCfg.className}`}
-        >
-          {pkgCfg.label}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          {(Object.entries(PACKAGE_CONFIG) as [PackageType, typeof pkgCfg][]).map(
-            ([pkg, cfg]) => (
-              <DropdownMenuItem
-                key={pkg}
-                onClick={() => save({ packageType: pkg })}
-                className="text-xs cursor-pointer"
-              >
-                {cfg.label}
-              </DropdownMenuItem>
-            )
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {/* Payment — md: end of row 1 (ml-auto); lg+: after weight, pushed right (ml-auto) */}
-      <div className="order-6 lg:order-9 ml-auto">
-        <PaymentCell
-          participantId={p.id}
-          participantName={p.fullName}
-          payments={p.payments}
-        />
-      </div>
-
-      {/* Delete — micro inline, native button with 32px hit target */}
-      <div className="flex-shrink-0 flex items-center order-10">
-        {confirmDelete ? (
-          <div className="flex items-center gap-1">
-            <button
-              onClick={handleDelete}
-              disabled={isPending}
-              className="text-2xs text-destructive hover:text-destructive/80 px-1 py-1 min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
-            >
-              Sí
-            </button>
-            <button
-              onClick={() => setConfirmDelete(false)}
-              className="text-2xs text-muted-foreground hover:text-foreground py-1 min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
-            >
-              No
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setConfirmDelete(true)}
-            className="text-title leading-none w-8 h-8 flex items-center justify-center text-muted-foreground/30 hover:text-destructive transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
-          >
-            ×
-          </button>
-        )}
-      </div>
-
-      {/* ── Row 2 at md (below lg): instructor + weight/OW — full-width break then these items ── */}
-      {/* Invisible full-width element that forces a line break at md but not lg */}
-      <div className="w-full lg:hidden order-7" />
-
-      {/* Instructor */}
-      <Select
-        value={p.assignedInstructorId ?? ''}
-        onValueChange={(v) => save({ assignedInstructorId: v || null })}
-        disabled={isPending}
-      >
-        <SelectTrigger className="h-8 text-xs px-1.5 py-0 min-w-[72px] max-w-[96px] flex-shrink-0 order-8 lg:order-6">
-          <SelectValue>
-            <span className={p.assignedInstructorId ? '' : 'text-muted-foreground'}>
-              {p.assignedInstructorId
-                ? (instructors.find((i) => i.id === p.assignedInstructorId)?.name ?? '—')
-                : 'Instructor'}
-            </span>
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="" className="text-muted-foreground text-xs">—</SelectItem>
-          {instructors.filter((i) => i.active).map((i) => (
-            <SelectItem key={i.id} value={i.id} className="text-xs">{i.name}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      {/* Weight + OW */}
-      <div className="flex items-center gap-1 flex-shrink-0 order-9 lg:order-7">
-        <InlineField
-          value={p.weight ? String(p.weight) : ''}
-          placeholder="—"
-          onSave={(v) => {
-            const n = parseFloat(v)
-            save({ weight: isNaN(n) ? null : n })
+        {/* Grid cells — must use same --manifest-grid-cols as ManifestColHead */}
+        <div
+          className="flex-1 min-w-0"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'var(--manifest-grid-cols)',
+            alignItems: 'center',
           }}
-          inputType="number"
-          className="w-9 text-right text-muted-foreground text-sm"
+        >
+          {/* Col 1: Participante (name + info icon) */}
+          <div className="flex items-center gap-1.5 min-w-0 px-3">
+            <InlineField
+              value={p.fullName}
+              placeholder="Nombre"
+              onSave={(v) => save({ fullName: v })}
+              className="font-medium text-sm flex-1 min-w-0"
+            />
+            <ParticipantInfoSheet participant={p} save={save} />
+          </div>
+
+          {/* Col 2: Estado */}
+          <div className="px-3 flex items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                disabled={isPending}
+                className={`flex-shrink-0 text-xs font-semibold px-2 py-1 rounded-full transition-colors min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${statusCfg.className}`}
+              >
+                {statusCfg.label}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-[140px]">
+                {(Object.entries(STATUS_CONFIG) as [OperationalStatus, typeof statusCfg][]).map(
+                  ([status, cfg]) => (
+                    <DropdownMenuItem
+                      key={status}
+                      onClick={() => save({ operationalStatus: status })}
+                      className="text-xs cursor-pointer"
+                    >
+                      <span className={`inline-block w-2 h-2 rounded-sm mr-2 flex-shrink-0 opacity-70 ${cfg.dotClassName}`} />
+                      {cfg.label}
+                    </DropdownMenuItem>
+                  )
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Col 3: Paquete — neutral outline chip (v4) */}
+          <div className="px-3 flex items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                disabled={isPending}
+                className="flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-md min-h-[32px] flex items-center"
+              >
+                <PackageBadge label={pkgCfg.label} />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {(Object.entries(PACKAGE_CONFIG) as [PackageType, typeof pkgCfg][]).map(
+                  ([pkg, cfg]) => (
+                    <DropdownMenuItem
+                      key={pkg}
+                      onClick={() => save({ packageType: pkg })}
+                      className="text-xs cursor-pointer"
+                    >
+                      {cfg.label}
+                    </DropdownMenuItem>
+                  )
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Col 4: Instructor */}
+          <div className="px-3 flex items-center">
+            <Select
+              value={p.assignedInstructorId ?? ''}
+              onValueChange={(v) => save({ assignedInstructorId: v || null })}
+              disabled={isPending}
+            >
+              <SelectTrigger className="h-8 text-xs px-1.5 py-0 min-w-[72px] max-w-[88px]">
+                <SelectValue>
+                  <span className={p.assignedInstructorId ? '' : 'text-muted-foreground'}>
+                    {p.assignedInstructorId
+                      ? (instructors.find((i) => i.id === p.assignedInstructorId)?.name ?? '—')
+                      : 'Instructor'}
+                  </span>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="" className="text-muted-foreground text-xs">—</SelectItem>
+                {instructors.filter((i) => i.active).map((i) => (
+                  <SelectItem key={i.id} value={i.id} className="text-xs">{i.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Col 5: Peso */}
+          <div className="px-3 flex items-center gap-1">
+            <InlineField
+              value={p.weight ? String(p.weight) : ''}
+              placeholder="—"
+              onSave={(v) => {
+                const n = parseFloat(v)
+                save({ weight: isNaN(n) ? null : n })
+              }}
+              inputType="number"
+              className="w-9 text-right text-muted-foreground text-sm"
+            />
+            {p.weight && <span className="text-xs text-muted-foreground">kg</span>}
+            {hasOW && (
+              <span className="text-micro font-bold px-1 py-0.5 rounded-full bg-status-geared-up-bg text-status-geared-up">
+                OW
+              </span>
+            )}
+          </div>
+
+          {/* Col 6: Pago */}
+          <div className="px-3 flex items-center justify-between">
+            <PaymentCell
+              participantId={p.id}
+              participantName={p.fullName}
+              payments={p.payments}
+            />
+            {/* Delete button — at the end of the last column */}
+            <div className="flex-shrink-0 flex items-center ml-1">
+              {confirmDelete ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleDelete}
+                    disabled={isPending}
+                    className="text-2xs text-destructive hover:text-destructive/80 px-1 py-1 min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
+                  >
+                    Sí
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="text-2xs text-muted-foreground hover:text-foreground py-1 min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
+                  >
+                    No
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  className="text-title leading-none w-8 h-8 flex items-center justify-center text-muted-foreground/30 hover:text-destructive transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── md/mobile: flex-wrap layout (Phase 5 preserved) ── */}
+      <div className="flex lg:hidden items-center flex-wrap gap-2 px-3.5 py-2">
+        {/* Drag handle */}
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none text-muted-foreground/40 hover:text-muted-foreground flex items-center justify-center w-8 h-8 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded order-1"
+        >
+          <GripVertical size={13} />
+        </button>
+
+        {/* Name */}
+        <InlineField
+          value={p.fullName}
+          placeholder="Nombre"
+          onSave={(v) => save({ fullName: v })}
+          className="font-medium min-w-[110px] text-sm order-2"
         />
-        {p.weight && <span className="text-xs text-muted-foreground">kg</span>}
-        {hasOW && (
-          <span className="text-micro font-bold px-1 py-0.5 rounded-full bg-status-geared-up-bg text-status-geared-up">
-            OW
-          </span>
-        )}
+
+        {/* Info sheet icon */}
+        <span className="order-3">
+          <ParticipantInfoSheet participant={p} save={save} />
+        </span>
+
+        {/* Status */}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            disabled={isPending}
+            className={`flex-shrink-0 text-xs font-semibold px-2 py-1 rounded-full transition-colors min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 order-4 ${statusCfg.className}`}
+          >
+            {statusCfg.label}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-[140px]">
+            {(Object.entries(STATUS_CONFIG) as [OperationalStatus, typeof statusCfg][]).map(
+              ([status, cfg]) => (
+                <DropdownMenuItem
+                  key={status}
+                  onClick={() => save({ operationalStatus: status })}
+                  className="text-xs cursor-pointer"
+                >
+                  <span className={`inline-block w-2 h-2 rounded-sm mr-2 flex-shrink-0 opacity-70 ${cfg.dotClassName}`} />
+                  {cfg.label}
+                </DropdownMenuItem>
+              )
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Package — outline chip (v4) */}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            disabled={isPending}
+            className="flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-md min-h-[32px] flex items-center order-5"
+          >
+            <PackageBadge label={pkgCfg.label} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {(Object.entries(PACKAGE_CONFIG) as [PackageType, typeof pkgCfg][]).map(
+              ([pkg, cfg]) => (
+                <DropdownMenuItem
+                  key={pkg}
+                  onClick={() => save({ packageType: pkg })}
+                  className="text-xs cursor-pointer"
+                >
+                  {cfg.label}
+                </DropdownMenuItem>
+              )
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Payment */}
+        <div className="order-6 lg:order-9 ml-auto">
+          <PaymentCell
+            participantId={p.id}
+            participantName={p.fullName}
+            payments={p.payments}
+          />
+        </div>
+
+        {/* Delete */}
+        <div className="flex-shrink-0 flex items-center order-10">
+          {confirmDelete ? (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleDelete}
+                disabled={isPending}
+                className="text-2xs text-destructive hover:text-destructive/80 px-1 py-1 min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
+              >
+                Sí
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="text-2xs text-muted-foreground hover:text-foreground py-1 min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
+              >
+                No
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="text-title leading-none w-8 h-8 flex items-center justify-center text-muted-foreground/30 hover:text-destructive transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
+            >
+              ×
+            </button>
+          )}
+        </div>
+
+        {/* Invisible full-width break for row 2 */}
+        <div className="w-full order-7" />
+
+        {/* Instructor */}
+        <Select
+          value={p.assignedInstructorId ?? ''}
+          onValueChange={(v) => save({ assignedInstructorId: v || null })}
+          disabled={isPending}
+        >
+          <SelectTrigger className="h-8 text-xs px-1.5 py-0 min-w-[72px] max-w-[96px] flex-shrink-0 order-8">
+            <SelectValue>
+              <span className={p.assignedInstructorId ? '' : 'text-muted-foreground'}>
+                {p.assignedInstructorId
+                  ? (instructors.find((i) => i.id === p.assignedInstructorId)?.name ?? '—')
+                  : 'Instructor'}
+              </span>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="" className="text-muted-foreground text-xs">—</SelectItem>
+            {instructors.filter((i) => i.active).map((i) => (
+              <SelectItem key={i.id} value={i.id} className="text-xs">{i.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Weight + OW */}
+        <div className="flex items-center gap-1 flex-shrink-0 order-9">
+          <InlineField
+            value={p.weight ? String(p.weight) : ''}
+            placeholder="—"
+            onSave={(v) => {
+              const n = parseFloat(v)
+              save({ weight: isNaN(n) ? null : n })
+            }}
+            inputType="number"
+            className="w-9 text-right text-muted-foreground text-sm"
+          />
+          {p.weight && <span className="text-xs text-muted-foreground">kg</span>}
+          {hasOW && (
+            <span className="text-micro font-bold px-1 py-0.5 rounded-full bg-status-geared-up-bg text-status-geared-up">
+              OW
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )

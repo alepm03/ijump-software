@@ -176,36 +176,44 @@
   --state-danger:     oklch(0.560 0.200 18);   --state-danger-bg:   oklch(0.970 0.025 18);
   --state-teal:       oklch(0.560 0.090 185);  --state-teal-bg:     oklch(0.965 0.030 185);
 
-  /* ── OperationalStatus aliases (§2.4) ──────────────────────────── */
+  /* ── OperationalStatus aliases (§2.4) — v4: 4 cubos semánticos ── */
+  /* success (verde): COMPLETED, READY                               */
+  /* warning (ámbar): CHECKED_IN, WAIVER_SIGNED, BRIEFED, GEARED_UP */
+  /* danger  (rojo):  CANCELLED, NO_SHOW, WEATHER_CANCELLED          */
+  /* neutral (gris):  PENDING                                        */
   --status-pending:            var(--state-neutral);   --status-pending-bg:            var(--state-neutral-bg);
-  --status-checked-in:         var(--state-info);      --status-checked-in-bg:         var(--state-info-bg);
-  --status-waiver-signed:      var(--state-purple);    --status-waiver-signed-bg:      var(--state-purple-bg);
+  --status-checked-in:         var(--state-warning);   --status-checked-in-bg:         var(--state-warning-bg);
+  --status-waiver-signed:      var(--state-warning);   --status-waiver-signed-bg:      var(--state-warning-bg);
   --status-briefed:            var(--state-warning);   --status-briefed-bg:            var(--state-warning-bg);
-  --status-geared-up:          var(--state-brand);     --status-geared-up-bg:          var(--state-brand-bg);
+  --status-geared-up:          var(--state-warning);   --status-geared-up-bg:          var(--state-warning-bg);
   --status-ready:              var(--state-success);   --status-ready-bg:              var(--state-success-bg);
   --status-completed:          var(--state-success);   --status-completed-bg:          var(--state-success-bg);
   --status-cancelled:          var(--state-danger);    --status-cancelled-bg:          var(--state-danger-bg);
   --status-no-show:            var(--state-danger);    --status-no-show-bg:            var(--state-danger-bg);
   --status-weather-cancelled:  var(--state-danger);    --status-weather-cancelled-bg:  var(--state-danger-bg);
 
-  /* ── PackageType aliases (§2.4) ────────────────────────────────── */
+  /* ── PackageType aliases (§2.4) — v4: todos neutros (chip outline) */
   --package-solo:            var(--state-neutral);   --package-solo-bg:            var(--state-neutral-bg);
-  --package-handycam:        var(--state-info);      --package-handycam-bg:        var(--state-info-bg);
-  --package-video-externo:   var(--state-accent2);   --package-video-externo-bg:   var(--state-accent2-bg);
-  --package-fotos:           var(--state-teal);      --package-fotos-bg:           var(--state-teal-bg);
-  --package-handycam-fotos:  var(--state-info);      --package-handycam-fotos-bg:  var(--state-info-bg);
+  --package-handycam:        var(--state-neutral);   --package-handycam-bg:        var(--state-neutral-bg);
+  --package-video-externo:   var(--state-neutral);   --package-video-externo-bg:   var(--state-neutral-bg);
+  --package-fotos:           var(--state-neutral);   --package-fotos-bg:           var(--state-neutral-bg);
+  --package-handycam-fotos:  var(--state-neutral);   --package-handycam-fotos-bg:  var(--state-neutral-bg);
 
-  /* ── PaymentStage aliases (§2.4) ───────────────────────────────── */
-  --pay-reserva:       var(--state-accent2);   --pay-reserva-bg:       var(--state-accent2-bg);
+  /* ── PaymentStage aliases (§2.4) — v4: paid→success, reserva/pending→neutral/danger */
+  --pay-reserva:       var(--state-neutral);   --pay-reserva-bg:       var(--state-neutral-bg);
   --pay-liquidacion:   var(--state-success);   --pay-liquidacion-bg:   var(--state-success-bg);
-  --pay-suplemento:    var(--state-brand);     --pay-suplemento-bg:    var(--state-brand-bg);
+  --pay-suplemento:    var(--state-warning);   --pay-suplemento-bg:    var(--state-warning-bg);
   --pay-paid:          var(--state-success);   --pay-paid-bg:          var(--state-success-bg);
-  --pay-reserved:      var(--state-accent2);   --pay-reserved-bg:      var(--state-accent2-bg);
+  --pay-reserved:      var(--state-neutral);   --pay-reserved-bg:      var(--state-neutral-bg);
 
   /* ── WeatherStatus aliases (§2.4) ──────────────────────────────── */
   --weather-ok:        var(--state-success);   --weather-ok-bg:        var(--state-success-bg);
   --weather-marginal:  var(--state-warning);   --weather-marginal-bg:  var(--state-warning-bg);
   --weather-cancelled: var(--state-danger);    --weather-cancelled-bg: var(--state-danger-bg);
+
+  /* ── Manifest grid (v4) — shared across ParticipantRow + column header ── */
+  /* Participante | Estado | Paquete | Instructor | Peso | Pago              */
+  --manifest-grid-cols: minmax(0, 1.9fr) 116px 132px 96px 84px 130px;
 }
 
 @layer base {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState } from 'react'
+import Image from 'next/image'
 import { login, type LoginState } from '@/lib/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,15 +17,15 @@ export default function LoginPage() {
   return (
     <Card className="w-full max-w-sm shadow-sm">
       <CardHeader className="text-center">
-        <div className="mx-auto mb-3 w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-          <svg width="18" height="18" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <path
-              d="M7 1 C7 1 3 4 3 7.5 C3 9.5 4.5 11 7 11 C9.5 11 11 9.5 11 7.5 C11 4 7 1 7 1Z"
-              fill="white"
-              fillOpacity="0.9"
-            />
-            <circle cx="7" cy="12.5" r="1" fill="white" fillOpacity="0.6" />
-          </svg>
+        <div className="mx-auto mb-3 w-12 h-12 rounded-xl overflow-hidden">
+          <Image
+            src="/logo-ijump.png"
+            alt="iJump Skydive"
+            width={48}
+            height={48}
+            className="w-full h-full object-cover"
+            priority
+          />
         </div>
         <CardTitle className="text-xl">iJump</CardTitle>
         <p className="text-muted-foreground text-sm">Sistema operacional</p>

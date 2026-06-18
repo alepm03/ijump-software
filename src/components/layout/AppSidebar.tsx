@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { Calendar, Sun, Users, TrendingUp, Settings, Menu } from 'lucide-react'
 import { format } from 'date-fns'
@@ -87,17 +88,15 @@ function SidebarContent({
           collapsed ? 'justify-center px-2 py-[18px]' : 'gap-2.5 px-4 py-[18px]'
         }`}
       >
-        <div
-          className="w-[30px] h-[30px] rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: 'var(--primary)' }}
-        >
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="white" aria-hidden="true">
-            <path
-              d="M10 2C6 2 2 6 2 10c0 2.5 1.2 4.7 3 6.1L10 18l5-1.9C16.8 14.7 18 12.5 18 10c0-4-4-8-8-8z"
-              opacity="0.9"
-            />
-            <circle cx="10" cy="10" r="2.5" fill="rgba(255,255,255,0.9)" />
-          </svg>
+        <div className="w-[30px] h-[30px] rounded-lg overflow-hidden flex-shrink-0">
+          <Image
+            src="/logo-ijump.png"
+            alt="iJump Skydive"
+            width={30}
+            height={30}
+            className="w-full h-full object-cover"
+            priority
+          />
         </div>
         {!collapsed && (
           <span className="font-bold text-title text-foreground" style={{ letterSpacing: '-0.4px' }}>

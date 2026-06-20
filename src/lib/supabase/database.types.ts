@@ -1,3 +1,9 @@
+// ===== finance v2 (hand-written; regenerate via `supabase gen types` once the DB is live) =====
+// Tables: products, participant_items, expense_categories, expenses
+// Enums:  product_category, expense_group, rate_basis
+// NOTE:   participant_items.amount is a GENERATED column — present in Row, omitted from Insert/Update.
+// =================================================================================================
+
 export type Json =
   | string
   | number
@@ -39,6 +45,189 @@ export type Database = {
   }
   public: {
     Tables: {
+      // ===== finance v2 tables (hand-written) =====
+      expense_categories: {
+        Row: {
+          active: boolean
+          code: string
+          default_rate: number | null
+          group_type: Database["public"]["Enums"]["expense_group"]
+          id: string
+          name: string
+          rate_basis: Database["public"]["Enums"]["rate_basis"] | null
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          default_rate?: number | null
+          group_type: Database["public"]["Enums"]["expense_group"]
+          id?: string
+          name: string
+          rate_basis?: Database["public"]["Enums"]["rate_basis"] | null
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          default_rate?: number | null
+          group_type?: Database["public"]["Enums"]["expense_group"]
+          id?: string
+          name?: string
+          rate_basis?: Database["public"]["Enums"]["rate_basis"] | null
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          expense_category_id: string
+          id: string
+          incurred_on: string
+          operational_day_id: string | null
+          sociedad: string | null
+          supplier: string | null
+          updated_at: string
+          vat_rate: number | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          expense_category_id: string
+          id?: string
+          incurred_on: string
+          operational_day_id?: string | null
+          sociedad?: string | null
+          supplier?: string | null
+          updated_at?: string
+          vat_rate?: number | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          expense_category_id?: string
+          id?: string
+          incurred_on?: string
+          operational_day_id?: string | null
+          sociedad?: string | null
+          supplier?: string | null
+          updated_at?: string
+          vat_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_expense_category_id_fkey"
+            columns: ["expense_category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_operational_day_id_fkey"
+            columns: ["operational_day_id"]
+            isOneToOne: false
+            referencedRelation: "operational_days"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      participant_items: {
+        Row: {
+          // amount is a GENERATED column (quantity * unit_price), always present in Row
+          amount: number
+          created_at: string
+          id: string
+          notes: string | null
+          participant_id: string
+          product_id: string
+          quantity: number
+          unit_price: number
+          vat_rate: number | null
+        }
+        Insert: {
+          // amount is GENERATED — omitted from Insert
+          created_at?: string
+          id?: string
+          notes?: string | null
+          participant_id: string
+          product_id: string
+          quantity?: number
+          unit_price: number
+          vat_rate?: number | null
+        }
+        Update: {
+          // amount is GENERATED — omitted from Update
+          created_at?: string
+          id?: string
+          notes?: string | null
+          participant_id?: string
+          product_id?: string
+          quantity?: number
+          unit_price?: number
+          vat_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "participant_items_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "participant_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          active: boolean
+          base_price: number
+          category: Database["public"]["Enums"]["product_category"]
+          code: string
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+          vat_rate: number | null
+        }
+        Insert: {
+          active?: boolean
+          base_price?: number
+          category: Database["public"]["Enums"]["product_category"]
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+          vat_rate?: number | null
+        }
+        Update: {
+          active?: boolean
+          base_price?: number
+          category?: Database["public"]["Enums"]["product_category"]
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+          vat_rate?: number | null
+        }
+        Relationships: []
+      }
+      // ===== end finance v2 tables =====
       flights: {
         Row: {
           actual_departure_time: string | null
@@ -392,6 +581,18 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      // ===== finance v2 enums (hand-written) =====
+      expense_group: "MATERIA_PRIMA" | "PERSONAL" | "GENERALES"
+      product_category:
+        | "TANDEM_BASE"
+        | "CAMERA_HANDYCAM"
+        | "CAMERA_EXTERNAL"
+        | "PHOTOS"
+        | "OVERWEIGHT"
+        | "GROUND_REPORT"
+        | "OTHER"
+      rate_basis: "PER_FLIGHT" | "PER_JUMP" | "FIXED_PER_DAY"
+      // ===== end finance v2 enums =====
       expense_type: "FUEL_OVERRIDE" | "HANGAR_OVERRIDE" | "CUSTOM"
       flight_status:
         | "SCHEDULED"
@@ -556,6 +757,19 @@ export const Constants = {
   },
   public: {
     Enums: {
+      // ===== finance v2 enums (hand-written) =====
+      expense_group: ["MATERIA_PRIMA", "PERSONAL", "GENERALES"],
+      product_category: [
+        "TANDEM_BASE",
+        "CAMERA_HANDYCAM",
+        "CAMERA_EXTERNAL",
+        "PHOTOS",
+        "OVERWEIGHT",
+        "GROUND_REPORT",
+        "OTHER",
+      ],
+      rate_basis: ["PER_FLIGHT", "PER_JUMP", "FIXED_PER_DAY"],
+      // ===== end finance v2 enums =====
       expense_type: ["FUEL_OVERRIDE", "HANGAR_OVERRIDE", "CUSTOM"],
       flight_status: [
         "SCHEDULED",

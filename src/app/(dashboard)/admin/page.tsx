@@ -1,8 +1,8 @@
-import { getFinancialSettings } from '@/lib/actions/finance'
-import { FinancialSettingsForm } from '@/components/operational/FinancialSettingsForm'
+import { listExpenseCategories } from '@/lib/actions/finance'
+import { ExpenseCategoryRatesForm } from '@/components/operational/ExpenseCategoryRatesForm'
 
 export default async function AdminPage() {
-  const settings = await getFinancialSettings()
+  const categories = await listExpenseCategories()
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -10,10 +10,12 @@ export default async function AdminPage() {
         <div>
           <h1 className="text-xl font-bold text-foreground">Configuración</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Precios base y parámetros financieros del centro.
+            Tarifas de coste por categoría del centro.
           </p>
         </div>
-        <FinancialSettingsForm settings={settings} />
+
+        {/* Finance v2 — auto-calculated expense category rates */}
+        <ExpenseCategoryRatesForm categories={categories} />
       </div>
     </div>
   )

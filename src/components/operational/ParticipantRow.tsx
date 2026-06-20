@@ -791,11 +791,9 @@ interface ParticipantRowProps {
   participant: ParticipantWithDetails
   flightId: string
   instructors: Instructor[]
-  selected?: boolean
-  onToggleSelect?: (id: string) => void
 }
 
-export function ParticipantRow({ participant: p, flightId, instructors, selected = false, onToggleSelect }: ParticipantRowProps) {
+export function ParticipantRow({ participant: p, flightId, instructors }: ParticipantRowProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -833,18 +831,6 @@ export function ParticipantRow({ participant: p, flightId, instructors, selected
     >
       {/* ── lg+: single-row grid aligned with ManifestColHead ── */}
       <div className="hidden lg:flex items-center px-3.5 py-2">
-        {/* Selection checkbox — same width (w-5) as the checkbox spacer in ManifestColHead */}
-        <div className="flex-shrink-0 w-5 flex items-center justify-center">
-          <input
-            type="checkbox"
-            checked={selected}
-            onChange={() => onToggleSelect?.(p.id)}
-            onClick={(e) => e.stopPropagation()}
-            className="w-3.5 h-3.5 rounded-sm border border-border-strong accent-primary cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
-            title="Seleccionar participante"
-          />
-        </div>
-
         {/* Drag handle — fixed width before grid, matches col-head padding offset */}
         <button
           {...attributes}
@@ -1023,18 +1009,6 @@ export function ParticipantRow({ participant: p, flightId, instructors, selected
 
       {/* ── md/mobile: flex-wrap layout (Phase 5 preserved) ── */}
       <div className="flex lg:hidden items-center flex-wrap gap-2 px-3.5 py-2">
-        {/* Selection checkbox */}
-        <div className="flex-shrink-0 flex items-center justify-center order-0">
-          <input
-            type="checkbox"
-            checked={selected}
-            onChange={() => onToggleSelect?.(p.id)}
-            onClick={(e) => e.stopPropagation()}
-            className="w-3.5 h-3.5 rounded-sm border border-border-strong accent-primary cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
-            title="Seleccionar participante"
-          />
-        </div>
-
         {/* Drag handle */}
         <button
           {...attributes}

@@ -32,13 +32,11 @@ const STATUS_CONFIG: Record<FlightStatus, { label: string; className: string; do
 
 // ─── ManifestColHead — column header row (lg+ only, inside FlightCard) ───────
 // Rendered once per FlightCard when there are participants, before the rows.
-// Offset = w-5 checkbox + w-8 handle; grid then starts after.
+// px-3.5 (FlightCard padding) + w-8 handle = offset; grid then starts after.
 // Columns match --manifest-grid-cols: Participante|Estado|Paquete|Instructor|Peso|Pago
 export function ManifestColHead() {
   return (
     <div className="hidden lg:flex items-center px-3.5 border-b border-border bg-background/60">
-      {/* Spacer for the selection checkbox — matches w-5 in ParticipantRow */}
-      <div className="w-5 flex-shrink-0" />
       {/* Spacer for the drag handle — matches w-8 in ParticipantRow */}
       <div className="w-8 flex-shrink-0" />
       <div
@@ -68,11 +66,9 @@ interface FlightCardProps {
   instructors: Instructor[]
   onAddParticipant: () => void
   onDelete: () => void
-  selectedParticipants?: Set<string>
-  onToggleParticipantSelect?: (id: string) => void
 }
 
-export function FlightCard({ flight, instructors, onAddParticipant, onDelete, selectedParticipants, onToggleParticipantSelect }: FlightCardProps) {
+export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: FlightCardProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [editingTime, setEditingTime] = useState(false)
@@ -262,8 +258,6 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete, se
                 participant={participant}
                 flightId={flight.id}
                 instructors={instructors}
-                selected={selectedParticipants?.has(participant.id) ?? false}
-                onToggleSelect={onToggleParticipantSelect}
               />
             ))}
           </>

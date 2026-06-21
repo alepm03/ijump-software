@@ -190,6 +190,178 @@ export interface MonthFinancialsDetail {
   netProfit: number
 }
 
+// ─── Finance v2 types ────────────────────────────────────────
+
+export type ProductCategory =
+  | 'TANDEM_BASE'
+  | 'CAMERA_HANDYCAM'
+  | 'CAMERA_EXTERNAL'
+  | 'PHOTOS'
+  | 'OVERWEIGHT'
+  | 'GROUND_REPORT'
+  | 'OTHER'
+
+export type ExpenseGroup = 'MATERIA_PRIMA' | 'PERSONAL' | 'GENERALES'
+
+export type RateBasis = 'PER_FLIGHT' | 'PER_JUMP' | 'FIXED_PER_DAY'
+
+export interface Product {
+  id: string
+  code: string
+  name: string
+  category: ProductCategory
+  basePrice: number
+  vatRate: number | null
+  active: boolean
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ParticipantItem {
+  id: string
+  participantId: string
+  productId: string
+  quantity: number
+  unitPrice: number
+  vatRate: number | null
+  /** GENERATED column (quantity * unit_price); never written by client code */
+  amount: number
+  notes: string | null
+  createdAt: string
+}
+
+export interface ExpenseCategory {
+  id: string
+  code: string
+  name: string
+  groupType: ExpenseGroup
+  defaultRate: number | null
+  rateBasis: RateBasis | null
+  sortOrder: number
+  active: boolean
+}
+
+export interface Expense {
+  id: string
+  expenseCategoryId: string
+  /** null = fixed monthly cost not tied to an operational day */
+  operationalDayId: string | null
+  incurredOn: string // YYYY-MM-DD
+  description: string | null
+  supplier: string | null
+  sociedad: string | null
+  amount: number
+  vatRate: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+// ─── P&L shapes ─────────────────────────────────────────────
+
+/**
+ * Revenue grouped by product_category for participants WITH items,
+ * plus a synthetic 'SIN_DESGLOSE' entry for participants WITHOUT items
+ * (whose revenue comes from payments under the COALESCE rule).
+ *
+ * Invariant: sum of all values === period revenueTotal.
+ */
+export type RevenueByCategory = Partial<Record<ProductCategory, number>> & {
+  SIN_DESGLOSE?: number
+}
+
+/** One cost category line inside a P&L group */
+export interface CostCategoryLine {
+  categoryCode: string
+  name: string
+  group: ExpenseGroup
+  amount: number
+}
+
+/** One EBITDA group (MATERIA_PRIMA | PERSONAL | GENERALES) with its categories */
+export interface CostGroup {
+  group: ExpenseGroup
+  total: number
+  categories: CostCategoryLine[]
+}
+
+/** Full P&L for a period (day / ISO week / month / year) */
+export interface ProfitAndLoss {
+  periodLabel: string
+  revenueTotal: number
+  revenueByCategory: RevenueByCategory
+  costGroups: CostGroup[]
+  costsTotal: number
+  ebitda: number
+  ebitdaMarginPct: number
+}
+
+// ─── Finance KPI dashboard types ─────────────────────────────────
+
+/** Mix entry for a single source or product category */
+export interface MixEntry {
+  label: string
+  count: number
+  share: number // 0–100
+}
+
+/** Instructor productivity row */
+export interface InstructorProductivity {
+  instructorId: string
+  name: string
+  jumps: number
+  shareOfTotal: number // 0–100
+}
+
+/** Depósitos vs liquidación breakdown */
+export interface PaymentStageBreakdown {
+  reserva: number
+  liquidacion: number
+  suplemento: number
+  total: number
+}
+
+/** Full KPI dashboard payload for a period */
+export interface FinanceKpis {
+  /** Period label identical to ProfitAndLoss.periodLabel */
+  periodLabel: string
+
+  // Ocupación de vuelo
+  /** Average completed clients per flight (0 if no flights) */
+  avgClientsPerFlight: number
+  /** % occupancy vs capacity-2: avgClientsPerFlight / 2 × 100 */
+  occupancyPct: number
+  totalFlights: number
+  totalCompletedJumps: number
+
+  // Ingreso medio por salto
+  revenueTotal: number
+  /** revenueTotal / totalCompletedJumps (0 if no jumps) */
+  revenuePerJump: number
+
+  // Mix por origen (reservation_groups.source)
+  mixBySource: MixEntry[]
+
+  // Mix por producto (revenueByCategory from P&L)
+  mixByProduct: MixEntry[]
+
+  // Productividad por instructor
+  instructorProductivity: InstructorProductivity[]
+
+  // % cancelación meteo
+  totalParticipants: number
+  weatherCancelledCount: number
+  /** weatherCancelledCount / totalParticipants × 100 */
+  weatherCancellationPct: number
+
+  // Depósitos vs liquidación
+  paymentStages: PaymentStageBreakdown
+}
+
+// ─── End finance KPI types ────────────────────────────────────────
+
+// ─── End finance v2 types ────────────────────────────────────────
+
 export type WaiverDocumentType = 'WAIVER' | 'RGPD'
 export type WaiverStatus = 'PENDING' | 'COMPLETED' | 'EXPIRED'
 

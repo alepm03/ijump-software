@@ -12,33 +12,157 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
+      day_expenses: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          operational_day_id: string
+          type: Database["public"]["Enums"]["expense_type"]
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          operational_day_id: string
+          type: Database["public"]["Enums"]["expense_type"]
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          operational_day_id?: string
+          type?: Database["public"]["Enums"]["expense_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "day_expenses_operational_day_id_fkey"
+            columns: ["operational_day_id"]
+            isOneToOne: false
+            referencedRelation: "operational_days"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expense_categories: {
+        Row: {
+          active: boolean
+          code: string
+          default_rate: number | null
+          group_type: Database["public"]["Enums"]["expense_group"]
+          id: string
+          name: string
+          rate_basis: Database["public"]["Enums"]["rate_basis"] | null
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          default_rate?: number | null
+          group_type: Database["public"]["Enums"]["expense_group"]
+          id?: string
+          name: string
+          rate_basis?: Database["public"]["Enums"]["rate_basis"] | null
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          default_rate?: number | null
+          group_type?: Database["public"]["Enums"]["expense_group"]
+          id?: string
+          name?: string
+          rate_basis?: Database["public"]["Enums"]["rate_basis"] | null
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          expense_category_id: string
+          id: string
+          incurred_on: string
+          operational_day_id: string | null
+          sociedad: string | null
+          supplier: string | null
+          updated_at: string
+          vat_rate: number | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          expense_category_id: string
+          id?: string
+          incurred_on: string
+          operational_day_id?: string | null
+          sociedad?: string | null
+          supplier?: string | null
+          updated_at?: string
+          vat_rate?: number | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          expense_category_id?: string
+          id?: string
+          incurred_on?: string
+          operational_day_id?: string | null
+          sociedad?: string | null
+          supplier?: string | null
+          updated_at?: string
+          vat_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_expense_category_id_fkey"
+            columns: ["expense_category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_operational_day_id_fkey"
+            columns: ["operational_day_id"]
+            isOneToOne: false
+            referencedRelation: "operational_days"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_settings: {
+        Row: {
+          fuel_price_per_flight: number
+          hangar_price_per_day: number
+          id: string
+          packer_fee_per_jump: number
+          updated_at: string
+        }
+        Insert: {
+          fuel_price_per_flight?: number
+          hangar_price_per_day?: number
+          id?: string
+          packer_fee_per_jump?: number
+          updated_at?: string
+        }
+        Update: {
+          fuel_price_per_flight?: number
+          hangar_price_per_day?: number
+          id?: string
+          packer_fee_per_jump?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       flights: {
         Row: {
           actual_departure_time: string | null
@@ -79,65 +203,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      day_expenses: {
-        Row: {
-          amount: number
-          created_at: string
-          description: string | null
-          id: string
-          operational_day_id: string
-          type: Database["public"]["Enums"]["expense_type"]
-        }
-        Insert: {
-          amount: number
-          created_at?: string
-          description?: string | null
-          id?: string
-          operational_day_id: string
-          type: Database["public"]["Enums"]["expense_type"]
-        }
-        Update: {
-          amount?: number
-          created_at?: string
-          description?: string | null
-          id?: string
-          operational_day_id?: string
-          type?: Database["public"]["Enums"]["expense_type"]
-        }
-        Relationships: [
-          {
-            foreignKeyName: "day_expenses_operational_day_id_fkey"
-            columns: ["operational_day_id"]
-            isOneToOne: false
-            referencedRelation: "operational_days"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      financial_settings: {
-        Row: {
-          fuel_price_per_flight: number
-          hangar_price_per_day: number
-          id: string
-          packer_fee_per_jump: number
-          updated_at: string
-        }
-        Insert: {
-          fuel_price_per_flight?: number
-          hangar_price_per_day?: number
-          id?: string
-          packer_fee_per_jump?: number
-          updated_at?: string
-        }
-        Update: {
-          fuel_price_per_flight?: number
-          hangar_price_per_day?: number
-          id?: string
-          packer_fee_per_jump?: number
-          updated_at?: string
-        }
-        Relationships: []
       }
       instructors: {
         Row: {
@@ -189,6 +254,57 @@ export type Database = {
           weather_status?: Database["public"]["Enums"]["weather_status"]
         }
         Relationships: []
+      }
+      participant_items: {
+        Row: {
+          amount: number | null
+          created_at: string
+          id: string
+          notes: string | null
+          participant_id: string
+          product_id: string
+          quantity: number
+          unit_price: number
+          vat_rate: number | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          participant_id: string
+          product_id: string
+          quantity?: number
+          unit_price: number
+          vat_rate?: number | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          participant_id?: string
+          product_id?: string
+          quantity?: number
+          unit_price?: number
+          vat_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "participant_items_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "participant_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       participants: {
         Row: {
@@ -310,6 +426,45 @@ export type Database = {
           },
         ]
       }
+      products: {
+        Row: {
+          active: boolean
+          base_price: number
+          category: Database["public"]["Enums"]["product_category"]
+          code: string
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+          vat_rate: number | null
+        }
+        Insert: {
+          active?: boolean
+          base_price?: number
+          category: Database["public"]["Enums"]["product_category"]
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+          vat_rate?: number | null
+        }
+        Update: {
+          active?: boolean
+          base_price?: number
+          category?: Database["public"]["Enums"]["product_category"]
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+          vat_rate?: number | null
+        }
+        Relationships: []
+      }
       reservation_groups: {
         Row: {
           created_at: string
@@ -392,6 +547,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      expense_group: "MATERIA_PRIMA" | "PERSONAL" | "GENERALES"
       expense_type: "FUEL_OVERRIDE" | "HANGAR_OVERRIDE" | "CUSTOM"
       flight_status:
         | "SCHEDULED"
@@ -424,6 +580,15 @@ export type Database = {
         | "TRANSFERENCIA"
         | "GROUPON"
       payment_stage: "RESERVA" | "LIQUIDACION" | "SUPLEMENTO"
+      product_category:
+        | "TANDEM_BASE"
+        | "CAMERA_HANDYCAM"
+        | "CAMERA_EXTERNAL"
+        | "PHOTOS"
+        | "OVERWEIGHT"
+        | "GROUND_REPORT"
+        | "OTHER"
+      rate_basis: "PER_FLIGHT" | "PER_JUMP" | "FIXED_PER_DAY"
       reservation_source: "DIRECT" | "GROUPON" | "BONO" | "PROMO" | "SMARTBOX"
       weather_status: "OK" | "MARGINAL" | "CANCELLED"
     }
@@ -551,11 +716,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
+      expense_group: ["MATERIA_PRIMA", "PERSONAL", "GENERALES"],
       expense_type: ["FUEL_OVERRIDE", "HANGAR_OVERRIDE", "CUSTOM"],
       flight_status: [
         "SCHEDULED",
@@ -592,6 +755,16 @@ export const Constants = {
         "GROUPON",
       ],
       payment_stage: ["RESERVA", "LIQUIDACION", "SUPLEMENTO"],
+      product_category: [
+        "TANDEM_BASE",
+        "CAMERA_HANDYCAM",
+        "CAMERA_EXTERNAL",
+        "PHOTOS",
+        "OVERWEIGHT",
+        "GROUND_REPORT",
+        "OTHER",
+      ],
+      rate_basis: ["PER_FLIGHT", "PER_JUMP", "FIXED_PER_DAY"],
       reservation_source: ["DIRECT", "GROUPON", "BONO", "PROMO", "SMARTBOX"],
       weather_status: ["OK", "MARGINAL", "CANCELLED"],
     },

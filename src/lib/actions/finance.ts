@@ -750,7 +750,7 @@ function rowToParticipantItem(row: {
   quantity: number
   unit_price: number
   vat_rate: number | null
-  amount: number
+  amount: number | null  // GENERATED ALWAYS AS — CLI types as nullable, always computed
   notes: string | null
   created_at: string
 }): ParticipantItem {
@@ -761,7 +761,7 @@ function rowToParticipantItem(row: {
     quantity: row.quantity,
     unitPrice: row.unit_price,
     vatRate: row.vat_rate,
-    amount: row.amount,
+    amount: row.amount ?? row.quantity * row.unit_price,
     notes: row.notes,
     createdAt: row.created_at,
   }

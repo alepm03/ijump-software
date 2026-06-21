@@ -1,9 +1,3 @@
-// ===== finance v2 (hand-written; regenerate via `supabase gen types` once the DB is live) =====
-// Tables: products, participant_items, expense_categories, expenses
-// Enums:  product_category, expense_group, rate_basis
-// NOTE:   participant_items.amount is a GENERATED column — present in Row, omitted from Insert/Update.
-// =================================================================================================
-
 export type Json =
   | string
   | number
@@ -18,34 +12,43 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
-      // ===== finance v2 tables (hand-written) =====
+      day_expenses: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          operational_day_id: string
+          type: Database["public"]["Enums"]["expense_type"]
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          operational_day_id: string
+          type: Database["public"]["Enums"]["expense_type"]
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          operational_day_id?: string
+          type?: Database["public"]["Enums"]["expense_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "day_expenses_operational_day_id_fkey"
+            columns: ["operational_day_id"]
+            isOneToOne: false
+            referencedRelation: "operational_days"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expense_categories: {
         Row: {
           active: boolean
@@ -136,98 +139,30 @@ export type Database = {
           },
         ]
       }
-      participant_items: {
+      financial_settings: {
         Row: {
-          // amount is a GENERATED column (quantity * unit_price), always present in Row
-          amount: number
-          created_at: string
+          fuel_price_per_flight: number
+          hangar_price_per_day: number
           id: string
-          notes: string | null
-          participant_id: string
-          product_id: string
-          quantity: number
-          unit_price: number
-          vat_rate: number | null
-        }
-        Insert: {
-          // amount is GENERATED — omitted from Insert
-          created_at?: string
-          id?: string
-          notes?: string | null
-          participant_id: string
-          product_id: string
-          quantity?: number
-          unit_price: number
-          vat_rate?: number | null
-        }
-        Update: {
-          // amount is GENERATED — omitted from Update
-          created_at?: string
-          id?: string
-          notes?: string | null
-          participant_id?: string
-          product_id?: string
-          quantity?: number
-          unit_price?: number
-          vat_rate?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "participant_items_participant_id_fkey"
-            columns: ["participant_id"]
-            isOneToOne: false
-            referencedRelation: "participants"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "participant_items_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      products: {
-        Row: {
-          active: boolean
-          base_price: number
-          category: Database["public"]["Enums"]["product_category"]
-          code: string
-          created_at: string
-          id: string
-          name: string
-          sort_order: number
+          packer_fee_per_jump: number
           updated_at: string
-          vat_rate: number | null
         }
         Insert: {
-          active?: boolean
-          base_price?: number
-          category: Database["public"]["Enums"]["product_category"]
-          code: string
-          created_at?: string
+          fuel_price_per_flight?: number
+          hangar_price_per_day?: number
           id?: string
-          name: string
-          sort_order?: number
+          packer_fee_per_jump?: number
           updated_at?: string
-          vat_rate?: number | null
         }
         Update: {
-          active?: boolean
-          base_price?: number
-          category?: Database["public"]["Enums"]["product_category"]
-          code?: string
-          created_at?: string
+          fuel_price_per_flight?: number
+          hangar_price_per_day?: number
           id?: string
-          name?: string
-          sort_order?: number
+          packer_fee_per_jump?: number
           updated_at?: string
-          vat_rate?: number | null
         }
         Relationships: []
       }
-      // ===== end finance v2 tables =====
       flights: {
         Row: {
           actual_departure_time: string | null
@@ -268,65 +203,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      day_expenses: {
-        Row: {
-          amount: number
-          created_at: string
-          description: string | null
-          id: string
-          operational_day_id: string
-          type: Database["public"]["Enums"]["expense_type"]
-        }
-        Insert: {
-          amount: number
-          created_at?: string
-          description?: string | null
-          id?: string
-          operational_day_id: string
-          type: Database["public"]["Enums"]["expense_type"]
-        }
-        Update: {
-          amount?: number
-          created_at?: string
-          description?: string | null
-          id?: string
-          operational_day_id?: string
-          type?: Database["public"]["Enums"]["expense_type"]
-        }
-        Relationships: [
-          {
-            foreignKeyName: "day_expenses_operational_day_id_fkey"
-            columns: ["operational_day_id"]
-            isOneToOne: false
-            referencedRelation: "operational_days"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      financial_settings: {
-        Row: {
-          fuel_price_per_flight: number
-          hangar_price_per_day: number
-          id: string
-          packer_fee_per_jump: number
-          updated_at: string
-        }
-        Insert: {
-          fuel_price_per_flight?: number
-          hangar_price_per_day?: number
-          id?: string
-          packer_fee_per_jump?: number
-          updated_at?: string
-        }
-        Update: {
-          fuel_price_per_flight?: number
-          hangar_price_per_day?: number
-          id?: string
-          packer_fee_per_jump?: number
-          updated_at?: string
-        }
-        Relationships: []
       }
       instructors: {
         Row: {
@@ -378,6 +254,57 @@ export type Database = {
           weather_status?: Database["public"]["Enums"]["weather_status"]
         }
         Relationships: []
+      }
+      participant_items: {
+        Row: {
+          amount: number | null
+          created_at: string
+          id: string
+          notes: string | null
+          participant_id: string
+          product_id: string
+          quantity: number
+          unit_price: number
+          vat_rate: number | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          participant_id: string
+          product_id: string
+          quantity?: number
+          unit_price: number
+          vat_rate?: number | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          participant_id?: string
+          product_id?: string
+          quantity?: number
+          unit_price?: number
+          vat_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "participant_items_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "participant_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       participants: {
         Row: {
@@ -499,6 +426,45 @@ export type Database = {
           },
         ]
       }
+      products: {
+        Row: {
+          active: boolean
+          base_price: number
+          category: Database["public"]["Enums"]["product_category"]
+          code: string
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+          vat_rate: number | null
+        }
+        Insert: {
+          active?: boolean
+          base_price?: number
+          category: Database["public"]["Enums"]["product_category"]
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+          vat_rate?: number | null
+        }
+        Update: {
+          active?: boolean
+          base_price?: number
+          category?: Database["public"]["Enums"]["product_category"]
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+          vat_rate?: number | null
+        }
+        Relationships: []
+      }
       reservation_groups: {
         Row: {
           created_at: string
@@ -581,18 +547,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      // ===== finance v2 enums (hand-written) =====
       expense_group: "MATERIA_PRIMA" | "PERSONAL" | "GENERALES"
-      product_category:
-        | "TANDEM_BASE"
-        | "CAMERA_HANDYCAM"
-        | "CAMERA_EXTERNAL"
-        | "PHOTOS"
-        | "OVERWEIGHT"
-        | "GROUND_REPORT"
-        | "OTHER"
-      rate_basis: "PER_FLIGHT" | "PER_JUMP" | "FIXED_PER_DAY"
-      // ===== end finance v2 enums =====
       expense_type: "FUEL_OVERRIDE" | "HANGAR_OVERRIDE" | "CUSTOM"
       flight_status:
         | "SCHEDULED"
@@ -625,6 +580,15 @@ export type Database = {
         | "TRANSFERENCIA"
         | "GROUPON"
       payment_stage: "RESERVA" | "LIQUIDACION" | "SUPLEMENTO"
+      product_category:
+        | "TANDEM_BASE"
+        | "CAMERA_HANDYCAM"
+        | "CAMERA_EXTERNAL"
+        | "PHOTOS"
+        | "OVERWEIGHT"
+        | "GROUND_REPORT"
+        | "OTHER"
+      rate_basis: "PER_FLIGHT" | "PER_JUMP" | "FIXED_PER_DAY"
       reservation_source: "DIRECT" | "GROUPON" | "BONO" | "PROMO" | "SMARTBOX"
       weather_status: "OK" | "MARGINAL" | "CANCELLED"
     }
@@ -752,24 +716,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
-      // ===== finance v2 enums (hand-written) =====
       expense_group: ["MATERIA_PRIMA", "PERSONAL", "GENERALES"],
-      product_category: [
-        "TANDEM_BASE",
-        "CAMERA_HANDYCAM",
-        "CAMERA_EXTERNAL",
-        "PHOTOS",
-        "OVERWEIGHT",
-        "GROUND_REPORT",
-        "OTHER",
-      ],
-      rate_basis: ["PER_FLIGHT", "PER_JUMP", "FIXED_PER_DAY"],
-      // ===== end finance v2 enums =====
       expense_type: ["FUEL_OVERRIDE", "HANGAR_OVERRIDE", "CUSTOM"],
       flight_status: [
         "SCHEDULED",
@@ -806,6 +755,16 @@ export const Constants = {
         "GROUPON",
       ],
       payment_stage: ["RESERVA", "LIQUIDACION", "SUPLEMENTO"],
+      product_category: [
+        "TANDEM_BASE",
+        "CAMERA_HANDYCAM",
+        "CAMERA_EXTERNAL",
+        "PHOTOS",
+        "OVERWEIGHT",
+        "GROUND_REPORT",
+        "OTHER",
+      ],
+      rate_basis: ["PER_FLIGHT", "PER_JUMP", "FIXED_PER_DAY"],
       reservation_source: ["DIRECT", "GROUPON", "BONO", "PROMO", "SMARTBOX"],
       weather_status: ["OK", "MARGINAL", "CANCELLED"],
     },

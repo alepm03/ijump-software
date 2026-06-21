@@ -19,10 +19,15 @@ import { reorderFlights, createFlight, deleteFlight } from '@/lib/actions/flight
 import { moveParticipant } from '@/lib/actions/participant'
 import { DayHeader } from './DayHeader'
 import { FlightCard } from './FlightCard'
-import { DailySummaryPanel } from './DailySummaryPanel'
 import { AddParticipantDrawer } from './AddParticipantDrawer'
 import { DayFinanceTab } from './DayFinanceTab'
 import { useRealtimeManifest } from '@/hooks/useRealtimeManifest'
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from '@/components/ui/tabs'
 import type { FlightWithParticipants, Instructor, OperationalDayWithDetails } from '@/types/domain'
 
 interface DayManifestProps {
@@ -37,7 +42,6 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
   const [flights, setFlights] = useState<FlightWithParticipants[]>(day.flights)
   const [addToFlightId, setAddToFlightId] = useState<string | null>(null)
   const [dragType, setDragType] = useState<'flight' | 'participant' | null>(null)
-  const [activeTab, setActiveTab] = useState<'manifest' | 'finanzas'>('manifest')
 
   useEffect(() => {
     setFlights(day.flights)
@@ -161,38 +165,37 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
   }
 
   return (
-    // h-full fills the main area; flex-col so summary bar pins to bottom
+    // h-full fills the main area; flex-col layout
     <div className="h-full flex flex-col">
       <DayHeader day={{ ...day, flights }} />
 
-      {/* Tab bar */}
-      <div className="flex-shrink-0 border-b border-border px-7 flex gap-1">
-        {(['manifest', 'finanzas'] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className="px-3 py-2.5 text-[13px] font-medium transition-colors capitalize"
-            style={{
-              color: activeTab === tab ? 'var(--primary)' : 'var(--muted-foreground)',
-              borderBottom: activeTab === tab ? '2px solid var(--primary)' : '2px solid transparent',
-              marginBottom: '-1px',
-            }}
+      {/* Tabs — replaces manual tab bar with style inline */}
+      <Tabs defaultValue="manifest" className="flex-1 flex flex-col overflow-hidden">
+        <TabsList
+          variant="line"
+          className="flex-shrink-0 px-7 w-full rounded-none border-b border-border justify-start bg-card"
+        >
+          <TabsTrigger
+            value="manifest"
+            className="text-sm font-medium pb-[13px] pt-[14px] px-4 data-active:text-foreground data-active:font-semibold data-active:after:bg-primary"
           >
-            {tab === 'manifest' ? 'Manifest' : 'Finanzas'}
-          </button>
-        ))}
-      </div>
+            Manifiesto
+          </TabsTrigger>
+          <TabsTrigger
+            value="finanzas"
+            className="text-sm font-medium pb-[13px] pt-[14px] px-4 data-active:text-foreground data-active:font-semibold data-active:after:bg-primary"
+          >
+            Finanzas
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Finance tab */}
-      {activeTab === 'finanzas' && (
-        <div className="flex-1 overflow-y-auto">
+        {/* Finance tab */}
+        <TabsContent value="finanzas" className="flex-1 overflow-y-auto mt-0">
           <DayFinanceTab date={day.date} />
-        </div>
-      )}
+        </TabsContent>
 
-      {/* Manifest tab: scrollable flights + summary pinned */}
-      {activeTab === 'manifest' && (
-        <>
+        {/* Manifest tab: scrollable flights */}
+        <TabsContent value="manifest" className="flex-1 flex flex-col overflow-hidden mt-0">
           <div className="flex-1 overflow-y-auto">
             <DndContext
               id={dndId}
@@ -218,7 +221,7 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
                   <button
                     onClick={handleAddFlight}
                     disabled={isPending}
-                    className="w-full flex items-center justify-center gap-1.5 py-3.5 rounded-[10px] border-2 border-dashed border-border hover:border-primary/30 hover:bg-secondary/40 hover:text-primary text-muted-foreground transition-all disabled:opacity-50 text-[13.5px] font-medium"
+                    className="w-full flex items-center justify-center gap-1.5 py-3.5 rounded-[10px] border-2 border-dashed border-border hover:border-primary/30 hover:bg-secondary/40 hover:text-primary text-muted-foreground transition-all disabled:opacity-50 text-sm font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
                   >
                     <Plus size={15} />
                     Añadir vuelo
@@ -237,10 +240,8 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
             </DndContext>
           </div>
 
-          {/* Summary bar — flex-shrink-0 keeps it always visible at the bottom */}
-          <DailySummaryPanel flights={flights} />
-        </>
-      )}
+        </TabsContent>
+      </Tabs>
 
       <AddParticipantDrawer
         flightId={addToFlightId}

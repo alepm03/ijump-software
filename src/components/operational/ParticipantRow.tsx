@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useDraggable } from '@dnd-kit/core'
-import { GripVertical } from 'lucide-react'
+import { GripVertical, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateParticipant, deleteParticipant } from '@/lib/actions/participant'
 import { createPayment, updatePayment, deletePayment } from '@/lib/actions/payment'
@@ -33,6 +33,13 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import { Button } from '@/components/ui/button'
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from '@/components/ui/tabs'
 import { User } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { createWaiverToken, getParticipantWaivers } from '@/lib/actions/waiver'
@@ -48,27 +55,28 @@ import type {
   WaiverDocumentType,
 } from '@/types/domain'
 
-// ─── Status / Package config ─────────────────────────────────────────────────
+// ─── Status / Package config — tokens only, no hex ───────────────────────────
 
-const STATUS_CONFIG: Record<OperationalStatus, { label: string; bg: string; color: string }> = {
-  PENDING:          { label: 'Pendiente',  bg: '#F4F4F5', color: '#71717A' },
-  CHECKED_IN:       { label: 'Check-in',  bg: '#EFF6FF', color: '#3B82F6' },
-  WAIVER_SIGNED:    { label: 'Waiver',    bg: '#FAF5FF', color: '#9333EA' },
-  BRIEFED:          { label: 'Briefed',   bg: '#FEFCE8', color: '#CA8A04' },
-  GEARED_UP:        { label: 'Equipado',  bg: '#FFF7ED', color: '#EA580C' },
-  READY:            { label: 'Listo',     bg: '#F0FDF4', color: '#16A34A' },
-  COMPLETED:        { label: 'Completado',bg: '#ECFDF5', color: '#059669' },
-  CANCELLED:        { label: 'Cancelado', bg: '#FFF1F2', color: '#E11D48' },
-  NO_SHOW:          { label: 'No show',   bg: '#FFF1F2', color: '#E11D48' },
-  WEATHER_CANCELLED:{ label: 'Wx cancel.',bg: '#FFF1F2', color: '#E11D48' },
+const STATUS_CONFIG: Record<OperationalStatus, { label: string; className: string; dotClassName: string }> = {
+  PENDING:          { label: 'Pendiente',   className: 'bg-status-pending-bg text-status-pending',           dotClassName: 'bg-status-pending' },
+  CHECKED_IN:       { label: 'Check-in',    className: 'bg-status-checked-in-bg text-status-checked-in',     dotClassName: 'bg-status-checked-in' },
+  WAIVER_SIGNED:    { label: 'Waiver',      className: 'bg-status-waiver-signed-bg text-status-waiver-signed', dotClassName: 'bg-status-waiver-signed' },
+  BRIEFED:          { label: 'Briefed',     className: 'bg-status-briefed-bg text-status-briefed',           dotClassName: 'bg-status-briefed' },
+  GEARED_UP:        { label: 'Equipado',    className: 'bg-status-geared-up-bg text-status-geared-up',       dotClassName: 'bg-status-geared-up' },
+  READY:            { label: 'Listo',       className: 'bg-status-ready-bg text-status-ready',               dotClassName: 'bg-status-ready' },
+  COMPLETED:        { label: 'Completado',  className: 'bg-status-completed-bg text-status-completed',       dotClassName: 'bg-status-completed' },
+  CANCELLED:        { label: 'Cancelado',   className: 'bg-status-cancelled-bg text-status-cancelled',       dotClassName: 'bg-status-cancelled' },
+  NO_SHOW:          { label: 'No show',     className: 'bg-status-no-show-bg text-status-no-show',           dotClassName: 'bg-status-no-show' },
+  WEATHER_CANCELLED:{ label: 'Wx cancel.',  className: 'bg-status-weather-cancelled-bg text-status-weather-cancelled', dotClassName: 'bg-status-weather-cancelled' },
 }
 
-const PACKAGE_CONFIG: Record<PackageType, { label: string; bg: string; color: string }> = {
-  SOLO:           { label: 'Solo',  bg: '#F4F4F5', color: '#71717A' },
-  HANDYCAM:       { label: 'HC',   bg: '#EFF6FF', color: '#3B82F6' },
-  VIDEO_EXTERNO:  { label: 'VE',   bg: '#EEF2FF', color: '#6366F1' },
-  FOTOS:          { label: 'Fotos',bg: '#F0FDFA', color: '#0D9488' },
-  HANDYCAM_FOTOS: { label: 'HC+F', bg: '#EFF6FF', color: '#3B82F6' },
+// v4: package chip → neutral outline, sin color
+const PACKAGE_CONFIG: Record<PackageType, { label: string }> = {
+  SOLO:           { label: 'Solo' },
+  HANDYCAM:       { label: 'HC' },
+  VIDEO_EXTERNO:  { label: 'VE' },
+  FOTOS:          { label: 'Fotos' },
+  HANDYCAM_FOTOS: { label: 'HC+F' },
 }
 
 const METHOD_LABELS: Record<PaymentMethod, string> = {
@@ -85,10 +93,31 @@ const STAGE_LABELS: Record<PaymentStage, string> = {
   SUPLEMENTO: 'Suplemento',
 }
 
-const STAGE_COLORS: Record<PaymentStage, { bg: string; color: string }> = {
-  RESERVA:    { bg: '#EEF2FF', color: '#6366F1' },
-  LIQUIDACION:{ bg: '#ECFDF5', color: '#059669' },
-  SUPLEMENTO: { bg: '#FFF7ED', color: '#EA580C' },
+// Maps PaymentStage to token class pairs
+const STAGE_CONFIG: Record<PaymentStage, { className: string }> = {
+  RESERVA:    { className: 'bg-pay-reserva-bg text-pay-reserva' },
+  LIQUIDACION:{ className: 'bg-pay-liquidacion-bg text-pay-liquidacion' },
+  SUPLEMENTO: { className: 'bg-pay-suplemento-bg text-pay-suplemento' },
+}
+
+// ─── StatusBadge — reusable pill ─────────────────────────────────────────────
+
+function StatusBadge({ className, label }: { className: string; label: string }) {
+  return (
+    <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${className}`}>
+      {label}
+    </span>
+  )
+}
+
+// ─── PackageBadge — neutral outline chip (v4) ─────────────────────────────────
+
+function PackageBadge({ label }: { label: string }) {
+  return (
+    <span className="text-xs font-medium px-2 py-0.5 rounded-md border border-border-strong bg-card text-muted-foreground whitespace-nowrap">
+      {label}
+    </span>
+  )
 }
 
 // ─── Inline editable field ────────────────────────────────────────────────────
@@ -133,7 +162,7 @@ function InlineField({
           if (e.key === 'Enter') commit()
           if (e.key === 'Escape') { setDraft(value); setEditing(false) }
         }}
-        className={`bg-background border border-input rounded px-1 py-0 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring min-w-0 ${className}`}
+        className={`bg-background border border-input rounded px-1 py-0 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 min-w-0 ${className}`}
         autoFocus
       />
     )
@@ -160,13 +189,23 @@ function getPaymentStatus(payments: Payment[]) {
   const total = payments.reduce((sum, p) => sum + p.amount, 0)
 
   if (hasLiquidacion) {
-    return { label: 'Pagado', total, isOW: hasSuplemento, color: '#059669', bg: '#ECFDF5' }
+    return {
+      label: 'Pagado',
+      total,
+      isOW: hasSuplemento,
+      className: 'bg-pay-paid-bg text-pay-paid',
+    }
   }
 
   const reservaTotal = payments
     .filter((p) => p.stage === 'RESERVA')
     .reduce((sum, p) => sum + p.amount, 0)
-  return { label: 'Reservado', total: reservaTotal, isOW: hasSuplemento, color: '#6366F1', bg: '#EEF2FF' }
+  return {
+    label: 'Reservado',
+    total: reservaTotal,
+    isOW: hasSuplemento,
+    className: 'bg-pay-reserved-bg text-pay-reserved',
+  }
 }
 
 // ─── Payment manager (inside Dialog) ─────────────────────────────────────────
@@ -228,12 +267,11 @@ function PaymentManager({
       {payments.length > 0 && (
         <div className="space-y-1.5">
           {payments.map((pmt) => {
-            const cfg = STAGE_COLORS[pmt.stage]
+            const cfg = STAGE_CONFIG[pmt.stage]
             return (
               <div key={pmt.id} className="flex items-center gap-2.5">
                 <span
-                  className="text-[11px] font-semibold px-2 py-0.5 rounded flex-shrink-0 min-w-[76px] text-center"
-                  style={{ background: cfg.bg, color: cfg.color }}
+                  className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 min-w-[76px] text-center ${cfg.className}`}
                 >
                   {STAGE_LABELS[pmt.stage]}
                 </span>
@@ -248,7 +286,7 @@ function PaymentManager({
                       if (e.key === 'Enter') handleUpdate(pmt.id)
                       if (e.key === 'Escape') setEditingId(null)
                     }}
-                    className="w-20 text-sm bg-background border border-input rounded px-2 py-0.5 text-foreground outline-none focus:ring-1 focus:ring-ring font-bold"
+                    className="w-20 text-sm bg-background border border-input rounded px-2 py-0.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 font-bold"
                     autoFocus
                   />
                 ) : (
@@ -289,14 +327,14 @@ function PaymentManager({
 
       {/* Add payment form */}
       <div className="space-y-2.5 pt-1 border-t border-border">
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           Añadir pago
         </p>
         <div className="flex gap-2">
           <select
             value={stage}
             onChange={(e) => setStage(e.target.value as PaymentStage)}
-            className="text-sm bg-background border border-input rounded px-2 py-1.5 text-foreground outline-none focus:ring-1 focus:ring-ring flex-1"
+            className="text-sm bg-background border border-input rounded px-2 py-1.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 flex-1"
           >
             {(Object.entries(STAGE_LABELS) as [PaymentStage, string][]).map(([val, label]) => (
               <option key={val} value={val}>{label}</option>
@@ -305,7 +343,7 @@ function PaymentManager({
           <select
             value={method}
             onChange={(e) => setMethod(e.target.value as PaymentMethod)}
-            className="text-sm bg-background border border-input rounded px-2 py-1.5 text-foreground outline-none focus:ring-1 focus:ring-ring flex-1"
+            className="text-sm bg-background border border-input rounded px-2 py-1.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 flex-1"
           >
             {(Object.entries(METHOD_LABELS) as [PaymentMethod, string][]).map(([val, label]) => (
               <option key={val} value={val}>{label}</option>
@@ -319,15 +357,17 @@ function PaymentManager({
             onChange={(e) => setAmount(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
             placeholder="Importe €"
-            className="flex-1 text-sm bg-background border border-input rounded px-2 py-1.5 text-foreground outline-none focus:ring-1 focus:ring-ring"
+            className="flex-1 text-sm bg-background border border-input rounded px-2 py-1.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
           />
-          <button
+          <Button
             onClick={handleAdd}
             disabled={isPending || !amount}
-            className="px-4 py-1.5 rounded bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-40 hover:bg-primary/90 transition-colors flex-shrink-0"
+            variant="default"
+            size="sm"
+            className="flex-shrink-0"
           >
             Añadir
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -351,19 +391,18 @@ function PaymentCell({
     <Dialog>
       {status ? (
         <DialogTrigger
-          className="flex-shrink-0 text-[11.5px] font-semibold px-2 py-0.5 rounded transition-opacity hover:opacity-70 cursor-pointer"
-          style={{ background: status.bg, color: status.color }}
+          className={`flex-shrink-0 text-xs font-semibold px-2 py-1 rounded-full transition-opacity hover:opacity-70 cursor-pointer min-h-[32px] flex items-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${status.className}`}
         >
           {status.label} · {status.total.toFixed(0)}€
         </DialogTrigger>
       ) : (
-        <DialogTrigger className="flex-shrink-0 px-1.5 py-0.5 rounded border border-border bg-transparent text-muted-foreground text-[11px] hover:border-foreground/30 hover:text-foreground transition-colors cursor-pointer">
+        <DialogTrigger className="flex-shrink-0 px-1.5 py-1 rounded-full border border-border bg-transparent text-muted-foreground text-xs hover:border-foreground/30 hover:text-foreground transition-colors cursor-pointer min-h-[32px] flex items-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1">
           + Pago
         </DialogTrigger>
       )}
       <DialogContent className="w-full max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-[14px]">Pagos — {participantName}</DialogTitle>
+          <DialogTitle className="text-body">Pagos — {participantName}</DialogTitle>
         </DialogHeader>
         <PaymentManager participantId={participantId} payments={payments} />
       </DialogContent>
@@ -428,21 +467,19 @@ function WaiverSection({ participantId }: { participantId: string }) {
           const completed = doc?.status === 'COMPLETED'
           const pending = doc?.status === 'PENDING'
 
+          // Badge className: completed=success, pending=accent2, default=neutral
+          const badgeClass = completed
+            ? 'bg-status-completed-bg text-status-completed'
+            : pending
+              ? 'bg-status-waiver-signed-bg text-status-waiver-signed'
+              : 'bg-status-pending-bg text-status-pending'
+
           return (
             <div
               key={docType}
               className="flex items-center gap-2 py-2.5 border-b border-border/50 last:border-0"
             >
-              <span
-                className="text-[9.5px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
-                style={
-                  completed
-                    ? { background: '#ECFDF5', color: '#059669' }
-                    : pending
-                      ? { background: '#EEF2FF', color: '#6366F1' }
-                      : { background: '#F4F4F5', color: '#71717A' }
-                }
-              >
+              <span className={`text-micro font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${badgeClass}`}>
                 {docType}
               </span>
 
@@ -456,15 +493,12 @@ function WaiverSection({ participantId }: { participantId: string }) {
                     href={doc.pdfUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[11px] text-primary hover:text-primary/80 font-medium flex-shrink-0 transition-colors"
+                    className="text-xs text-primary hover:text-primary/80 font-medium flex-shrink-0 transition-colors"
                   >
                     PDF ↗
                   </a>
                 ) : (
-                  <span
-                    className="text-[11px] font-semibold flex-shrink-0"
-                    style={{ color: '#059669' }}
-                  >
+                  <span className="text-xs font-semibold flex-shrink-0 text-status-completed">
                     Firmado ✓
                   </span>
                 )
@@ -472,7 +506,7 @@ function WaiverSection({ participantId }: { participantId: string }) {
                 <button
                   onClick={() => handleQR(docType)}
                   disabled={generating === docType}
-                  className="flex-shrink-0 text-[11px] px-2.5 py-1 rounded border border-border bg-transparent text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors disabled:opacity-40"
+                  className="flex-shrink-0 text-xs px-2.5 py-1 rounded border border-border bg-transparent text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
                 >
                   {generating === docType ? '…' : pending ? 'Ver QR' : 'Generar QR'}
                 </button>
@@ -498,7 +532,7 @@ function WaiverSection({ participantId }: { participantId: string }) {
                 <p className="text-xs text-muted-foreground text-center leading-relaxed">
                   Muestra este código al participante para que firme el documento en su móvil.
                 </p>
-                <p className="text-[9.5px] text-muted-foreground/40 font-mono break-all text-center">
+                <p className="text-micro text-muted-foreground/40 font-mono break-all text-center">
                   {qrUrl}
                 </p>
               </>
@@ -550,7 +584,7 @@ function EditableRow({
 
   return (
     <div className="flex items-baseline justify-between gap-4 py-2.5 border-b border-border/50 last:border-0">
-      <span className="text-[12px] text-muted-foreground flex-shrink-0 w-24">{label}</span>
+      <span className="text-sm text-muted-foreground flex-shrink-0 w-24">{label}</span>
       {editing ? (
         <input
           ref={inputRef}
@@ -562,7 +596,7 @@ function EditableRow({
             if (e.key === 'Enter') commit()
             if (e.key === 'Escape') { setDraft(value); setEditing(false) }
           }}
-          className="flex-1 text-sm bg-background border border-input rounded px-2 py-0.5 text-foreground outline-none focus:ring-1 focus:ring-ring text-right"
+          className="flex-1 text-sm bg-background border border-input rounded px-2 py-0.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 text-right"
           autoFocus
         />
       ) : (
@@ -581,11 +615,18 @@ function EditableRow({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[11.5px] font-semibold text-muted-foreground pt-5 pb-1 first:pt-0">
+    <p className="text-xs font-semibold text-muted-foreground pt-5 pb-1 first:pt-0">
       {children}
     </p>
   )
 }
+
+// Checklist item config — colors via token class names
+const CHECKLIST_ITEMS = [
+  { key: 'checkInCompleted', label: 'Check-in',      activeClass: 'bg-status-checked-in border-status-checked-in' },
+  { key: 'waiverSigned',     label: 'Waiver firmado', activeClass: 'bg-status-waiver-signed border-status-waiver-signed' },
+  { key: 'gearedUp',         label: 'Equipado',       activeClass: 'bg-status-geared-up border-status-geared-up' },
+] as const
 
 function ParticipantInfoSheet({
   participant: p,
@@ -599,7 +640,7 @@ function ParticipantInfoSheet({
   return (
     <Sheet>
       <SheetTrigger
-        className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded text-muted-foreground/30 hover:text-muted-foreground hover:bg-secondary transition-colors cursor-pointer"
+        className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded text-muted-foreground/30 hover:text-muted-foreground hover:bg-secondary transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
         title="Ficha del cliente"
       >
         <User size={11} />
@@ -609,17 +650,12 @@ function ParticipantInfoSheet({
         {/* Header */}
         <div className="px-6 pt-5 pb-4 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-3 pr-8">
-            <SheetTitle className="text-[16px] font-semibold leading-tight">
+            <SheetTitle className="text-title font-semibold leading-tight">
               {p.fullName || 'Sin nombre'}
             </SheetTitle>
-            <span
-              className="text-[11px] font-semibold px-2 py-0.5 rounded flex-shrink-0"
-              style={{ background: statusCfg.bg, color: statusCfg.color }}
-            >
-              {statusCfg.label}
-            </span>
+            <StatusBadge className={statusCfg.className} label={statusCfg.label} />
             {p.reservationGroup && (
-              <p className="text-[12.5px] text-muted-foreground ml-2">
+              <p className="text-sm text-muted-foreground ml-2">
                 {SOURCE_LABELS[p.reservationGroup.source] ?? p.reservationGroup.source}
                 {p.reservationGroup.payerName && (
                   <span className="text-muted-foreground/60"> · {p.reservationGroup.payerName}</span>
@@ -629,10 +665,16 @@ function ParticipantInfoSheet({
           </div>
         </div>
 
-        {/* Body — 3 columnas */}
-        <div className="grid grid-cols-3 divide-x divide-border flex-1 overflow-y-auto">
-          {/* Col 1: Contacto + Datos físicos */}
-          <div className="px-5 py-4 overflow-y-auto">
+        {/* Body — Tabs (responsive: stacks on md, was 3 columns) */}
+        <Tabs defaultValue="contacto" className="flex-1 overflow-hidden flex flex-col">
+          <TabsList variant="line" className="px-6 flex-shrink-0 w-full rounded-none border-b border-border justify-start">
+            <TabsTrigger value="contacto">Contacto</TabsTrigger>
+            <TabsTrigger value="checklist">Checklist</TabsTrigger>
+            <TabsTrigger value="documentos">Notas y docs</TabsTrigger>
+          </TabsList>
+
+          {/* Tab 1: Contacto + Datos físicos */}
+          <TabsContent value="contacto" className="px-5 py-4 overflow-y-auto">
             <SectionLabel>Contacto</SectionLabel>
             <div>
               <EditableRow
@@ -679,32 +721,24 @@ function ParticipantInfoSheet({
                 inputType="number"
               />
             </div>
-          </div>
+          </TabsContent>
 
-          {/* Col 2: Checklist */}
-          <div className="px-5 py-4 overflow-y-auto">
+          {/* Tab 2: Checklist */}
+          <TabsContent value="checklist" className="px-5 py-4 overflow-y-auto">
             <SectionLabel>Checklist</SectionLabel>
             <div className="space-y-1">
-              {(
-                [
-                  { key: 'checkInCompleted', label: 'Check-in', color: '#3B82F6' },
-                  { key: 'waiverSigned',     label: 'Waiver firmado', color: '#9333EA' },
-                  { key: 'gearedUp',         label: 'Equipado', color: '#EA580C' },
-                ] as const
-              ).map(({ key, label, color }) => {
+              {CHECKLIST_ITEMS.map(({ key, label, activeClass }) => {
                 const checked = p[key]
                 return (
                   <button
                     key={key}
                     onClick={() => save({ [key]: !checked })}
-                    className="flex items-center gap-3 w-full px-1 py-2 rounded hover:bg-secondary transition-colors text-left group"
+                    className="flex items-center gap-3 w-full px-1 py-2 rounded hover:bg-secondary transition-colors text-left group focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
                   >
                     <span
-                      className="w-4 h-4 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors"
-                      style={checked
-                        ? { background: color, borderColor: color }
-                        : { background: 'transparent', borderColor: 'var(--border)' }
-                      }
+                      className={`w-4 h-4 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors ${
+                        checked ? activeClass : 'bg-transparent border-border'
+                      }`}
                     >
                       {checked && (
                         <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
@@ -719,16 +753,16 @@ function ParticipantInfoSheet({
                 )
               })}
             </div>
-          </div>
+          </TabsContent>
 
-          {/* Col 3: Notas + Documentos */}
-          <div className="px-5 py-4 overflow-y-auto">
+          {/* Tab 3: Notas + Documentos */}
+          <TabsContent value="documentos" className="px-5 py-4 overflow-y-auto">
             <SectionLabel>Notas</SectionLabel>
             <NotesField value={p.notes ?? ''} onSave={(v) => save({ notes: v || null })} />
             <SectionLabel>Documentos</SectionLabel>
             <WaiverSection participantId={p.id} />
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </SheetContent>
     </Sheet>
   )
@@ -744,12 +778,14 @@ function NotesField({ value, onSave }: { value: string; onSave: (v: string) => v
       onBlur={() => { if (draft !== value) onSave(draft) }}
       placeholder="Sin notas"
       rows={3}
-      className="w-full text-sm bg-background border border-border rounded px-3 py-2 text-foreground outline-none resize-none focus:border-input focus:ring-1 focus:ring-ring transition-colors placeholder:text-muted-foreground/40"
+      className="w-full text-sm bg-background border border-border rounded px-3 py-2 text-foreground outline-none resize-none focus-visible:border-input focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 transition-colors placeholder:text-muted-foreground/40"
     />
   )
 }
 
 // ─── ParticipantRow ───────────────────────────────────────────────────────────
+// v4: lg+ → grid layout aligned with ManifestColHead via --manifest-grid-cols
+// md/mobile → flex-wrap layout (preserved from Phase 5)
 
 interface ParticipantRowProps {
   participant: ParticipantWithDetails
@@ -791,145 +827,353 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
     <div
       ref={setNodeRef}
       style={{ opacity: isDragging ? 0.4 : 1 }}
-      className="flex items-center gap-2 px-3.5 py-2 border-b border-border bg-card hover:bg-secondary/20 transition-colors last:border-b-0"
+      className="border-b border-border bg-card hover:bg-secondary/20 transition-colors last:border-b-0"
     >
-      {/* Drag handle */}
-      <button
-        {...attributes}
-        {...listeners}
-        className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none text-muted-foreground/40 hover:text-muted-foreground flex items-center"
-      >
-        <GripVertical size={13} />
-      </button>
-
-      {/* Name + info */}
-      <InlineField
-        value={p.fullName}
-        placeholder="Nombre"
-        onSave={(v) => save({ fullName: v })}
-        className="font-medium min-w-[110px] text-[12.5px]"
-      />
-      <ParticipantInfoSheet participant={p} save={save} />
-
-      {/* Status */}
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          disabled={isPending}
-          className="flex-shrink-0 text-[11px] font-semibold px-1.5 py-0.5 rounded transition-colors"
-          style={{ background: statusCfg.bg, color: statusCfg.color, letterSpacing: '-0.1px' }}
+      {/* ── lg+: single-row grid aligned with ManifestColHead ── */}
+      <div className="hidden lg:flex items-center px-3.5 py-2">
+        {/* Drag handle — fixed width before grid, matches col-head padding offset */}
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none text-muted-foreground/40 hover:text-muted-foreground flex items-center justify-center w-8 h-8 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
         >
-          {statusCfg.label}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="min-w-[140px]">
-          {(Object.entries(STATUS_CONFIG) as [OperationalStatus, typeof statusCfg][]).map(
-            ([status, cfg]) => (
-              <DropdownMenuItem
-                key={status}
-                onClick={() => save({ operationalStatus: status })}
-                className="text-xs cursor-pointer"
-              >
-                <span className="inline-block w-2 h-2 rounded-sm mr-2 flex-shrink-0" style={{ background: cfg.color, opacity: 0.7 }} />
-                {cfg.label}
-              </DropdownMenuItem>
-            )
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+          <GripVertical size={13} />
+        </button>
 
-      {/* Package */}
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          disabled={isPending}
-          className="flex-shrink-0 text-[11px] font-bold px-1.5 py-0.5 rounded transition-colors"
-          style={{ background: pkgCfg.bg, color: pkgCfg.color }}
-        >
-          {pkgCfg.label}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          {(Object.entries(PACKAGE_CONFIG) as [PackageType, typeof pkgCfg][]).map(
-            ([pkg, cfg]) => (
-              <DropdownMenuItem
-                key={pkg}
-                onClick={() => save({ packageType: pkg })}
-                className="text-xs cursor-pointer"
-              >
-                {cfg.label}
-              </DropdownMenuItem>
-            )
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {/* Instructor */}
-      <Select
-        value={p.assignedInstructorId ?? ''}
-        onValueChange={(v) => save({ assignedInstructorId: v || null })}
-        disabled={isPending}
-      >
-        <SelectTrigger className="h-5 text-[11px] px-1.5 py-0 min-w-[72px] max-w-[96px] flex-shrink-0">
-          <SelectValue>
-            <span className={p.assignedInstructorId ? '' : 'text-muted-foreground'}>
-              {p.assignedInstructorId
-                ? (instructors.find((i) => i.id === p.assignedInstructorId)?.name ?? '—')
-                : 'Instructor'}
-            </span>
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="" className="text-muted-foreground text-xs">—</SelectItem>
-          {instructors.filter((i) => i.active).map((i) => (
-            <SelectItem key={i.id} value={i.id} className="text-xs">{i.name}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      {/* Weight + OW */}
-      <div className="flex items-center gap-1 flex-shrink-0">
-        <InlineField
-          value={p.weight ? String(p.weight) : ''}
-          placeholder="—"
-          onSave={(v) => {
-            const n = parseFloat(v)
-            save({ weight: isNaN(n) ? null : n })
+        {/* Grid cells — must use same --manifest-grid-cols as ManifestColHead */}
+        <div
+          className="flex-1 min-w-0"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'var(--manifest-grid-cols)',
+            alignItems: 'center',
           }}
-          inputType="number"
-          className="w-9 text-right text-muted-foreground text-[12px]"
-        />
-        {p.weight && <span className="text-[11px] text-muted-foreground">kg</span>}
-        {hasOW && (
-          <span
-            className="text-[9.5px] font-bold px-1 py-0.5 rounded"
-            style={{ background: '#FFF7ED', color: '#EA580C' }}
-          >
-            OW
-          </span>
-        )}
+        >
+          {/* Col 1: Participante — Complete button (first), then name, then info icon */}
+          <div className="flex items-center gap-1.5 min-w-0 px-3">
+            {/* Complete toggle — circular button, prominent */}
+            <button
+              onClick={() => save({ operationalStatus: p.operationalStatus === 'COMPLETED' ? 'PENDING' : 'COMPLETED' })}
+              disabled={isPending}
+              title={p.operationalStatus === 'COMPLETED' ? 'Marcar pendiente' : 'Marcar completado'}
+              className={`flex-shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 p-[5px] ${
+                p.operationalStatus === 'COMPLETED'
+                  ? 'bg-status-completed text-card border border-status-completed'
+                  : 'bg-transparent border border-border-strong text-transparent hover:border-status-completed'
+              }`}
+            >
+              <Check size={10} strokeWidth={3} className={p.operationalStatus === 'COMPLETED' ? 'text-card' : 'text-transparent'} />
+            </button>
+            <InlineField
+              value={p.fullName}
+              placeholder="Nombre"
+              onSave={(v) => save({ fullName: v })}
+              className="font-medium text-sm flex-1 min-w-0"
+            />
+            <ParticipantInfoSheet participant={p} save={save} />
+          </div>
+
+          {/* Col 2: Estado */}
+          <div className="px-3 flex items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                disabled={isPending}
+                className={`flex-shrink-0 text-xs font-semibold px-2 py-1 rounded-full transition-colors min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${statusCfg.className}`}
+              >
+                {statusCfg.label}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-[140px]">
+                {(Object.entries(STATUS_CONFIG) as [OperationalStatus, typeof statusCfg][]).map(
+                  ([status, cfg]) => (
+                    <DropdownMenuItem
+                      key={status}
+                      onClick={() => save({ operationalStatus: status })}
+                      className="text-xs cursor-pointer"
+                    >
+                      <span className={`inline-block w-2 h-2 rounded-sm mr-2 flex-shrink-0 opacity-70 ${cfg.dotClassName}`} />
+                      {cfg.label}
+                    </DropdownMenuItem>
+                  )
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Col 3: Paquete — neutral outline chip (v4) */}
+          <div className="px-3 flex items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                disabled={isPending}
+                className="flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-md min-h-[32px] flex items-center"
+              >
+                <PackageBadge label={pkgCfg.label} />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {(Object.entries(PACKAGE_CONFIG) as [PackageType, typeof pkgCfg][]).map(
+                  ([pkg, cfg]) => (
+                    <DropdownMenuItem
+                      key={pkg}
+                      onClick={() => save({ packageType: pkg })}
+                      className="text-xs cursor-pointer"
+                    >
+                      {cfg.label}
+                    </DropdownMenuItem>
+                  )
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Col 4: Instructor */}
+          <div className="px-3 flex items-center">
+            <Select
+              value={p.assignedInstructorId ?? ''}
+              onValueChange={(v) => save({ assignedInstructorId: v || null })}
+              disabled={isPending}
+            >
+              <SelectTrigger className="h-8 text-xs px-1.5 py-0 min-w-[72px] max-w-[88px]">
+                <SelectValue>
+                  <span className={p.assignedInstructorId ? '' : 'text-muted-foreground'}>
+                    {p.assignedInstructorId
+                      ? (instructors.find((i) => i.id === p.assignedInstructorId)?.name ?? '—')
+                      : 'Instructor'}
+                  </span>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="" className="text-muted-foreground text-xs">—</SelectItem>
+                {instructors.filter((i) => i.active).map((i) => (
+                  <SelectItem key={i.id} value={i.id} className="text-xs">{i.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Col 5: Peso */}
+          <div className="px-3 flex items-center gap-1">
+            <InlineField
+              value={p.weight ? String(p.weight) : ''}
+              placeholder="—"
+              onSave={(v) => {
+                const n = parseFloat(v)
+                save({ weight: isNaN(n) ? null : n })
+              }}
+              inputType="number"
+              className="w-9 text-right text-muted-foreground text-sm"
+            />
+            {p.weight && <span className="text-xs text-muted-foreground">kg</span>}
+            {hasOW && (
+              <span className="text-micro font-bold px-1 py-0.5 rounded-full bg-status-geared-up-bg text-status-geared-up">
+                OW
+              </span>
+            )}
+          </div>
+
+          {/* Col 6: Pago */}
+          <div className="px-3 flex items-center justify-between">
+            <PaymentCell
+              participantId={p.id}
+              participantName={p.fullName}
+              payments={p.payments}
+            />
+            {/* Delete button — at the end of the last column */}
+            <div className="flex-shrink-0 flex items-center ml-1">
+              {confirmDelete ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleDelete}
+                    disabled={isPending}
+                    className="text-2xs text-destructive hover:text-destructive/80 px-1 py-1 min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
+                  >
+                    Sí
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="text-2xs text-muted-foreground hover:text-foreground py-1 min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
+                  >
+                    No
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  className="text-title leading-none w-8 h-8 flex items-center justify-center text-muted-foreground/30 hover:text-destructive transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="flex-1" />
+      {/* ── md/mobile: flex-wrap layout (Phase 5 preserved) ── */}
+      <div className="flex lg:hidden items-center flex-wrap gap-2 px-3.5 py-2">
+        {/* Drag handle */}
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none text-muted-foreground/40 hover:text-muted-foreground flex items-center justify-center w-8 h-8 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded order-1"
+        >
+          <GripVertical size={13} />
+        </button>
 
-      {/* Payment */}
-      <PaymentCell
-        participantId={p.id}
-        participantName={p.fullName}
-        payments={p.payments}
-      />
+        {/* Complete toggle — first thing in the "participant" visual group */}
+        <button
+          onClick={() => save({ operationalStatus: p.operationalStatus === 'COMPLETED' ? 'PENDING' : 'COMPLETED' })}
+          disabled={isPending}
+          title={p.operationalStatus === 'COMPLETED' ? 'Marcar pendiente' : 'Marcar completado'}
+          className={`flex-shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 p-[5px] order-2 ${
+            p.operationalStatus === 'COMPLETED'
+              ? 'bg-status-completed text-card border border-status-completed'
+              : 'bg-transparent border border-border-strong text-transparent hover:border-status-completed'
+          }`}
+        >
+          <Check size={10} strokeWidth={3} className={p.operationalStatus === 'COMPLETED' ? 'text-card' : 'text-transparent'} />
+        </button>
 
-      {/* Delete */}
-      <div className="flex-shrink-0 flex items-center ml-1">
-        {confirmDelete ? (
-          <div className="flex items-center gap-1">
-            <button onClick={handleDelete} disabled={isPending} className="text-[10px] text-destructive hover:text-destructive/80 px-1">Sí</button>
-            <button onClick={() => setConfirmDelete(false)} className="text-[10px] text-muted-foreground hover:text-foreground">No</button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setConfirmDelete(true)}
-            className="text-[15px] leading-none px-1 text-muted-foreground/30 hover:text-destructive transition-colors"
+        {/* Name */}
+        <InlineField
+          value={p.fullName}
+          placeholder="Nombre"
+          onSave={(v) => save({ fullName: v })}
+          className="font-medium min-w-[110px] text-sm order-3"
+        />
+
+        {/* Info sheet icon */}
+        <span className="order-4">
+          <ParticipantInfoSheet participant={p} save={save} />
+        </span>
+
+        {/* Status */}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            disabled={isPending}
+            className={`flex-shrink-0 text-xs font-semibold px-2 py-1 rounded-full transition-colors min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 order-5 ${statusCfg.className}`}
           >
-            ×
-          </button>
-        )}
+            {statusCfg.label}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-[140px]">
+            {(Object.entries(STATUS_CONFIG) as [OperationalStatus, typeof statusCfg][]).map(
+              ([status, cfg]) => (
+                <DropdownMenuItem
+                  key={status}
+                  onClick={() => save({ operationalStatus: status })}
+                  className="text-xs cursor-pointer"
+                >
+                  <span className={`inline-block w-2 h-2 rounded-sm mr-2 flex-shrink-0 opacity-70 ${cfg.dotClassName}`} />
+                  {cfg.label}
+                </DropdownMenuItem>
+              )
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Package — outline chip (v4) */}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            disabled={isPending}
+            className="flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-md min-h-[32px] flex items-center order-6"
+          >
+            <PackageBadge label={pkgCfg.label} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {(Object.entries(PACKAGE_CONFIG) as [PackageType, typeof pkgCfg][]).map(
+              ([pkg, cfg]) => (
+                <DropdownMenuItem
+                  key={pkg}
+                  onClick={() => save({ packageType: pkg })}
+                  className="text-xs cursor-pointer"
+                >
+                  {cfg.label}
+                </DropdownMenuItem>
+              )
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Payment */}
+        <div className="order-7 ml-auto">
+          <PaymentCell
+            participantId={p.id}
+            participantName={p.fullName}
+            payments={p.payments}
+          />
+        </div>
+
+        {/* Delete */}
+        <div className="flex-shrink-0 flex items-center order-11">
+          {confirmDelete ? (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleDelete}
+                disabled={isPending}
+                className="text-2xs text-destructive hover:text-destructive/80 px-1 py-1 min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
+              >
+                Sí
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="text-2xs text-muted-foreground hover:text-foreground py-1 min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
+              >
+                No
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="text-title leading-none w-8 h-8 flex items-center justify-center text-muted-foreground/30 hover:text-destructive transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
+            >
+              ×
+            </button>
+          )}
+        </div>
+
+        {/* Invisible full-width break for row 2 */}
+        <div className="w-full order-8" />
+
+        {/* Instructor */}
+        <Select
+          value={p.assignedInstructorId ?? ''}
+          onValueChange={(v) => save({ assignedInstructorId: v || null })}
+          disabled={isPending}
+        >
+          <SelectTrigger className="h-8 text-xs px-1.5 py-0 min-w-[72px] max-w-[96px] flex-shrink-0 order-9">
+            <SelectValue>
+              <span className={p.assignedInstructorId ? '' : 'text-muted-foreground'}>
+                {p.assignedInstructorId
+                  ? (instructors.find((i) => i.id === p.assignedInstructorId)?.name ?? '—')
+                  : 'Instructor'}
+              </span>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="" className="text-muted-foreground text-xs">—</SelectItem>
+            {instructors.filter((i) => i.active).map((i) => (
+              <SelectItem key={i.id} value={i.id} className="text-xs">{i.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Weight + OW */}
+        <div className="flex items-center gap-1 flex-shrink-0 order-10">
+          <InlineField
+            value={p.weight ? String(p.weight) : ''}
+            placeholder="—"
+            onSave={(v) => {
+              const n = parseFloat(v)
+              save({ weight: isNaN(n) ? null : n })
+            }}
+            inputType="number"
+            className="w-9 text-right text-muted-foreground text-sm"
+          />
+          {p.weight && <span className="text-xs text-muted-foreground">kg</span>}
+          {hasOW && (
+            <span className="text-micro font-bold px-1 py-0.5 rounded-full bg-status-geared-up-bg text-status-geared-up">
+              OW
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )

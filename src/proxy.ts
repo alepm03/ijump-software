@@ -2,6 +2,14 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // API routes (bot, cron, webhooks) and the public reservation status page
+  // have their own auth (API key / signature / token) — never redirect them to /login.
+  if (pathname.startsWith('/api/') || pathname.startsWith('/reserva/')) {
+    return NextResponse.next()
+  }
+
   // Skip auth check if Supabase env vars are not configured (e.g. preview builds)
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -38,7 +46,6 @@ export async function proxy(request: NextRequest) {
   const { data: { session } } = await supabase.auth.getSession()
   const user = session?.user ?? null
 
-  const { pathname } = request.nextUrl
   const isPublicRoute =
     pathname.startsWith('/login') ||
     pathname.startsWith('/waiver/')

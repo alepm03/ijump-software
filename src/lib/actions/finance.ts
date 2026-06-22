@@ -20,6 +20,8 @@ import type {
   ExpenseGroup,
   RateBasis,
   Expense,
+  SaleChannel,
+  ChannelKind,
   ProfitAndLoss,
   // KPI dashboard
   FinanceKpis,
@@ -905,6 +907,68 @@ export async function updateExpenseCategoryRate(
 }
 
 // ═══════════════════════════════════════════════════════════════
+// FINANCE V2 — Sale channels (per-channel commission)
+// ═══════════════════════════════════════════════════════════════
+
+function rowToSaleChannel(row: {
+  id: string
+  code: string
+  name: string
+  channel_kind: string
+  commission_pct: number | null
+  active: boolean
+  notes: string | null
+  sort_order: number
+  created_at: string
+  updated_at: string
+}): SaleChannel {
+  return {
+    id: row.id,
+    code: row.code,
+    name: row.name,
+    channelKind: row.channel_kind as ChannelKind,
+    commissionPct: row.commission_pct,
+    active: row.active,
+    notes: row.notes,
+    sortOrder: row.sort_order,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+export async function listSaleChannels(): Promise<SaleChannel[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('sale_channels')
+    .select('*')
+    .order('sort_order')
+
+  if (error) throw new Error(error.message)
+  return (data ?? []).map(rowToSaleChannel)
+}
+
+export async function updateSaleChannelCommission(
+  id: string,
+  commissionPct: number | null
+): Promise<{ error?: string }> {
+  // Defense in depth: the UI validates, the column has a CHECK, but a non-UI
+  // caller could still pass an out-of-range value — reject it here too.
+  if (commissionPct !== null && (Number.isNaN(commissionPct) || commissionPct < 0 || commissionPct > 100)) {
+    return { error: 'La comisión debe estar entre 0 y 100' }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('sale_channels')
+    .update({ commission_pct: commissionPct })
+    .eq('id', id)
+
+  if (error) return { error: error.message }
+  revalidatePath('/', 'layout')
+  return {}
+}
+
+// ═══════════════════════════════════════════════════════════════
 // FINANCE V2 — Expenses
 // ═══════════════════════════════════════════════════════════════
 
@@ -1047,6 +1111,7 @@ const PNL_DAY_SELECT = `
       id,
       operational_status,
       assigned_instructor_id,
+      reservation_group:reservation_groups ( source ),
       payments ( amount ),
       participant_items ( amount, product_id, products ( category ) ),
       instructor:instructors!participants_assigned_instructor_id_fkey (
@@ -1101,6 +1166,19 @@ async function fetchCategories(
   return (data ?? []).map(rowToExpenseCategory)
 }
 
+async function fetchSaleChannels(
+  supabase: Awaited<ReturnType<typeof createClient>>
+): Promise<SaleChannel[]> {
+  const { data, error } = await supabase
+    .from('sale_channels')
+    .select('*')
+    .eq('active', true)
+    .order('sort_order')
+
+  if (error) throw new Error(error.message)
+  return (data ?? []).map(rowToSaleChannel)
+}
+
 // ═══════════════════════════════════════════════════════════════
 // FINANCE V2 — Day operational day id lookup
 // ═══════════════════════════════════════════════════════════════
@@ -1132,13 +1210,14 @@ export async function getOperationalDayId(date: string): Promise<string | null> 
 /** Day P&L for a single operational day (Europe/Madrid, ISO 8601) */
 export async function getDayPnl(date: string): Promise<ProfitAndLoss> {
   const supabase = await createClient()
-  const [days, expenses, categories] = await Promise.all([
+  const [days, expenses, categories, saleChannels] = await Promise.all([
     fetchPnlDays(supabase, date, date),
     fetchPnlExpenses(supabase, date, date),
     fetchCategories(supabase),
+    fetchSaleChannels(supabase),
   ])
 
-  return buildPnl({ periodLabel: date, days, expenses, categories })
+  return buildPnl({ periodLabel: date, days, expenses, categories, saleChannels })
 }
 
 /** ISO week P&L (Monday–Sunday). isoWeek is 1-based (1–53). */
@@ -1162,13 +1241,14 @@ export async function getWeekPnl(
   const periodLabel = `${year}-W${String(isoWeek).padStart(2, '0')}`
 
   const supabase = await createClient()
-  const [days, expenses, categories] = await Promise.all([
+  const [days, expenses, categories, saleChannels] = await Promise.all([
     fetchPnlDays(supabase, from, to),
     fetchPnlExpenses(supabase, from, to),
     fetchCategories(supabase),
+    fetchSaleChannels(supabase),
   ])
 
-  return buildPnl({ periodLabel, days, expenses, categories })
+  return buildPnl({ periodLabel, days, expenses, categories, saleChannels })
 }
 
 /** Month P&L. month is 'YYYY-MM'. */
@@ -1180,13 +1260,14 @@ export async function getMonthPnl(month: string): Promise<ProfitAndLoss> {
   const to = `${month}-${String(lastDay).padStart(2, '0')}`
 
   const supabase = await createClient()
-  const [days, expenses, categories] = await Promise.all([
+  const [days, expenses, categories, saleChannels] = await Promise.all([
     fetchPnlDays(supabase, from, to),
     fetchPnlExpenses(supabase, from, to),
     fetchCategories(supabase),
+    fetchSaleChannels(supabase),
   ])
 
-  return buildPnl({ periodLabel: month, days, expenses, categories })
+  return buildPnl({ periodLabel: month, days, expenses, categories, saleChannels })
 }
 
 /**
@@ -1203,13 +1284,14 @@ export async function getYearPnl(
   const periodLabel = isYtd ? `${year} YTD (through ${to})` : String(year)
 
   const supabase = await createClient()
-  const [days, expenses, categories] = await Promise.all([
+  const [days, expenses, categories, saleChannels] = await Promise.all([
     fetchPnlDays(supabase, from, to),
     fetchPnlExpenses(supabase, from, to),
     fetchCategories(supabase),
+    fetchSaleChannels(supabase),
   ])
 
-  return buildPnl({ periodLabel, days, expenses, categories })
+  return buildPnl({ periodLabel, days, expenses, categories, saleChannels })
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -6,7 +6,7 @@
  * Renders:
  *   • KPI strip (Ingresos / Gastos / EBITDA / Margen)
  *   • Ingresos section — one row per non-zero revenue category with proportion bar
- *   • Gastos section   — grouped by MATERIA_PRIMA / PERSONAL / GENERALES
+ *   • Gastos section   — grouped by COSTES_DIRECTOS / COMISIONES / PERSONAL / GENERALES
  *   • Resultado        — EBITDA + margin
  *
  * Design tokens: semantic only (bg-background, bg-card, text-foreground,
@@ -59,9 +59,10 @@ const CATEGORY_ORDER: Array<ProductCategory | 'SIN_DESGLOSE'> = [
 // ─── Expense group display names ───────────────────────────────────────────────
 
 const GROUP_LABELS: Record<ExpenseGroup, string> = {
-  MATERIA_PRIMA: 'Materia prima',
-  PERSONAL:      'Personal',
-  GENERALES:     'Gastos generales',
+  COSTES_DIRECTOS: 'Costes directos',
+  COMISIONES:      'Comisiones',
+  PERSONAL:        'Personal',
+  GENERALES:       'Gastos generales',
 }
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
@@ -363,7 +364,7 @@ function CostGroupSection({
 
 function CostsSection({ pnl }: { pnl: ProfitAndLoss }) {
   // Ensure consistent group order
-  const GROUP_ORDER: ExpenseGroup[] = ['MATERIA_PRIMA', 'PERSONAL', 'GENERALES']
+  const GROUP_ORDER: ExpenseGroup[] = ['COSTES_DIRECTOS', 'COMISIONES', 'PERSONAL', 'GENERALES']
   const groupMap = new Map(pnl.costGroups.map((g) => [g.group, g]))
 
   const groups = GROUP_ORDER.map((g) => groupMap.get(g)).filter(

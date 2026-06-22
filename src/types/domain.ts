@@ -217,9 +217,30 @@ export type ProductCategory =
   | 'GROUND_REPORT'
   | 'OTHER'
 
-export type ExpenseGroup = 'MATERIA_PRIMA' | 'PERSONAL' | 'GENERALES'
+export type ExpenseGroup = 'COSTES_DIRECTOS' | 'COMISIONES' | 'PERSONAL' | 'GENERALES'
 
 export type RateBasis = 'PER_FLIGHT' | 'PER_JUMP' | 'FIXED_PER_DAY'
+
+export type ChannelKind = 'DIRECT' | 'PLATFORM'
+
+/**
+ * Sale channel (Reserva directa, Bono, Promo, Groupon, Smartbox, ...).
+ * DIRECT channels carry no commission; PLATFORM channels do. Adjustable
+ * per-channel %, decoupled from ReservationSource. `commissionPct` is in
+ * percentage points (e.g. 15 = 15%); null = pending / not applicable.
+ */
+export interface SaleChannel {
+  id: string
+  code: string
+  name: string
+  channelKind: ChannelKind
+  commissionPct: number | null
+  active: boolean
+  notes: string | null
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
 
 export interface Product {
   id: string
@@ -294,7 +315,7 @@ export interface CostCategoryLine {
   amount: number
 }
 
-/** One EBITDA group (MATERIA_PRIMA | PERSONAL | GENERALES) with its categories */
+/** One EBITDA group (COSTES_DIRECTOS | COMISIONES | PERSONAL | GENERALES) with its categories */
 export interface CostGroup {
   group: ExpenseGroup
   total: number

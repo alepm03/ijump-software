@@ -140,7 +140,7 @@ export type Database = {
           active: boolean
           code: string
           default_rate: number | null
-          group_type: Database["public"]["Enums"]["expense_group"]
+          group_type: string
           id: string
           name: string
           rate_basis: Database["public"]["Enums"]["rate_basis"] | null
@@ -150,7 +150,7 @@ export type Database = {
           active?: boolean
           code: string
           default_rate?: number | null
-          group_type: Database["public"]["Enums"]["expense_group"]
+          group_type: string
           id?: string
           name: string
           rate_basis?: Database["public"]["Enums"]["rate_basis"] | null
@@ -160,7 +160,7 @@ export type Database = {
           active?: boolean
           code?: string
           default_rate?: number | null
-          group_type?: Database["public"]["Enums"]["expense_group"]
+          group_type?: string
           id?: string
           name?: string
           rate_basis?: Database["public"]["Enums"]["rate_basis"] | null
@@ -614,6 +614,45 @@ export type Database = {
         }
         Relationships: []
       }
+      sale_channels: {
+        Row: {
+          active: boolean
+          channel_kind: string
+          code: string
+          commission_pct: number | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          channel_kind: string
+          code: string
+          commission_pct?: number | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          channel_kind?: string
+          code?: string
+          commission_pct?: number | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       waivers: {
         Row: {
           accepted: boolean
@@ -678,7 +717,6 @@ export type Database = {
       }
     }
     Enums: {
-      expense_group: "MATERIA_PRIMA" | "PERSONAL" | "GENERALES"
       expense_type: "FUEL_OVERRIDE" | "HANGAR_OVERRIDE" | "CUSTOM"
       flight_status:
         | "SCHEDULED"
@@ -849,7 +887,6 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      expense_group: ["MATERIA_PRIMA", "PERSONAL", "GENERALES"],
       expense_type: ["FUEL_OVERRIDE", "HANGAR_OVERRIDE", "CUSTOM"],
       flight_status: [
         "SCHEDULED",

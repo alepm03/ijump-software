@@ -38,7 +38,7 @@ Si el participante tiene items, manda el itemizado; si no, cae a los pagos. Los 
 |---|---|
 | `products` | Catálogo configurable. `code, name, category, base_price, vat_rate (nullable, IVA-ready), active, sort_order`. |
 | `participant_items` | Líneas de venta. `participant_id, product_id, quantity, unit_price (snapshot), vat_rate (snapshot), amount (GENERATED = qty*unit_price)`. |
-| `expense_categories` | 9 categorías del Excel con `group_type` (MATERIA_PRIMA / PERSONAL / GENERALES) y `rate_basis` (PER_FLIGHT / PER_JUMP / FIXED_PER_DAY / NULL) para el cálculo automático y el EBITDA. |
+| `expense_categories` | 9 categorías del Excel con `group_type` (COSTES_DIRECTOS / COMISIONES / PERSONAL / GENERALES — ver §11) y `rate_basis` (PER_FLIGHT / PER_JUMP / FIXED_PER_DAY / NULL) para el cálculo automático y el EBITDA. |
 | `expenses` | Generaliza `day_expenses`. Añade `supplier` (PROVEEDOR), `sociedad`, `incurred_on`, `vat_rate`, y `operational_day_id` **nullable** → permite gastos fijos mensuales (seguro, gestoría) no atados a una jornada. |
 
 Enums nuevos: `product_category`, `expense_group`, `rate_basis`. RLS: `authenticated full access` en las 4 tablas (misma postura que el esquema base; a endurecer en el security pass).
@@ -64,10 +64,11 @@ Generaliza exactamente el patrón fuel/hangar/packer + override de v1: `COMBUSTI
 
 ```
 INGRESOS  (por product_category)  + "Sin desglosar" (pagos de históricos)
-GASTOS
-  MATERIA PRIMA = Σ(Vuelos, Combustible, Equipos, Plegados, Edición, Comisión Groupon, Tasas)
-  PERSONAL      = Σ(Instructores)
-  GENERALES     = Σ(Generales)
+GASTOS  (taxonomía v2.1 — ver §11)
+  COSTES_DIRECTOS = Σ(Vuelos, Combustible, Plegados, Edición)
+  COMISIONES      = Σ(Comisión Groupon manual  +  comisión auto por canal)
+  PERSONAL        = Σ(Instructores)
+  GENERALES       = Σ(Equipos, Tasas aeródromo, Generales)
 EBITDA = INGRESOS − GASTOS   (+ margen %)
 ```
 
@@ -97,3 +98,68 @@ Lista de precios (Q1-7), comisiones de plataformas (Q8-9), tarifas de coste real
 - P&L en pantalla cuadrado contra un mes real del Excel (objetivo de control: Oct 2024 → ingresos 9.840 €, EBITDA 861 €).
 - Export (Excel/CSV/PDF) contrastado contra el P&L en pantalla.
 - `npm run build` + `npx tsc --noEmit` limpios. Responsive en tablet (~820px).
+
+## 11. Reclasificación de gastos + comisiones por canal (v2.1)
+
+Migración `20260622000000_finance_expense_model.sql`. Aditiva y reversible (bloque ROLLBACK).
+Mueve costes entre grupos pero **no cambia el coste total ni el EBITDA de ningún periodo**
+(invariante verificada en `__pnl_check.mts`).
+
+### 11.1 Taxonomía corregida
+
+El seed v2 metía casi todo en `MATERIA_PRIMA`, lo que distorsionaba el margen bruto por
+salto. Nueva taxonomía (4 grupos). Para hacerla ajustable y reversible para siempre,
+`expense_categories.group_type` pasa de **ENUM Postgres a TEXT + CHECK** (`ALTER TYPE ADD
+VALUE` no es reversible y la disciplina de migración lo prohíbe).
+
+| group_type | Partidas | Razón |
+|---|---|---|
+| `COSTES_DIRECTOS` | VUELOS, COMBUSTIBLE, PLEGADOS, EDICION | Varían por vuelo/salto/extra. EDICION es coste directo del vídeo, ya no "materia prima". |
+| `COMISIONES` | COMISION_GROUPON + comisión auto por canal | Coste comercial (% de venta). |
+| `PERSONAL` | INSTRUCTORES | — |
+| `GENERALES` | EQUIPOS, TASAS_AERODROMO, GENERALES | Overhead/fijo. EQUIPOS = amortización/mantenimiento; TASAS = fijo/día. |
+
+### 11.2 Canales de venta + comisiones (tabla `sale_channels`)
+
+Registro de canales de venta con comisión ajustable. Dos tipos (`channel_kind`):
+
+| channel_kind | Canales | Comisión |
+|---|---|---|
+| `DIRECT` | Reserva directa, Bono regalo, Promoción | 0% (venta directa de iJump) |
+| `PLATFORM` | Groupon, Smartbox, Wonder Box, Jumping, Freedom | % por plataforma (NULL = pendiente Raúl, S21) |
+
+Columnas: `code, name, channel_kind CHECK(DIRECT|PLATFORM), commission_pct NUMERIC(5,2) CHECK
+0..100 (NULL), active, notes, sort_order`. RLS `authenticated full access` (dato de app
+normal). Ajustable desde **/admin** (`SaleChannelsForm`: edita el % de las plataformas; los
+directos se muestran como 0% sin editar).
+
+**Cálculo en el motor** (`pnl-engine.ts`, puro): por participante,
+`comisión = Σ participantRevenue(p) × pct(p.reservation_group.source) / 100`, sobre la misma
+base que `revenueTotal`. El canal se resuelve desde `reservation_groups.source` →
+`sale_channels.code` (coincidencia directa: DIRECT, BONO, PROMO, GROUPON, SMARTBOX → 0% los
+directos). Entra como línea sintética `COMISION_CANAL` en el grupo `COMISIONES`.
+
+- Con `pct = NULL`/`0` (estado actual de las plataformas) la comisión auto es **0** → totales
+  históricos intactos.
+- **Una sola fuente de verdad:** si el periodo tiene filas manuales de `COMISION_GROUPON`, la
+  línea auto se **suprime** (manual gana, como el override manual de la fórmula en §5). Evita
+  el doble conteo cuando se fije la tarifa.
+- Sin override por participante en v2.1 (el % por canal cubre la necesidad). El campo
+  `reservation_group.source` ya existe; **no se acopla** con el módulo de reservas. `sale_channels`
+  es una tabla de config independiente del enum `ReservationSource` que reservas reutilizará;
+  Wonder Box/Jumping/Freedom aún no tienen valor en el enum (lo extenderá reservas) → quedan
+  inalcanzables por el motor hasta entonces, sin afectar nada.
+
+### 11.3 Decisiones de negocio pendientes (🔵 Raúl) — ver `02_roadmap/PREGUNTAS_NEGOCIO_FINANZAS.md`
+
+- ¿`VUELOS` es solo combustible (convendría renombrarlo) o incluye alquiler de avión? Riesgo de
+  solape con la partida `COMBUSTIBLE` (doble conteo). + ¿sueldo del piloto como partida propia?
+- ¿`EQUIPOS` es alquiler de paracaídas, compra (amortización), o ambos? ¿Importe relevante?
+- Tarifas reales de comisión por plataforma (Groupon/Smartbox/Wonder Box/Jumping/Freedom).
+- Promociones concretas (grupo/pareja/puntual) e importes.
+- Reconciliación `ReservationSource` ↔ `sale_channels` (extender enum en la sesión de reservas).
+
+> Nota de entorno: en la sesión de desarrollo no había Supabase CLI/Docker local ni acceso al
+> proyecto (org del hermano), así que `database.types.ts` se editó a mano. **Tras aplicar la
+> migración en una rama Supabase, regenerar los tipos con el CLI** y revisar `/admin` y
+> `/finanzas` a ~820px.

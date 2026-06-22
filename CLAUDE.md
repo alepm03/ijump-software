@@ -2,9 +2,166 @@
 
 # iJump Operational System — CLAUDE.md
 
+> Lee este archivo completo al inicio de cada sesión. Contiene el contexto del proyecto, el workflow de colaboración y las reglas que deben respetarse siempre.
+
+---
+
 ## Qué es este proyecto
 
 Sistema operacional para un centro de paracaidismo tándem. Sustituye un Excel + WhatsApp + papel por una aplicación web moderna. El núcleo del sistema NO es la gestión de clientes: es el **Manifest Operacional Diario**.
+
+---
+
+## Equipo y modelo de acceso
+
+| Persona | Handle | Rol | Acceso git |
+|---|---|---|---|
+| Ricardo | ricardopm01 / Edrai | Estrategia, producto, IA/chatbot, auditoría | Push de feature branches; nunca mergea a `main` él solo |
+| Hermano (Aleandro) | alepm03 | Propietario del repo, implementación técnica | Merge de PRs a `main`; acceso directo a Supabase |
+
+**Regla de sincronización entre los dos:** el canal de coordinación son los PRs y los documentos en `docs/`. No se trabajan los mismos archivos en paralelo sin coordinarlo antes. Si Ricardo y el hermano tienen sesiones activas al mismo tiempo, cada uno trabaja en su propia rama.
+
+---
+
+## Cómo trabaja Claude — workflow de sesión
+
+### Al abrir una sesión nueva
+1. Lee este `CLAUDE.md` (se carga automáticamente).
+2. Ejecuta `git log --oneline -5` y `git branch` para saber en qué rama estás y cuál es el último estado.
+3. Si hay trabajo pendiente, busca un archivo de plan en `.claude/plans/` o un `tasks/todo.md`.
+4. Antes de tocar código, confirma con el usuario qué quiere hacer en esta sesión.
+
+### Al cerrar una sesión
+1. Commit de todo lo que esté listo con mensaje en inglés e imperativo.
+2. Push de la rama.
+3. Si el trabajo está completo, abre PR hacia `main` via `gh pr create`.
+4. Actualiza los documentos relevantes (ver §Qué actualizar).
+5. Nunca dejes la rama en estado roto. Si algo no está terminado, deja un `// TODO:` con contexto y documéntalo en el PR.
+
+### Regla anti-confusión de worktrees
+El único directorio de trabajo activo es `ijump-software/` (rama `main`). Si ves otras carpetas (`ijump-software-*`), son worktrees temporales de ramas antiguas — no trabajes en ellas.
+
+---
+
+## Sesiones complejas: planes, tareas y subagentes
+
+### Cuándo usar plan mode
+- Tareas de 3+ pasos o que impliquen decisiones de arquitectura.
+- Antes de modificar migraciones o la estructura de base de datos.
+- Cuando no estés seguro de las consecuencias de un cambio en el resto del sistema.
+- Para fixes obvios de una línea: hazlo directo, sin plan.
+
+### Cuándo usar TaskCreate
+- Implementaciones que se extiendan más de ~30 minutos.
+- Cuando hay múltiples entregables (migración + tipos + UI + tests).
+- Marca cada tarea `completed` en cuanto termines, no al final de todo.
+
+### Cuándo usar subagentes
+- **Exploración de código** sin ensuciar el contexto principal: subagente `Explore` apuntado a archivos concretos.
+- **Revisión antes de un PR**: subagentes `code-reviewer` + `security-auditor` en paralelo.
+- **Implementación de entregables independientes**: un subagente `claude` por cada uno (migración, motor, UI...).
+- **NO usar** para tareas de menos de 15 minutos o cuando ya tienes el contexto claro — el coste supera el beneficio.
+
+### División de sesiones entre Ricardo y el hermano
+- Ricardo: diseño, estrategia, documentación, IA/chatbot (repo del chatbot).
+- Hermano: implementación técnica en este repo (R1–R4 del sistema de reservas).
+- Punto de sincronización: PRs + documentos en `docs/`.
+- Si Ricardo trabaja en una feature y el hermano en otra: ramas distintas, sin tocar los mismos archivos.
+
+---
+
+## Flujo de ramas y PRs
+
+### Convención de nombres
+| Tipo | Prefijo | Ejemplo |
+|---|---|---|
+| Nueva funcionalidad | `feature/` | `feature/reservations-availability` |
+| Corrección de bug | `fix/` | `fix/flight-reorder-index` |
+| Documentación / setup | `docs/` | `docs/project-setup` |
+| Hotfix urgente | `hotfix/` | `hotfix/payment-calculation` |
+| Refactor sin cambio funcional | `refactor/` | `refactor/participant-actions` |
+
+### Reglas
+- **Nunca** hacer commits directamente sobre `main`.
+- Cada rama cubre **una sola funcionalidad o fix**.
+- Mensajes de commit en inglés, imperativo: `Add flight reorder logic`.
+- Co-autoría al final del mensaje: `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>`.
+- **Abrir PR** cuando la rama esté lista. El hermano revisa y mergea.
+- **Borrar la rama remota** después del merge (`git push origin --delete <rama>`).
+- Ricardo puede hacer push de cualquier feature branch. Solo el hermano mergea a `main`.
+
+### Flujo habitual
+```bash
+git checkout main && git pull
+git checkout -b feature/nombre-descriptivo
+# trabajar, testear...
+git add <files> && git commit -m "Add: descripción"
+git push -u origin feature/nombre-descriptivo
+gh pr create --title "..." --body "..."
+```
+
+---
+
+## Qué actualizar después de cada tipo de cambio
+
+| Cambio | Qué actualizar |
+|---|---|
+| Nueva tabla o columna | `supabase/migrations/`, regenerar `src/lib/supabase/database.types.ts`, actualizar `docs/[MODULO]_INTEGRATION.md` |
+| Nuevo módulo grande | Crear `docs/[MODULO]_INTEGRATION.md` como guía post-merge (ver `docs/FINANCE_V2_INTEGRATION.md` como plantilla) |
+| Cambio en design system | `docs/DESIGN_SYSTEM.md` + reglas en este `CLAUDE.md` (§Sistema de diseño) |
+| Nuevo enum o tipo de dominio | `src/types/domain.ts` + `database.types.ts` |
+| Merge de PR a main | Borrar rama remota, actualizar §Estado actual en este `CLAUDE.md` |
+| Cambio en env vars | Actualizar §Supabase y notificar al otro para que actualice su `.env.local` |
+
+---
+
+## Estado actual del software
+
+> Actualizar esta sección después de cada merge a `main`.
+
+| Módulo | Estado | PR |
+|---|---|---|
+| Manifest operacional diario | ✅ Producción | — |
+| UI redesign v4 (design system OKLCH, sidebar, logo) | ✅ Producción | #19 |
+| Finanzas v2 (P&L, KPI dashboard, catálogo, export Excel/CSV/PDF) | ✅ Producción | #20 |
+| Sistema de reservas (lead → pago Stripe → manifiesto) | 🔄 En diseño | — |
+| API del bot (chatbot → software) | 🔄 En diseño | — |
+| Chatbot rewire (R5 — lado Ricardo) | ⏳ Pendiente R1–R4 | — |
+
+### Lo que NO está en scope (aún)
+- CRM avanzado
+- Automatización WhatsApp con IA (viene en R5)
+- Multimedia / vídeos
+- App móvil cliente
+- Multi-empresa / multi-avión
+- Múltiples manifests
+- Pagos online de participantes (viene en Reservas R3)
+
+---
+
+## Próximo módulo: Sistema de reservas
+
+**El siguiente trabajo grande es el sistema de reservas** (lead → pago → manifiesto + API del bot).
+
+- **R1–R4** (datos, disponibilidad, API del bot, Stripe, tentativa/meteo): **hermano (alepm03)**.
+- **R5** (rewire del chatbot para consumir la API): **Ricardo**.
+
+### Antes de empezar a implementar — lectura obligatoria
+```
+docs/reservas/MASTER_PLAN_v2.md       # Estrategia, decisiones de arquitectura ya tomadas, 6 fases
+docs/reservas/TECH_APPENDIX_v2.md    # SQL completo, motor de disponibilidad, webhook Stripe, API del bot
+docs/reservas/HANDOFF_PROMPT.md      # Prompt de arranque para la sesión de implementación
+```
+
+**Plantilla de calidad a seguir:** `docs/FINANCE_V2_INTEGRATION.md` — migración aditiva/reversible, motor puro + checks jiti, service client, waiver token pattern.
+
+### Decisiones humanas pendientes antes de arrancar (🔵)
+- Capacidad real: `max_flights_per_day` y nº instructores/avión (confirmar con Raúl).
+- Acceso cruzado repos + Supabase (write mutuo entre Ricardo y hermano).
+- Política de reembolso/cancelación cerrada + privacidad/T&C publicados (bloqueante para cobrar).
+- Confirmar Stripe, importe depósito (60€) y si es reembolsable.
+
+---
 
 ## Stack tecnológico
 
@@ -17,6 +174,8 @@ Sistema operacional para un centro de paracaidismo tándem. Sustituye un Excel +
 - **Storage**: Supabase Storage (PDFs, firmas, documentos)
 - **Hosting**: Vercel
 
+---
+
 ## Dominio — conceptos clave
 
 ### OperationalDay
@@ -26,19 +185,20 @@ Entidad central. Representa una jornada completa de saltos. Contiene vuelos, par
 Un vuelo individual dentro de una jornada. Máximo 2 participantes (tándem). Puede tener cámara externa (ocupa plaza). Dinámico: se añade, elimina, reordena en tiempo real.
 
 ### Participant
-Persona individual que salta. Tiene su propio estado operativo, instructor, pago y documentación. Aunque pertenezca a una reserva grupal, opera de forma individual.
+Persona individual que salta. Tiene su propio estado operativo, instructor, pago y documentación. También actúa como **lead** cuando `flight_id IS NULL` (reserva futura pendiente de confirmar).
 
 ### ReservationGroup
-Agrupación comercial de participantes (e.g., familia que reserva junta). El pago puede ser individual o a través de un pagador principal.
+Agrupación comercial de participantes (ej. familia que reserva junta). El pago puede ser individual o a través de un pagador principal.
 
 ### Payment
 Desacoplado del participante. Tiene método (EFECTIVO, TARJETA, BIZUM, TRANSFERENCIA, GROUPON) y etapa (RESERVA, LIQUIDACION, SUPLEMENTO).
+
+---
 
 ## Enums importantes
 
 ```typescript
 PackageType: SOLO | HANDYCAM | VIDEO_EXTERNO | FOTOS | HANDYCAM_FOTOS
-// SOLO = sin video; FOTOS puede ser add-on independiente — confirmar con negocio
 
 ReservationSource: DIRECT | GROUPON | BONO | PROMO | SMARTBOX
 
@@ -51,36 +211,22 @@ OperationalStatus: PENDING | CHECKED_IN | WAIVER_SIGNED | BRIEFED | GEARED_UP | 
 FlightStatus: SCHEDULED | BOARDING | IN_AIR | COMPLETED | DELAYED | CANCELLED
 ```
 
-## Formato del Excel real (referencia de negocio)
-
-El Excel `docs/28 SEPT.xlsx` tiene esta estructura por fila:
-- N° VUELO (ej: "1 9:00") — identifica vuelo + hora
-- PLAZAS — nombre del participante (header confuso, es el nombre)
-- INSTRUCTOR — asignado el mismo día, puede estar vacío
-- PAGO RESERVA — fuente + tier: "GROUPON", "I JUMP 60", "350 BONO"
-- CÁMARA — "HC" (handycam) o vacío
-- FOTOS — vacío o marcado
-- TELÉFONO
-- LIQUIDACION PAGO — string combinado: "65 EFECT", "190 EFECTIVO", "65 TARJETA"
-- TIPO DE VIDEO
-- CORREO ELECTRONICO
-
-El resumen al final del Excel (totales diarios) debe estar disponible en tiempo real en el dashboard.
+---
 
 ## Sistema de diseño — reglas obligatorias
 
-Toda nueva UI debe seguir este sistema sin excepción. No usar dark mode, no usar clases zinc hardcodeadas, no usar azul sky como acento.
+Toda nueva UI debe seguir este sistema sin excepción. Ver `docs/DESIGN_SYSTEM.md` para la referencia completa.
 
 ### Tema y color
-- **Light mode únicamente** — no hay dark mode en este proyecto
-- **Color space**: OKLCH vía variables CSS (`--background`, `--foreground`, `--primary`, etc.)
-- **Acento de marca**: naranja corporativo — usar siempre `bg-primary`, `text-primary`, `hover:bg-primary/90`
-- **Nunca** usar `bg-zinc-900`, `bg-zinc-800`, `text-white`, `bg-sky-600` ni ningún color hardcodeado de Tailwind para superficies o texto
-- Usar exclusivamente tokens semánticos: `bg-background`, `bg-card`, `bg-secondary`, `text-foreground`, `text-muted-foreground`, `border-border`
+- **Light mode únicamente** — no hay dark mode en este proyecto.
+- **Color space**: OKLCH vía variables CSS (`--background`, `--foreground`, `--primary`, etc.).
+- **Acento de marca**: naranja corporativo — usar siempre `bg-primary`, `text-primary`, `hover:bg-primary/90`.
+- **Nunca** usar `bg-zinc-900`, `bg-zinc-800`, `text-white`, `bg-sky-600` ni ningún color hardcodeado de Tailwind para superficies o texto.
+- Usar exclusivamente tokens semánticos: `bg-background`, `bg-card`, `bg-secondary`, `text-foreground`, `text-muted-foreground`, `border-border`.
 
 ### Tokens de referencia rápida
 | Propósito | Token |
-|-----------|-------|
+|---|---|
 | Fondo principal | `bg-background` |
 | Tarjetas / superficies | `bg-card` |
 | Hover / tint de marca | `bg-secondary` |
@@ -90,128 +236,121 @@ Toda nueva UI debe seguir este sistema sin excepción. No usar dark mode, no usa
 | Acento naranja | `bg-primary` / `text-primary` |
 | Texto sobre naranja | `text-primary-foreground` |
 | Sidebar | `bg-sidebar` |
+| Texto pequeño estándar | `text-sm` (12–13px) |
+| Texto muy pequeño | `text-2xs` (10px, token custom) |
+| Título de sección | `text-title` (18px, token custom) |
 
 ### Componentes y patrones
-- **Badges de estado**: pill redondeado (`rounded-full`), fondo suave claro + texto de color. Ejemplo: `bg-blue-50 text-blue-600`, `bg-orange-50 text-orange-600`
-- **Nav activo en sidebar**: `bg-secondary text-primary font-semibold` — nunca `border-left` como acento
-- **CTAs primarios**: `bg-primary hover:bg-primary/90 text-primary-foreground`
-- **Botones fantasma**: `text-muted-foreground hover:text-foreground hover:bg-secondary`
-- **Modales / Sheets / Dialogs**: sin clases de color explícitas — los tokens de shadcn/ui ya aplican el tema correcto
-- **Inputs en edición inline**: `bg-background border border-input rounded focus:ring-ring`
-- **Destructive**: `text-destructive` / `hover:text-destructive`
+- **Badges de estado**: pill redondeado (`rounded-full`), fondo suave claro + texto de color. Ejemplo: `bg-blue-50 text-blue-600`.
+- **Nav activo en sidebar**: `bg-secondary text-primary font-semibold` — nunca `border-left` como acento.
+- **CTAs primarios**: `bg-primary hover:bg-primary/90 text-primary-foreground`.
+- **Botones fantasma**: `text-muted-foreground hover:text-foreground hover:bg-secondary`.
+- **Modales / Sheets / Dialogs**: sin clases de color explícitas — los tokens de shadcn/ui ya aplican el tema.
+- **Inputs en edición inline**: `bg-background border border-input rounded focus:ring-ring`.
+- **Destructive**: `text-destructive` / `hover:text-destructive`.
 
 ### Layout
-- App shell: `flex h-screen bg-background` con `<AppSidebar>` (224px) + `<main className="flex-1 overflow-auto">`
-- Vista del día: lista vertical `flex flex-col gap-3`, ancho máximo `max-w-4xl mx-auto`, padding `p-6`
-- Calendario: `max-w-5xl mx-auto`, padding `p-6`
+- App shell: `flex h-screen bg-background` con `<AppSidebar>` (224px fijo) + `<main className="flex-1 overflow-auto">`.
+- Vista del día: lista vertical `flex flex-col gap-3`, `max-w-4xl mx-auto`, `p-6`.
+- Calendario: `max-w-5xl mx-auto`, `p-6`.
+- **Responsive**: el software se usa en tablets (~820px) en el aeródromo — probar a esa anchura.
 
-### Referencia visual
-El prototipo aprobado está en `docs/ijump-prototype-v2.html`. Abrirlo en el navegador para referencia visual antes de implementar nuevas pantallas.
+---
 
 ## Convenciones de desarrollo
 
-### Estructura de carpetas (Next.js App Router)
+### Estructura de carpetas
 ```
 src/
   app/
     (auth)/
     (dashboard)/
       page.tsx              # Calendario operacional
-      [date]/
-        page.tsx            # Vista operacional del día
+      [date]/page.tsx       # Vista operacional del día
+      finanzas/             # Módulo de finanzas v2
   components/
     ui/                     # shadcn/ui components
-    operational/            # componentes de dominio (FlightCard, ParticipantRow, etc.)
-    forms/
+    operational/            # componentes de dominio
   lib/
+    actions/                # Server Actions por entidad
+    finance/                # Motor P&L + checks de regresión
+    export/                 # CSV, Excel, PDF
     supabase/
-      client.ts
-      server.ts
-      database.types.ts     # tipos generados de DB
-    actions/                # Server Actions organizadas por entidad
+      client.ts             # cliente browser
+      server.ts             # cliente SSR
+      service.ts            # service client (salta RLS — solo para Server Actions/webhooks)
+      database.types.ts     # tipos generados de DB — no editar a mano salvo extensiones de dominio
   types/
     domain.ts               # tipos de dominio TypeScript
+
+docs/
+  DESIGN_SYSTEM.md          # sistema de diseño completo
+  FINANCE_V2_INTEGRATION.md # guía post-merge finanzas v2 (plantilla para futuros módulos)
+  FINANCE_MODEL_V2.md       # modelo de datos finanzas v2
+  reservas/                 # documentos del sistema de reservas (próximo módulo)
+    MASTER_PLAN_v2.md
+    TECH_APPENDIX_v2.md
+    HANDOFF_PROMPT.md
+    RESERVAS_MODULE_PLAN_v1.md  # plan preliminar del hermano (referencia histórica)
 ```
 
 ### Reglas generales
-- TypeScript estricto en todo el proyecto (`strict: true`)
-- Sin `any` — usar tipos generados por Supabase CLI
-- Server Actions para todas las mutaciones (no API routes para CRUD básico)
-- Supabase Row Level Security activo desde el inicio
-- Nombres de tablas en snake_case (PostgreSQL), interfaces TypeScript en PascalCase
-- Fechas siempre en ISO 8601, timezone del centro (Europe/Madrid)
+- TypeScript estricto en todo el proyecto (`strict: true`). Sin `any`.
+- Usar tipos generados por Supabase CLI; extender en `src/types/domain.ts` si hace falta.
+- **Server Actions** para todas las mutaciones. Route Handlers solo para webhooks externos (Stripe) y exportaciones.
+- Motores de lógica de negocio **puros** (sin I/O): `pnl-engine.ts`, `availability-engine.ts`. Testear con checks `jiti` antes del PR.
+- Supabase RLS activo en todas las tablas. El `service.ts` (service client) salta RLS — usarlo solo en Server Actions autenticadas o webhooks con firma verificada.
+- Fechas siempre en ISO 8601, timezone `Europe/Madrid`.
+- Nombres de tablas en snake_case (PostgreSQL), interfaces TypeScript en PascalCase.
 
-### Prioridades del MVP
-1. Operativa rápida — el staff no puede perder tiempo con la UI
-2. Edición inline — clicks mínimos para cambiar datos
-3. Persistencia histórica — ninguna jornada se pierde jamás
-4. Realtime — múltiples dispositivos ven el mismo estado
+### Migraciones de base de datos
+- Siempre **aditivas y reversibles**: `ADD COLUMN` con `DEFAULT`, tablas nuevas, no `ALTER TYPE ADD VALUE` (no reversible).
+- Incluir bloque `ROLLBACK` al final de cada migración.
+- Probar en rama de Supabase (nunca prod) antes del PR.
+- Regenerar `database.types.ts` después de aplicar: `supabase gen types typescript --local > src/lib/supabase/database.types.ts`.
+- Timestamp del archivo: posterior a la última migración existente.
 
-### Lo que NO se hace en MVP
-- CRM avanzado
-- Automatización WhatsApp
-- Multimedia / vídeos
-- BI / reporting avanzado
-- Pagos online
-- App móvil cliente
-- Multi-empresa / multi-avión
-- Múltiples manifests
+---
 
 ## Supabase — configuración
 
-- Usar Supabase CLI para migraciones (`supabase/migrations/`)
-- Generar tipos automáticamente: `supabase gen types typescript --local > src/lib/supabase/database.types.ts`
-- RLS habilitado en todas las tablas desde el principio
-- Variables de entorno: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- CLI para migraciones: `supabase/migrations/`.
+- Regenerar tipos: `supabase gen types typescript --local > src/lib/supabase/database.types.ts`.
+- RLS habilitado en todas las tablas desde el principio.
 
-## Estrategia de ramas (Gitflow)
-
-La rama principal es `main`. Todo el trabajo se hace en ramas separadas que se mergean vía PR.
-
-### Convención de nombres
-
-| Tipo | Prefijo | Ejemplo |
-|------|---------|---------|
-| Nueva funcionalidad | `feature/` | `feature/operational-day-calendar` |
-| Corrección de bug | `fix/` | `fix/flight-reorder-index` |
-| Módulo de base de datos | `feature/db-` | `feature/db-schema-initial` |
-| Hotfix urgente en producción | `hotfix/` | `hotfix/payment-calculation` |
-| Refactor sin cambio funcional | `refactor/` | `refactor/participant-actions` |
-
-### Reglas
-- **Nunca** hacer commits directamente sobre `main`
-- Cada rama cubre **una sola funcionalidad o fix** (granularidad de checklist item o submódulo)
-- Hacer PR a `main` al terminar la rama
-- Borrar la rama después del merge
-- Mensajes de commit en inglés, imperativo: `Add flight reorder logic`, `Fix payment total calculation`
-
-### Flujo habitual
-```bash
-# Crear rama desde main actualizado
-git checkout main && git pull
-git checkout -b feature/nombre-descriptivo
-
-# Trabajar, commitear...
-git add <files>
-git commit -m "Add: descripción del cambio"
-
-# Push y PR
-git push -u origin feature/nombre-descriptivo
-# → Abrir PR en GitHub hacia main
+### Variables de entorno
 ```
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=        # ⚠ SIN prefijo NEXT_PUBLIC_ — nunca exponer al browser
+```
+
+> La service role key salta RLS. Si se filtra al cliente (prefijo `NEXT_PUBLIC_`), cualquiera puede leer/escribir toda la base de datos. Verificar que en `.env.local` y en las variables de Vercel el nombre sea `SUPABASE_SERVICE_ROLE_KEY` (sin prefijo).
+
+### Proyecto Supabase
+El proyecto de la app (`ojngrplnuhcenulfnfps`) está en la organización del hermano. El MCP de Supabase conectado en las sesiones de Claude del hermano lo ve directamente. Ricardo necesita invitación a esa org para verlo vía MCP.
+
+---
 
 ## Comandos útiles
 
 ```bash
 # Desarrollo
-npm run dev
+npm run dev                          # inicia en localhost:3000
 
-# Supabase local
+# Build y comprobación
+npm run build
+npx tsc --noEmit                     # verificación de tipos
+node_modules/.bin/jiti src/lib/finance/__pnl_check.mts    # check regresión P&L
+node_modules/.bin/jiti src/lib/export/__gastos_check.mts  # check regresión gastos
+
+# Supabase
 supabase start
 supabase db reset
 supabase gen types typescript --local > src/lib/supabase/database.types.ts
 
-# Build
-npm run build
-npm run lint
+# Git / PR
+git worktree list                    # ver todos los worktrees activos
+gh pr create --title "..." --body "..."
+git push origin --delete <rama>      # limpiar rama remota tras merge
 ```

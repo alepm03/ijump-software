@@ -59,23 +59,24 @@ Rama: `feature/reservations-availability-engine`
 
 ---
 
-## R3 — Ciclo de vida del lead
+## R3 — Ciclo de vida del lead ✅
 
 Rama: `feature/reservations-lifecycle`
 
-- [ ] `src/lib/actions/participant.ts`:
-  - [ ] Relajar `createParticipant(flightId: string | null, data)`
-  - [ ] Helper `freeSeat(id)` (set `flight_id = NULL`)
-- [ ] Función Postgres `reservations_assign_seat(lead_id, date)` con `SELECT ... FOR UPDATE` sobre vuelos del día (migración separada o añadida a la de R1 si aún no se ha mergeado)
-- [ ] `src/lib/actions/leads.ts`:
-  - [ ] `createLead(input)`
-  - [ ] `confirmLead(leadId, date)` → llama a la RPC, gestiona CONFIRMABLE vs TENTATIVE_ONLY
-  - [ ] `rescheduleLead(leadId, newDate)`
-  - [ ] `cancelLead(leadId)`
-  - [ ] `listLeads(filter)`
-  - [ ] `handleWeatherCancellation(dayId)`
-  - [ ] `promoteTentativeLeads(today?)`
-- [ ] Probar concurrencia: dos confirmaciones simultáneas al mismo slot → solo una gana
+- [x] `src/lib/actions/participant.ts`:
+  - [x] Relajado `createParticipant(flightId: string | null, data)` (ahora también devuelve `id`)
+  - [x] Helper `freeSeat(id)` (set `flight_id = NULL`)
+- [x] Función Postgres `reservations_assign_seat(lead_id, date)` con `SELECT ... FOR UPDATE` sobre vuelos del día (`supabase/migrations/20260623000000_reservations_assign_seat.sql`, aplicada en Supabase)
+- [x] `src/lib/actions/leads.ts`:
+  - [x] `createLead(input)`
+  - [x] `confirmLead(leadId, date)` → llama a la RPC, gestiona CONFIRMABLE vs TENTATIVE_ONLY vs UNAVAILABLE/NOT_OPERATING
+  - [x] `rescheduleLead(leadId, newDate)`
+  - [x] `cancelLead(leadId)`
+  - [x] `listLeads(filter)`
+  - [x] `handleWeatherCancellation(dayId)`
+  - [x] `promoteTentativeLeads(today?)`
+- [x] Probar concurrencia: dos confirmaciones simultáneas al mismo último asiento → verificado contra Supabase real, exactamente 1 éxito + 1 `NO_SEATS_AVAILABLE`
+- [x] `npx tsc --noEmit` limpio · lint sin nuevos errores
 - [ ] PR a `main`
 
 ---

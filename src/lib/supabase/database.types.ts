@@ -669,7 +669,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      reservations_assign_seat: {
+        Args: { p_date: string; p_lead_id: string }
+        Returns: {
+          confirmed_time: string
+          flight_id: string
+        }[]
+      }
     }
     Enums: {
       expense_group: "MATERIA_PRIMA" | "PERSONAL" | "GENERALES"

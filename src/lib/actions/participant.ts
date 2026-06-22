@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import type { TablesUpdate } from '@/lib/supabase/database.types'
-import type { OperationalStatus, PackageType, ReservationSource } from '@/types/domain'
+import type { Channel, LeadStatus, OperationalStatus, PackageType, ReservationSource } from '@/types/domain'
 
 export type CreateParticipantData = {
   fullName: string
@@ -16,6 +16,12 @@ export type CreateParticipantData = {
   notes?: string | null
   source?: ReservationSource
   payerName?: string | null
+  // Reservations module — only meaningful when flightId is null (a lead)
+  leadStatus?: LeadStatus
+  preferredDate?: string | null
+  preferredTime?: string | null
+  channel?: Channel
+  createdBy?: string | null
 }
 
 export type UpdateParticipantData = Partial<{
@@ -35,9 +41,9 @@ export type UpdateParticipantData = Partial<{
 }>
 
 export async function createParticipant(
-  flightId: string,
+  flightId: string | null,
   data: CreateParticipantData
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; id?: string }> {
   const supabase = await createClient()
 
   let resolvedGroupId = data.reservationGroupId ?? null
@@ -52,17 +58,38 @@ export async function createParticipant(
     resolvedGroupId = group.id
   }
 
-  const { error } = await supabase.from('participants').insert({
-    flight_id: flightId,
-    full_name: data.fullName,
-    phone: data.phone ?? null,
-    email: data.email ?? null,
-    package_type: data.packageType ?? 'SOLO',
-    weight: data.weight ?? null,
-    reservation_group_id: resolvedGroupId,
-    assigned_instructor_id: data.assignedInstructorId ?? null,
-    notes: data.notes ?? null,
-  })
+  const { data: inserted, error } = await supabase
+    .from('participants')
+    .insert({
+      flight_id: flightId,
+      full_name: data.fullName,
+      phone: data.phone ?? null,
+      email: data.email ?? null,
+      package_type: data.packageType ?? 'SOLO',
+      weight: data.weight ?? null,
+      reservation_group_id: resolvedGroupId,
+      assigned_instructor_id: data.assignedInstructorId ?? null,
+      notes: data.notes ?? null,
+      ...(data.leadStatus !== undefined && { lead_status: data.leadStatus }),
+      ...(data.preferredDate !== undefined && { preferred_date: data.preferredDate }),
+      ...(data.preferredTime !== undefined && { preferred_time: data.preferredTime }),
+      ...(data.channel !== undefined && { channel: data.channel }),
+      ...(data.createdBy !== undefined && { created_by: data.createdBy }),
+    })
+    .select('id')
+    .single()
+  if (error) return { error: error.message }
+  revalidatePath('/', 'layout')
+  return { id: inserted.id }
+}
+
+/** Releases a participant's flight slot (used when rescheduling or freeing a lead). */
+export async function freeSeat(id: string): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('participants')
+    .update({ flight_id: null })
+    .eq('id', id)
   if (error) return { error: error.message }
   revalidatePath('/', 'layout')
   return {}

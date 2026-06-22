@@ -21,10 +21,10 @@ const pnl: ProfitAndLoss = {
   revenueByCategory: { TANDEM_BASE: 1000 },
   costGroups: [
     {
-      group: 'MATERIA_PRIMA',
+      group: 'COSTES_DIRECTOS',
       total: 80,
       categories: [
-        { categoryCode: 'COMBUSTIBLE', name: 'Combustible', group: 'MATERIA_PRIMA', amount: 80 },
+        { categoryCode: 'COMBUSTIBLE', name: 'Combustible', group: 'COSTES_DIRECTOS', amount: 80 },
       ],
     },
     {
@@ -51,7 +51,7 @@ const expenses: ExpenseWithCategory[] = [
   {
     id: 'e1', expenseCategoryId: 'c1', operationalDayId: 'd1', incurredOn: '2026-10-04',
     description: 'fuel', supplier: 'Repsol', sociedad: 'S1', amount: 80, vatRate: null,
-    createdAt: '', updatedAt: '', categoryName: 'Combustible', groupType: 'MATERIA_PRIMA',
+    createdAt: '', updatedAt: '', categoryName: 'Combustible', groupType: 'COSTES_DIRECTOS',
   },
   {
     id: 'e2', expenseCategoryId: 'c2', operationalDayId: 'd1', incurredOn: '2026-10-04',

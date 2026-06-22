@@ -124,6 +124,7 @@ gh pr create --title "..." --body "..."
 | Manifest operacional diario | ✅ Producción | — |
 | UI redesign v4 (design system OKLCH, sidebar, logo) | ✅ Producción | #19 |
 | Finanzas v2 (P&L, KPI dashboard, catálogo, export Excel/CSV/PDF) | ✅ Producción | #20 |
+| Finanzas v2.1 (reclasificación de gastos COSTES_DIRECTOS/COMISIONES + comisiones por canal ajustables) | 🔄 En PR | `feature/finance-expense-model` |
 | Sistema de reservas (lead → pago Stripe → manifiesto) | 🔄 En diseño | — |
 | API del bot (chatbot → software) | 🔄 En diseño | — |
 | Chatbot rewire (R5 — lado Ricardo) | ⏳ Pendiente R1–R4 | — |

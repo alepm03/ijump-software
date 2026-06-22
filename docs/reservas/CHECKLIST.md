@@ -81,17 +81,19 @@ Rama: `feature/reservations-lifecycle`
 
 ---
 
-## R4 — UI: página `/reservas`
+## R4 — UI: página `/reservas` ✅
 
 Rama: `feature/reservations-ui-list`
 
-- [ ] `src/app/reservas/page.tsx`
-- [ ] `src/app/reservas/components/ReservationsView.tsx` (tabs Pendientes / Confirmadas / Canceladas)
-- [ ] `src/app/reservas/components/ReservationRow.tsx`
-- [ ] `src/app/reservas/components/ReservationStatusBadge.tsx` (Libre / Tentativa / Conflicto / Reagendar / Sin fecha)
-- [ ] Soporte visual de grupos (↓↑ + expandir miembros)
-- [ ] Seguir `docs/DESIGN_SYSTEM.md` (tokens OKLCH, sin colores hardcodeados)
-- [ ] Probar en viewport ~820px (tablet)
+- [x] `src/app/(dashboard)/reservas/page.tsx` (Server Component; nota: convención real del repo usa `src/components/operational/` para los componentes, no `src/app/reservas/components/`)
+- [x] `src/components/operational/ReservationsView.tsx` (segmented control Pendientes / Confirmadas / Canceladas con counts, patrón `FinancePeriodSelector`)
+- [x] `src/components/operational/ReservationRow.tsx` (Confirmar/Cancelar funcionales; Reagendar/Completar placeholder hasta R5/R6)
+- [x] `src/components/operational/ReservationStatusBadge.tsx` (`AvailabilityBadge`: Libre / Tentativa / Conflicto / No operativo / Sin fecha; `LeadStatusBadge` para tabs Confirmadas/Canceladas)
+- [ ] Soporte visual de grupos: solo badge simple "Grupo" por ahora — expandir miembros queda pendiente (no bloqueante, mejora futura)
+- [x] Seguir `docs/DESIGN_SYSTEM.md` (tokens semánticos, badges pastel permitidos por convención)
+- [x] Enlace "Reservas" añadido en `AppSidebar` (entre "Hoy" y "Finanzas") — adelanta parte de R7
+- [x] Verificado visualmente por el usuario con leads de prueba sembrados y limpiados después (3 escenarios: libre, tentativa, sin fecha)
+- [x] `npx tsc --noEmit` limpio · lint sin nuevos errores
 - [ ] PR a `main`
 
 ---

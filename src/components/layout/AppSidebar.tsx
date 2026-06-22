@@ -17,6 +17,7 @@ import {
 
 interface AppSidebarProps {
   email: string
+  pendingLeadsCount?: number
 }
 
 const NAV_ITEMS = (today: string, todayLabel: string) => [
@@ -39,13 +40,17 @@ function NavLink({
   icon: Icon,
   isActive,
   collapsed,
+  badgeCount,
 }: {
   href: string
   label: string
   icon: React.ComponentType<{ size?: number }>
   isActive: boolean
   collapsed?: boolean
+  badgeCount?: number
 }) {
+  const showBadge = !!badgeCount && badgeCount > 0
+
   return (
     <Link
       href={href}
@@ -58,8 +63,20 @@ function NavLink({
           : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
       }`}
     >
-      <Icon size={14} />
-      {!collapsed && <span>{label}</span>}
+      <span className="relative flex-shrink-0">
+        <Icon size={14} />
+        {showBadge && collapsed && (
+          <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] px-[3px] rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center leading-none">
+            {badgeCount}
+          </span>
+        )}
+      </span>
+      {!collapsed && <span className="flex-1">{label}</span>}
+      {!collapsed && showBadge && (
+        <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
+          {badgeCount}
+        </span>
+      )}
     </Link>
   )
 }
@@ -72,12 +89,14 @@ function SidebarContent({
   todayLabel,
   email,
   collapsed = false,
+  pendingLeadsCount = 0,
 }: {
   pathname: string
   today: string
   todayLabel: string
   email: string
   collapsed?: boolean
+  pendingLeadsCount?: number
 }) {
   const navItems = NAV_ITEMS(today, todayLabel)
 
@@ -116,6 +135,7 @@ function SidebarContent({
             icon={item.icon}
             isActive={item.matchFn(pathname)}
             collapsed={collapsed}
+            badgeCount={item.href === '/reservas' ? pendingLeadsCount : undefined}
           />
         ))}
 
@@ -168,7 +188,7 @@ function SidebarContent({
 
 // ─── AppSidebar — responsive: xl=full, md=icon rail, base=hamburger+Sheet ─────
 
-export function AppSidebar({ email }: AppSidebarProps) {
+export function AppSidebar({ email, pendingLeadsCount = 0 }: AppSidebarProps) {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -199,6 +219,7 @@ export function AppSidebar({ email }: AppSidebarProps) {
             todayLabel={todayLabel}
             email={email}
             collapsed={false}
+            pendingLeadsCount={pendingLeadsCount}
           />
         </SheetContent>
       </Sheet>
@@ -214,6 +235,7 @@ export function AppSidebar({ email }: AppSidebarProps) {
           todayLabel={todayLabel}
           email={email}
           collapsed={true}
+          pendingLeadsCount={pendingLeadsCount}
         />
       </aside>
 
@@ -228,6 +250,7 @@ export function AppSidebar({ email }: AppSidebarProps) {
           todayLabel={todayLabel}
           email={email}
           collapsed={false}
+          pendingLeadsCount={pendingLeadsCount}
         />
       </aside>
     </>

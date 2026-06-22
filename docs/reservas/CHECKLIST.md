@@ -133,9 +133,9 @@ Rama: `feature/reservations-drawer`
 
 Rama: `feature/reservations-sidebar-integration`
 
-- [ ] Enlace "Reservas" en `AppSidebar` (entre "Hoy" y "Finanzas")
-- [ ] Badge numérico con count de leads `NEW` + `RESCHEDULE_NEEDED`
-- [ ] Badge discreto "Bot"/"Web" en `ParticipantRow` si `channel != 'STAFF'` y `lead_status = 'CONFIRMED'`
+- [x] Enlace "Reservas" en `AppSidebar` (entre "Hoy" y "Finanzas") — ya estaba hecho desde R4, sin cambios necesarios.
+- [x] Badge numérico con count de leads `NEW` + `RESCHEDULE_NEEDED` — `countPendingLeads()` en `leads.ts`, fetcheado en `DashboardLayout` (Server Component) y pasado a `AppSidebar` → `NavLink` (pill numérica en desktop, dot superpuesto al icono en el rail colapsado).
+- [x] Badge discreto "Bot"/"Web" en `ParticipantRow` si `channel != 'STAFF'` y `lead_status = 'CONFIRMED'` — `ChannelBadge` (WEB_BOT → "Web", WHATSAPP_BOT → "Bot"), añadido junto al nombre en ambos layouts (grid lg+ y flex mobile).
 - [ ] PR a `main`
 
 ---

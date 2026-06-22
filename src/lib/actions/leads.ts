@@ -229,6 +229,17 @@ export async function cancelLead(leadId: string): Promise<{ error?: string }> {
   return {}
 }
 
+/** Count of leads awaiting staff action (NEW + RESCHEDULE_NEEDED) — used for the sidebar badge. */
+export async function countPendingLeads(): Promise<number> {
+  const supabase = await createClient()
+  const { count, error } = await supabase
+    .from('participants')
+    .select('id', { count: 'exact', head: true })
+    .in('lead_status', ['NEW', 'RESCHEDULE_NEEDED'])
+  if (error) return 0
+  return count ?? 0
+}
+
 export type LeadFilter = 'pending' | 'confirmed' | 'cancelled'
 
 const STATUSES_BY_FILTER: Record<LeadFilter, LeadStatus[]> = {

@@ -9,9 +9,11 @@
  * navigation and passes the result down as props.
  */
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { ReservationRow } from '@/components/operational/ReservationRow'
+import { AddParticipantDrawer } from '@/components/operational/AddParticipantDrawer'
 import type { LeadFilter } from '@/lib/actions/leads'
 import type { DateClass, LeadWithDetails } from '@/types/domain'
 
@@ -30,6 +32,7 @@ interface ReservationsViewProps {
 
 export function ReservationsView({ tab, leads, counts, classifications }: ReservationsViewProps) {
   const router = useRouter()
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   function handleTabChange(next: LeadFilter) {
     router.push(`/reservas?tab=${next}`)
@@ -40,9 +43,8 @@ export function ReservationsView({ tab, leads, counts, classifications }: Reserv
       <div className="flex items-center justify-between">
         <h1 className="text-title font-bold text-foreground">Reservas</h1>
         <button
-          disabled
-          title="Próximamente: alta manual de reservas"
-          className="text-sm font-semibold px-3 py-1.5 rounded-md bg-secondary text-muted-foreground cursor-not-allowed"
+          onClick={() => setDrawerOpen(true)}
+          className="text-sm font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
         >
           + Nueva Reserva
         </button>
@@ -87,6 +89,18 @@ export function ReservationsView({ tab, leads, counts, classifications }: Reserv
           ))
         )}
       </div>
+
+      <AddParticipantDrawer
+        mode="lead"
+        open={drawerOpen}
+        flightId={null}
+        instructors={[]}
+        onClose={() => setDrawerOpen(false)}
+        onSuccess={() => {
+          setDrawerOpen(false)
+          router.refresh()
+        }}
+      />
     </div>
   )
 }

@@ -9,6 +9,7 @@ import { cancelLead, type LeadFilter } from '@/lib/actions/leads'
 import { AvailabilityBadge, LeadStatusBadge } from '@/components/operational/ReservationStatusBadge'
 import { ConfirmReservationModal } from '@/components/operational/ConfirmReservationModal'
 import { RescheduleReservationModal } from '@/components/operational/RescheduleReservationModal'
+import { CompleteLeadModal } from '@/components/operational/CompleteLeadModal'
 import type { DateClass, LeadWithDetails } from '@/types/domain'
 
 function formatDate(date: string | null): string {
@@ -31,6 +32,7 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
   const [isPending, startTransition] = useTransition()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [rescheduleOpen, setRescheduleOpen] = useState(false)
+  const [completeOpen, setCompleteOpen] = useState(false)
 
   const hasGroup = !!lead.reservationGroupId
   const canConfirmDirectly =
@@ -107,9 +109,9 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
             )}
             {!lead.preferredDate && (
               <button
-                disabled
-                title="Próximamente: completar datos del lead"
-                className="text-xs font-semibold px-3 py-1.5 rounded-md bg-secondary text-muted-foreground cursor-not-allowed"
+                onClick={() => setCompleteOpen(true)}
+                disabled={isPending}
+                className="text-xs font-semibold px-3 py-1.5 rounded-md bg-secondary text-foreground hover:bg-secondary/70 transition-colors disabled:opacity-50"
               >
                 Completar
               </button>
@@ -134,6 +136,7 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
         />
       )}
       <RescheduleReservationModal lead={lead} open={rescheduleOpen} onOpenChange={setRescheduleOpen} />
+      <CompleteLeadModal lead={lead} open={completeOpen} onOpenChange={setCompleteOpen} />
     </div>
   )
 }

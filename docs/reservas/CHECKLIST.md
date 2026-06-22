@@ -112,13 +112,19 @@ Rama: `feature/reservations-ui-actions`
 
 ---
 
-## R6 — Alta manual de reservas (drawer compartido)
+## R6 — Alta manual de reservas (drawer compartido) ✅
 
 Rama: `feature/reservations-drawer`
 
-- [ ] `AddParticipantDrawer.tsx`: añadir `mode?: 'participant' | 'lead'`
-- [ ] Campos específicos de lead visibles solo en `mode='lead'` (fecha/hora preferida, grupo)
-- [ ] Botón "Nueva Reserva" en `/reservas` abre el drawer en modo lead
+- [x] `AddParticipantDrawer.tsx`: añadido `mode?: 'participant' | 'lead'`
+- [x] Campos específicos de lead visibles solo en `mode='lead'` (fecha/hora preferida); grupo se deja para mejora futura, igual que en R4
+- [x] Botón "Nueva Reserva" en `/reservas` abre el drawer en modo lead
+- [x] `CompleteLeadModal.tsx` + `setPreferredDate` en `leads.ts`: botón "Completar" funcional para leads sin fecha
+- [x] Bug encontrado durante prueba real (no contemplado en el checklist original): `reservations_assign_seat` ignoraba `preferred_time` por completo, agrupando todo a la hora por defecto. Corregido en dos migraciones:
+  - `20260624000000_reservations_assign_seat_fix_time.sql` — usa `preferred_time` real del lead
+  - `20260625000000_reservations_assign_seat_no_dupe_time.sql` — evita dos vuelos a la misma hora (crea uno nuevo en otra hora libre en vez de reusar un vuelo de otra hora) + reordena `order_index`/`flight_number` del día por hora de salida tras cada confirmación, para que el manifest siempre quede en orden cronológico
+- [x] Datos de prueba corruptos del día 28/06 limpiados (4 participantes + 2 vuelos fantasma + el día operacional)
+- [x] `npx tsc --noEmit` limpio · lint sin nuevos errores
 - [ ] PR a `main`
 
 ---

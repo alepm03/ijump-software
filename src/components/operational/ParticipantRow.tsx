@@ -120,6 +120,26 @@ function PackageBadge({ label }: { label: string }) {
   )
 }
 
+// ─── ChannelBadge — discreet "Web"/"Bot" tag for non-staff confirmed leads ───
+
+const CHANNEL_BADGE_LABELS: Partial<Record<ParticipantWithDetails['channel'], string>> = {
+  WEB_BOT: 'Web',
+  WHATSAPP_BOT: 'Bot',
+}
+
+function ChannelBadge({ channel }: { channel: ParticipantWithDetails['channel'] }) {
+  const label = CHANNEL_BADGE_LABELS[channel]
+  if (!label) return null
+  return (
+    <span
+      className="text-2xs font-medium px-1.5 py-0.5 rounded-full border border-border bg-secondary/60 text-muted-foreground whitespace-nowrap flex-shrink-0"
+      title="Reserva originada fuera del manifest"
+    >
+      {label}
+    </span>
+  )
+}
+
 // ─── Inline editable field ────────────────────────────────────────────────────
 
 function InlineField({
@@ -870,6 +890,9 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
               onSave={(v) => save({ fullName: v })}
               className="font-medium text-sm flex-1 min-w-0"
             />
+            {p.channel !== 'STAFF' && p.leadStatus === 'CONFIRMED' && (
+              <ChannelBadge channel={p.channel} />
+            )}
             <ParticipantInfoSheet participant={p} save={save} />
           </div>
 
@@ -1039,6 +1062,12 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
           onSave={(v) => save({ fullName: v })}
           className="font-medium min-w-[110px] text-sm order-3"
         />
+
+        {p.channel !== 'STAFF' && p.leadStatus === 'CONFIRMED' && (
+          <span className="order-4">
+            <ChannelBadge channel={p.channel} />
+          </span>
+        )}
 
         {/* Info sheet icon */}
         <span className="order-4">

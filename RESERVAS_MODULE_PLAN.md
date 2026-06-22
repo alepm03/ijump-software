@@ -66,7 +66,7 @@ CREATE INDEX idx_participants_confirmed_date ON participants(confirmed_date) WHE
 | `CONFIRMED` | Asignado a un vuelo real en el manifest. `flight_id` ya no es NULL. |
 | `RESCHEDULE_NEEDED` | La jornada fue cancelada (meteorología u otro motivo). Plaza liberada, pendiente de nueva fecha. |
 | `CANCELLED` | Cancelado definitivamente. |
-| `NO_SHOW` | No se presentó el día del salto. |
+| `NO_SHOW` | No se presentó el día del salto. 
 
 **`lead_status` vs `operational_status`**: son ortogonales. `lead_status` es el estado comercial/previo al salto. `operational_status` es el estado operativo del día (PENDING → CHECKED_IN → ... → COMPLETED). Un participante CONFIRMED entra en el flujo `operational_status` normal a partir de ese momento.
 

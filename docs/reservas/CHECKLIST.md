@@ -6,52 +6,55 @@
 
 ---
 
-## R1 — Base (fixes + migración + tipos)
+## R1 — Base (fixes + migración + tipos) ✅ Mergeado (PR #23)
 
 Rama: `feature/reservations-base`
 
-- [ ] Renombrar `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY` → `SUPABASE_SERVICE_ROLE_KEY` en `.env.local` (y avisar para Vercel)
-- [ ] Fix `src/proxy.ts`: early-return para `pathname.startsWith('/api/')` y `/reserva/`
-- [ ] Migración `supabase/migrations/20260620000000_reservations.sql`:
-  - [ ] `ALTER TABLE participants` (lead_status, preferred_date, preferred_time, confirmed_date, confirmed_time, deposit_paid, channel, created_by, token)
-  - [ ] Constraints `CHECK` (lead_status, channel) + `UNIQUE` (token)
-  - [ ] Índices parciales (lead_status, preferred_date, confirmed_date)
-  - [ ] `ALTER TABLE reservation_groups` (contact_phone, contact_email, channel, created_by)
-  - [ ] Tabla `api_keys`
-  - [ ] Tabla `api_rate_limits`
-  - [ ] Tabla `business_settings` + seed inicial (confirmar valores con Raúl antes del seed final)
-  - [ ] RLS en las 3 tablas nuevas + policies
-  - [ ] Bloque `ROLLBACK` comentado al final
-- [ ] Aplicar migración en rama de Supabase (no prod) y verificar que el software existente sigue funcionando
-- [ ] Regenerar `src/lib/supabase/database.types.ts`
-- [ ] Extender `src/types/domain.ts`: `LeadStatus`, `Channel`, `Participant` extendido, `LeadWithDetails`
-- [ ] `npx tsc --noEmit` limpio
-- [ ] PR a `main`
+- [x] Variable de entorno ya estaba correcta (`SUPABASE_SERVICE_ROLE_KEY` sin prefijo `NEXT_PUBLIC_`) — sin fix necesario
+- [x] Fix `src/proxy.ts`: early-return para `pathname.startsWith('/api/')` y `/reserva/`
+- [x] Migración `supabase/migrations/20260622000000_reservations.sql`:
+  - [x] `ALTER TABLE participants` (lead_status, preferred_date, preferred_time, confirmed_date, confirmed_time, deposit_paid, channel, created_by, token)
+  - [x] Constraints `CHECK` (lead_status, channel) + `UNIQUE` (token)
+  - [x] Índices parciales (lead_status, preferred_date, confirmed_date)
+  - [x] `ALTER TABLE reservation_groups` (contact_phone, contact_email, channel, created_by)
+  - [x] Tabla `api_keys`
+  - [x] Tabla `api_rate_limits`
+  - [x] Tabla `business_settings` + seed inicial (pendiente confirmar valores reales con Raúl)
+  - [x] RLS en las 3 tablas nuevas + policies
+  - [x] Bloque `ROLLBACK` comentado al final
+- [x] Migración aplicada en Supabase (producción del proyecto `ojngrplnuhcenulfnfps`) — software existente verificado sin roturas
+- [x] Regenerado `src/lib/supabase/database.types.ts`
+- [x] Extendido `src/types/domain.ts`: `LeadStatus`, `Channel`, `DateClass`, `AvailabilityPolicy`, `DaySlots`, `BusinessSetting`, `ApiKey`, `LeadWithDetails`, `Participant`/`ReservationGroup` extendidos
+- [x] Mapper `operational-day.ts` actualizado para exponer los nuevos campos
+- [x] `npx tsc --noEmit` limpio
+- [x] PR #23 a `main` — mergeado
 
 ---
 
-## R2 — Motor de disponibilidad
+## R2 — Motor de disponibilidad ✅
 
 Rama: `feature/reservations-availability-engine`
 
-- [ ] `src/lib/availability/availability-engine.ts`:
-  - [ ] `AvailabilityPolicy`, `DayLoad`, `DaySlots`, `DateClass` (tipos)
-  - [ ] `isOperatingDay(date, policy)`
-  - [ ] `computeDaySlots(load, policy)`
-  - [ ] `classifyDate(target, today, slots)` → `CONFIRMABLE | TENTATIVE_ONLY | UNAVAILABLE | NOT_OPERATING`
-- [ ] `src/lib/availability/__availability_check.mts` (check de regresión vía jiti, patrón `__pnl_check.mts`):
-  - [ ] Caso fin de semana vs entre semana
-  - [ ] Tope 2 participantes/vuelo
-  - [ ] Límite `max_flights_per_day`
-  - [ ] Meteo cancelada → 0 plazas
-  - [ ] `classifyDate` mes actual vs mes futuro
-  - [ ] Día lleno → `UNAVAILABLE`
-- [ ] `src/lib/actions/availability.ts` (wrappers con BD):
-  - [ ] `getPolicy()`
-  - [ ] `getDayAvailability(date)`
-  - [ ] `getMonthAvailability(yearMonth)`
-  - [ ] `listNextAvailableSlots({ fromDate, limit })`
-- [ ] Confirmar con Raúl: `operating_weekdays` y `max_flights_per_day` reales → ajustar seed de `business_settings` si hace falta
+- [x] `src/lib/availability/availability-engine.ts`:
+  - [x] `AvailabilityPolicy`, `DayLoad`, `DaySlots`, `DateClass` (tipos, re-exportados desde `domain.ts`)
+  - [x] `isOperatingDay(date, policy)`
+  - [x] `computeDaySlots(load, policy)`
+  - [x] `classifyDate(target, today, slots)` → `CONFIRMABLE | TENTATIVE_ONLY | UNAVAILABLE | NOT_OPERATING`
+- [x] `src/lib/availability/__availability_check.mts` (check de regresión vía jiti, patrón `__pnl_check.mts`):
+  - [x] Caso fin de semana vs entre semana
+  - [x] Tope 2 participantes/vuelo
+  - [x] Límite `max_flights_per_day`
+  - [x] Meteo cancelada → 0 plazas
+  - [x] `classifyDate` mes actual vs mes futuro
+  - [x] Día lleno → `UNAVAILABLE`
+  - [x] Todas las aserciones PASS (`node_modules/.bin/jiti src/lib/availability/__availability_check.mts`)
+- [x] `src/lib/actions/availability.ts` (wrappers con BD):
+  - [x] `getPolicy()` (lee `business_settings`, con defaults si la tabla está vacía)
+  - [x] `getDayAvailability(date)` (día sin `operational_day` = vacío/abierto)
+  - [x] `getMonthAvailability(yearMonth)`
+  - [x] `listNextAvailableSlots({ fromDate, limit, maxDaysToScan })`
+- [ ] Confirmar con Raúl: `operating_weekdays` y `max_flights_per_day` reales → ajustar seed de `business_settings` si hace falta (pendiente, no bloquea el merge)
+- [x] `npx tsc --noEmit` limpio · lint sin nuevos errores
 - [ ] PR a `main`
 
 ---

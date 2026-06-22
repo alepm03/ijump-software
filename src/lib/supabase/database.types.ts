@@ -14,6 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_keys: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          key_hash: string
+          key_prefix: string
+          label: string
+          last_used_at: string | null
+          rate_limit_per_min: number
+          revoked_at: string | null
+          scopes: string[]
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          key_hash: string
+          key_prefix: string
+          label: string
+          last_used_at?: string | null
+          rate_limit_per_min?: number
+          revoked_at?: string | null
+          scopes?: string[]
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          key_hash?: string
+          key_prefix?: string
+          label?: string
+          last_used_at?: string | null
+          rate_limit_per_min?: number
+          revoked_at?: string | null
+          scopes?: string[]
+        }
+        Relationships: []
+      }
+      api_rate_limits: {
+        Row: {
+          api_key_id: string
+          count: number
+          window_start: string
+        }
+        Insert: {
+          api_key_id: string
+          count?: number
+          window_start: string
+        }
+        Update: {
+          api_key_id?: string
+          count?: number
+          window_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_rate_limits_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_settings: {
+        Row: {
+          description: string | null
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          description?: string | null
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          description?: string | null
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       day_expenses: {
         Row: {
           amount: number
@@ -309,57 +395,84 @@ export type Database = {
       participants: {
         Row: {
           assigned_instructor_id: string | null
+          channel: string
           check_in_completed: boolean
+          confirmed_date: string | null
+          confirmed_time: string | null
           created_at: string
+          created_by: string | null
+          deposit_paid: boolean
           email: string | null
           flight_id: string | null
           full_name: string
           geared_up: boolean
           id: string
+          lead_status: string | null
           notes: string | null
           operational_status: Database["public"]["Enums"]["operational_status"]
           overweight_fee: number
           package_type: Database["public"]["Enums"]["package_type"]
           phone: string | null
+          preferred_date: string | null
+          preferred_time: string | null
           reservation_group_id: string | null
+          token: string | null
           updated_at: string
           waiver_signed: boolean
           weight: number | null
         }
         Insert: {
           assigned_instructor_id?: string | null
+          channel?: string
           check_in_completed?: boolean
+          confirmed_date?: string | null
+          confirmed_time?: string | null
           created_at?: string
+          created_by?: string | null
+          deposit_paid?: boolean
           email?: string | null
           flight_id?: string | null
           full_name: string
           geared_up?: boolean
           id?: string
+          lead_status?: string | null
           notes?: string | null
           operational_status?: Database["public"]["Enums"]["operational_status"]
           overweight_fee?: number
           package_type?: Database["public"]["Enums"]["package_type"]
           phone?: string | null
+          preferred_date?: string | null
+          preferred_time?: string | null
           reservation_group_id?: string | null
+          token?: string | null
           updated_at?: string
           waiver_signed?: boolean
           weight?: number | null
         }
         Update: {
           assigned_instructor_id?: string | null
+          channel?: string
           check_in_completed?: boolean
+          confirmed_date?: string | null
+          confirmed_time?: string | null
           created_at?: string
+          created_by?: string | null
+          deposit_paid?: boolean
           email?: string | null
           flight_id?: string | null
           full_name?: string
           geared_up?: boolean
           id?: string
+          lead_status?: string | null
           notes?: string | null
           operational_status?: Database["public"]["Enums"]["operational_status"]
           overweight_fee?: number
           package_type?: Database["public"]["Enums"]["package_type"]
           phone?: string | null
+          preferred_date?: string | null
+          preferred_time?: string | null
           reservation_group_id?: string | null
+          token?: string | null
           updated_at?: string
           waiver_signed?: boolean
           weight?: number | null
@@ -467,21 +580,33 @@ export type Database = {
       }
       reservation_groups: {
         Row: {
+          channel: string
+          contact_email: string | null
+          contact_phone: string | null
           created_at: string
+          created_by: string | null
           id: string
           notes: string | null
           payer_name: string | null
           source: Database["public"]["Enums"]["reservation_source"]
         }
         Insert: {
+          channel?: string
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string
+          created_by?: string | null
           id?: string
           notes?: string | null
           payer_name?: string | null
           source?: Database["public"]["Enums"]["reservation_source"]
         }
         Update: {
+          channel?: string
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string
+          created_by?: string | null
           id?: string
           notes?: string | null
           payer_name?: string | null

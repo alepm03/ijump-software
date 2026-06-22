@@ -9,6 +9,8 @@ import type {
   FlightWithParticipants,
   ParticipantWithDetails,
   WeatherStatus,
+  LeadStatus,
+  Channel,
 } from '@/types/domain'
 
 export async function getOperationalDays(): Promise<OperationalDay[]> {
@@ -88,6 +90,15 @@ export async function getOperationalDay(
       notes: p.notes,
       createdAt: p.created_at,
       updatedAt: p.updated_at,
+      leadStatus: p.lead_status as LeadStatus | null,
+      preferredDate: p.preferred_date,
+      preferredTime: p.preferred_time,
+      confirmedDate: p.confirmed_date,
+      confirmedTime: p.confirmed_time,
+      depositPaid: p.deposit_paid,
+      channel: p.channel as Channel,
+      createdBy: p.created_by,
+      token: p.token,
       instructor: p.instructor
         ? { id: p.instructor.id, name: p.instructor.name, active: p.instructor.active, feePerJump: p.instructor.fee_per_jump, createdAt: p.instructor.created_at }
         : null,
@@ -101,7 +112,17 @@ export async function getOperationalDay(
         createdAt: pmt.created_at,
       })),
       reservationGroup: p.reservation_group
-        ? { id: p.reservation_group.id, payerName: p.reservation_group.payer_name, source: p.reservation_group.source, notes: p.reservation_group.notes, createdAt: p.reservation_group.created_at }
+        ? {
+            id: p.reservation_group.id,
+            payerName: p.reservation_group.payer_name,
+            source: p.reservation_group.source,
+            notes: p.reservation_group.notes,
+            createdAt: p.reservation_group.created_at,
+            contactPhone: p.reservation_group.contact_phone,
+            contactEmail: p.reservation_group.contact_email,
+            channel: p.reservation_group.channel as Channel,
+            createdBy: p.reservation_group.created_by,
+          }
         : null,
     })),
   }))

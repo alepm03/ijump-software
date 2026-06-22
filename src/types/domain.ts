@@ -73,6 +73,17 @@ export interface Participant {
   notes: string | null
   createdAt: string
   updatedAt: string
+  // Reservations module — see docs/reservas/RESERVAS_MODULE_PLAN_v1.md
+  // A participant IS a lead when leadStatus is not null (flightId is null until confirmed).
+  leadStatus: LeadStatus | null
+  preferredDate: string | null // YYYY-MM-DD
+  preferredTime: string | null // HH:MM
+  confirmedDate: string | null
+  confirmedTime: string | null
+  depositPaid: boolean
+  channel: Channel
+  createdBy: string | null
+  token: string | null
 }
 
 export interface ReservationGroup {
@@ -82,6 +93,11 @@ export interface ReservationGroup {
   notes: string | null
   createdAt: string
   participants?: Participant[]
+  // Reservations module
+  contactPhone: string | null
+  contactEmail: string | null
+  channel: Channel
+  createdBy: string | null
 }
 
 export interface Payment {
@@ -361,6 +377,72 @@ export interface FinanceKpis {
 // ─── End finance KPI types ────────────────────────────────────────
 
 // ─── End finance v2 types ────────────────────────────────────────
+
+// ─── Reservations module (Leads → Manifest) ──────────────────
+// See docs/reservas/RESERVAS_MODULE_PLAN_v1.md and CHECKLIST.md
+
+export type LeadStatus =
+  | 'NEW'
+  | 'TENTATIVE'
+  | 'CONFIRMED'
+  | 'RESCHEDULE_NEEDED'
+  | 'CANCELLED'
+  | 'NO_SHOW'
+
+export type Channel = 'WEB_BOT' | 'WHATSAPP_BOT' | 'STAFF'
+
+// Availability engine — see src/lib/availability/availability-engine.ts (R2)
+export type DateClass = 'CONFIRMABLE' | 'TENTATIVE_ONLY' | 'UNAVAILABLE' | 'NOT_OPERATING'
+
+export interface AvailabilityPolicy {
+  maxClientsPerFlight: number
+  maxFlightsPerDay: number
+  operatingWeekdays: number[] // e.g. [6, 0] = Saturday and Sunday
+}
+
+export interface DayLoad {
+  date: string
+  weatherStatus: WeatherStatus
+  flights: { id: string; activeParticipantCount: number }[]
+}
+
+export interface DaySlots {
+  date: string
+  isOperatingDay: boolean
+  weatherCancelled: boolean
+  existingFlights: number
+  freeSeatsInExistingFlights: number
+  potentialNewFlights: number
+  totalFreeSeats: number
+  bookable: boolean
+}
+
+export interface BusinessSetting {
+  key: string
+  value: string
+  description: string | null
+  updatedAt: string
+}
+
+export interface ApiKey {
+  id: string
+  label: string
+  keyPrefix: string
+  scopes: string[]
+  rateLimitPerMin: number
+  active: boolean
+  lastUsedAt: string | null
+  createdAt: string
+  revokedAt: string | null
+}
+
+// Lead row with the relations the /reservas UI needs to render a row
+export interface LeadWithDetails extends Participant {
+  reservationGroup: ReservationGroup | null
+  availability?: DateClass
+}
+
+// ─── End reservations module types ───────────────────────────
 
 export type WaiverDocumentType = 'WAIVER' | 'RGPD'
 export type WaiverStatus = 'PENDING' | 'COMPLETED' | 'EXPIRED'

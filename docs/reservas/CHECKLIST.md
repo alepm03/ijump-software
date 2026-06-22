@@ -98,15 +98,17 @@ Rama: `feature/reservations-ui-list`
 
 ---
 
-## R5 — UI: acciones de confirmación/reagenda
+## R5 — UI: acciones de confirmación/reagenda ✅
 
 Rama: `feature/reservations-ui-actions`
 
-- [ ] `ConfirmReservationModal.tsx` (Casos A y B del plan)
-- [ ] `RescheduleReservationModal.tsx` (Caso C)
-- [ ] `WeekendAvailabilityCalendar.tsx` (verde CONFIRMABLE / ámbar TENTATIVE_ONLY / gris UNAVAILABLE-NOT_OPERATING)
-- [ ] Toast de confirmación con botón "Ver manifest →"
-- [ ] PR a `main`
+- [x] `ConfirmReservationModal.tsx` (Casos A y B del plan)
+- [x] `RescheduleReservationModal.tsx` (Caso C, usa `rescheduleLead`)
+- [x] `WeekendAvailabilityCalendar.tsx` (verde CONFIRMABLE / ámbar TENTATIVE_ONLY / gris UNAVAILABLE-NOT_OPERATING)
+- [ ] Toast de confirmación con botón "Ver manifest →" — toast simple implementado, falta el botón de navegación directa (mejora menor pendiente)
+- [x] Verificado visualmente por el usuario: escenario Libre (confirmar) y Conflicto (reagendar con calendario), datos de prueba limpiados después
+- [x] `npx tsc --noEmit` limpio · lint sin nuevos errores
+- [x] PR a `main`
 
 ---
 

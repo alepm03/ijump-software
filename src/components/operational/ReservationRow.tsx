@@ -1,12 +1,14 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Users } from 'lucide-react'
 import { toast } from 'sonner'
-import { confirmLead, cancelLead, type LeadFilter } from '@/lib/actions/leads'
+import { cancelLead, type LeadFilter } from '@/lib/actions/leads'
 import { AvailabilityBadge, LeadStatusBadge } from '@/components/operational/ReservationStatusBadge'
+import { ConfirmReservationModal } from '@/components/operational/ConfirmReservationModal'
+import { RescheduleReservationModal } from '@/components/operational/RescheduleReservationModal'
 import type { DateClass, LeadWithDetails } from '@/types/domain'
 
 function formatDate(date: string | null): string {
@@ -27,6 +29,8 @@ interface ReservationRowProps {
 
 export function ReservationRow({ lead, tab, classification }: ReservationRowProps) {
   const [isPending, startTransition] = useTransition()
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [rescheduleOpen, setRescheduleOpen] = useState(false)
 
   const hasGroup = !!lead.reservationGroupId
   const canConfirmDirectly =
@@ -37,24 +41,6 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
     tab === 'pending' &&
     !!lead.preferredDate &&
     (classification === 'UNAVAILABLE' || classification === 'NOT_OPERATING' || lead.leadStatus === 'RESCHEDULE_NEEDED')
-
-  function handleConfirm() {
-    if (!lead.preferredDate) return
-    startTransition(async () => {
-      const result = await confirmLead(lead.id, lead.preferredDate as string)
-      if (result.error) {
-        toast.error(result.error)
-        return
-      }
-      if (result.classification === 'CONFIRMABLE') {
-        toast.success(`${lead.fullName} confirmado al manifest del ${formatDate(lead.preferredDate)}`)
-      } else if (result.classification === 'TENTATIVE_ONLY') {
-        toast.info(`${lead.fullName} queda como tentativa — se confirmará automáticamente cuando llegue el mes`)
-      } else {
-        toast.error('La fecha ya no está disponible. Reagenda con otra fecha.')
-      }
-    })
-  }
 
   function handleCancel() {
     startTransition(async () => {
@@ -103,7 +89,7 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
           <>
             {canConfirmDirectly && (
               <button
-                onClick={handleConfirm}
+                onClick={() => setConfirmOpen(true)}
                 disabled={isPending}
                 className="text-xs font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
@@ -112,9 +98,9 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
             )}
             {needsReschedule && (
               <button
-                disabled
-                title="Próximamente: elegir fecha alternativa"
-                className="text-xs font-semibold px-3 py-1.5 rounded-md bg-secondary text-muted-foreground cursor-not-allowed"
+                onClick={() => setRescheduleOpen(true)}
+                disabled={isPending}
+                className="text-xs font-semibold px-3 py-1.5 rounded-md bg-secondary text-foreground hover:bg-secondary/70 transition-colors disabled:opacity-50"
               >
                 Reagendar
               </button>
@@ -138,6 +124,16 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
           </>
         )}
       </div>
+
+      {lead.preferredDate && (
+        <ConfirmReservationModal
+          lead={lead}
+          classification={classification}
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+        />
+      )}
+      <RescheduleReservationModal lead={lead} open={rescheduleOpen} onOpenChange={setRescheduleOpen} />
     </div>
   )
 }

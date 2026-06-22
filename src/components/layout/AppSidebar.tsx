@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { Calendar, Sun, Users, TrendingUp, Settings, Menu } from 'lucide-react'
+import { Calendar, Sun, Users, TrendingUp, Settings, Menu, ClipboardList } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { logout } from '@/lib/actions/auth'
@@ -22,6 +22,7 @@ interface AppSidebarProps {
 const NAV_ITEMS = (today: string, todayLabel: string) => [
   { href: '/', label: 'Calendario', icon: Calendar, matchFn: (p: string) => p === '/' || p.startsWith('/?') },
   { href: `/${today}`, label: todayLabel, icon: Sun, matchFn: (p: string) => p === `/${today}` },
+  { href: '/reservas', label: 'Reservas', icon: ClipboardList, matchFn: (p: string) => p.startsWith('/reservas') },
   { href: '/finanzas', label: 'Finanzas', icon: TrendingUp, matchFn: (p: string) => p.startsWith('/finanzas') },
 ]
 

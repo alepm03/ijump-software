@@ -59,6 +59,22 @@ export async function createLead(
   return { leadId: result.id }
 }
 
+/** Completes a lead created without a preferred date (e.g. a bare phone inquiry). */
+export async function setPreferredDate(
+  leadId: string,
+  date: string,
+  time?: string | null
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('participants')
+    .update({ preferred_date: date, preferred_time: time ?? null })
+    .eq('id', leadId)
+  if (error) return { error: error.message }
+  revalidatePath('/', 'layout')
+  return {}
+}
+
 type ConfirmLeadResult = {
   error?: string
   classification?: DateClass

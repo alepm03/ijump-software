@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { createParticipant } from '@/lib/actions/participant'
+import { createLead } from '@/lib/actions/leads'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -33,6 +34,8 @@ const schema = z.object({
   weight: z.string().optional(),
   assignedInstructorId: z.string().optional(),
   payerName: z.string().optional(),
+  preferredDate: z.string().optional(),
+  preferredTime: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -58,6 +61,10 @@ interface AddParticipantDrawerProps {
   instructors: Instructor[]
   onClose: () => void
   onSuccess: () => void
+  /** 'lead' creates a participant with flightId NULL + lead_status NEW instead of assigning it to a flight. */
+  mode?: 'participant' | 'lead'
+  /** Required when mode='lead' — flightId is always null for a lead, so open is controlled separately. */
+  open?: boolean
 }
 
 export function AddParticipantDrawer({
@@ -65,8 +72,11 @@ export function AddParticipantDrawer({
   instructors,
   onClose,
   onSuccess,
+  mode = 'participant',
+  open,
 }: AddParticipantDrawerProps) {
   const [isPending, startTransition] = useTransition()
+  const isLead = mode === 'lead'
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -84,11 +94,38 @@ export function AddParticipantDrawer({
   }
 
   function onSubmit(values: FormValues) {
-    if (!flightId) return
+    if (!isLead && !flightId) return
     startTransition(async () => {
       const rawWeight = parseFloat(values.weight ?? '')
       const weight = isNaN(rawWeight) ? undefined : rawWeight
-      const result = await createParticipant(flightId, {
+
+      if (isLead) {
+        if (!values.preferredDate) {
+          toast.error('La fecha preferida es obligatoria')
+          return
+        }
+        const result = await createLead({
+          fullName: values.fullName,
+          phone: values.phone || null,
+          email: values.email || null,
+          packageType: values.packageType,
+          weight: weight ?? null,
+          source: values.source,
+          payerName: values.payerName || null,
+          preferredDate: values.preferredDate,
+          preferredTime: values.preferredTime || null,
+          channel: 'STAFF',
+        })
+        if (result.error) {
+          toast.error(result.error)
+        } else {
+          form.reset()
+          onSuccess()
+        }
+        return
+      }
+
+      const result = await createParticipant(flightId as string, {
         fullName: values.fullName,
         phone: values.phone || null,
         email: values.email || null,
@@ -108,11 +145,13 @@ export function AddParticipantDrawer({
     })
   }
 
+  const dialogOpen = isLead ? !!open : flightId !== null
+
   return (
-    <Dialog open={flightId !== null} onOpenChange={(open) => !open && handleClose()}>
+    <Dialog open={dialogOpen} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Añadir participante</DialogTitle>
+          <DialogTitle>{isLead ? 'Nueva reserva' : 'Añadir participante'}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-2">
@@ -198,7 +237,7 @@ export function AddParticipantDrawer({
             </div>
           )}
 
-          {/* Weight + Instructor */}
+          {/* Weight + Instructor (instructor not relevant before a lead has a flight) */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-sm">Peso (kg)</Label>
@@ -210,30 +249,46 @@ export function AddParticipantDrawer({
                 max={400}
               />
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm">Instructor</Label>
-              <Select
-                value={form.watch('assignedInstructorId') ?? ''}
-                onValueChange={(v) => form.setValue('assignedInstructorId', v || undefined)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Sin asignar" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="" className="text-muted-foreground">
-                    Sin asignar
-                  </SelectItem>
-                  {instructors
-                    .filter((i) => i.active)
-                    .map((i) => (
-                      <SelectItem key={i.id} value={i.id}>
-                        {i.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {!isLead && (
+              <div className="space-y-1.5">
+                <Label className="text-sm">Instructor</Label>
+                <Select
+                  value={form.watch('assignedInstructorId') ?? ''}
+                  onValueChange={(v) => form.setValue('assignedInstructorId', v || undefined)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sin asignar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="" className="text-muted-foreground">
+                      Sin asignar
+                    </SelectItem>
+                    {instructors
+                      .filter((i) => i.active)
+                      .map((i) => (
+                        <SelectItem key={i.id} value={i.id}>
+                          {i.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
+
+          {/* Preferred date/time (lead only) */}
+          {isLead && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-sm">Fecha preferida *</Label>
+                <Input {...form.register('preferredDate')} type="date" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm">Hora preferida</Label>
+                <Input {...form.register('preferredTime')} type="time" placeholder="Opcional" />
+              </div>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex gap-2 pt-2">

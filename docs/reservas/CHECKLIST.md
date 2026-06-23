@@ -152,14 +152,17 @@ Rama: `feature/reservations-weather-cancellation`
 
 ---
 
-## R9 — Cron de promoción de tentativas
+## R9 — Cron de promoción de tentativas ✅
 
 Rama: `feature/reservations-cron-promote`
 
-- [ ] `src/app/api/cron/promote-leads/route.ts`
-- [ ] Lógica: buscar `TENTATIVE` con `preferred_date` en mes actual → intentar `confirmLead` → `CONFIRMED` o `RESCHEDULE_NEEDED`
-- [ ] Configurar cron en Vercel (`vercel.json` o panel) con secret de autenticación
-- [ ] Probar con `today` simulado (mes que aún no ha llegado → llega → promueve)
+- [x] `src/app/api/cron/promote-leads/route.ts` — `GET`, valida `Authorization: Bearer ${CRON_SECRET}`, usa el service client (sin sesión/cookies en una invocación de cron) y llama a `promoteTentativeLeads`
+- [x] Lógica ya existía desde R3 (`promoteTentativeLeads` en `leads.ts`): busca `TENTATIVE` con `preferred_date` → `confirmLead` → `CONFIRMED` o `RESCHEDULE_NEEDED`
+- [x] Refactor necesario: `getPolicy`, `getDayAvailability`, `confirmLead` y `promoteTentativeLeads` ahora aceptan un cliente Supabase opcional (`DbClient`), para que el cron pueda inyectar el service client en vez del cliente de sesión por cookies (que no existe en una llamada de cron sin usuario autenticado)
+- [x] **Ajuste tras el fix de ventana rodante** (`fix/availability-rolling-window`): se eliminó el filtro de "due leads" por mes natural (`preferred_date.slice(0,7) <= currentMonth`) — ahora `promoteTentativeLeads` intenta `confirmLead` para **todos** los `TENTATIVE`, dejando que `classifyDate` (única fuente de verdad de `CONFIRMABLE_WINDOW_DAYS`) decida; un lead que sigue fuera de la ventana vuelve a clasificar `TENTATIVE_ONLY` (no-op, no se marca `RESCHEDULE_NEEDED`). `confirmLead` ahora acepta un `today` simulado como 4º parámetro para mantener testeable el cron sin depender del reloj real
+- [x] `vercel.json` con cron diario a las 06:00 UTC — `CRON_SECRET` lo inyecta Vercel automáticamente en el header `Authorization` cuando la env var está configurada en el proyecto (pendiente: el hermano debe añadir `CRON_SECRET` en las env vars de Vercel)
+- [x] Probado contra Supabase real con lead `TENTATIVE` y `today` simulado (datos limpiados después): a 42 días de la fecha preferida se queda `TENTATIVE` sin tocar; a 23 días (dentro de la ventana) se confirma con vuelo real vía `reservations_assign_seat`
+- [x] `npx tsc --noEmit` limpio · lint sin nuevos errores
 - [ ] PR a `main`
 
 ---
@@ -172,7 +175,7 @@ Rama: `fix/availability-rolling-window`
 - [x] `src/lib/availability/availability-engine.ts`: `classifyDate` ahora usa `CONFIRMABLE_WINDOW_DAYS = 30` (constante exportada) — CONFIRMABLE si `target` está a ≤30 días de `today`, TENTATIVE_ONLY si está más lejos, sin importar el mes natural
 - [x] `__availability_check.mts` actualizado: caso de 5 días (CONFIRMABLE), 40 días (TENTATIVE_ONLY), y regresión explícita del bug reportado (28 jun → 4 jul, cruza mes, 6 días → CONFIRMABLE). Todas las aserciones PASS
 - [x] `npx tsc --noEmit` limpio · lint sin nuevos errores
-- [ ] ⚠ Pendiente al mergear `feature/reservations-cron-promote` (R9): el filtro de "due leads" en `promoteTentativeLeads` (`l.preferred_date.slice(0,7) <= currentMonth`) sigue usando mes natural — hay que alinearlo a la misma ventana de `CONFIRMABLE_WINDOW_DAYS` para que un lead TENTATIVE se promueva en el momento correcto y no un mes tarde o pronto
+- [x] Alineado con R9 (`feature/reservations-cron-promote`): el filtro de "due leads" en `promoteTentativeLeads` ya no usa mes natural — ver detalle en la sección de R9
 - [ ] PR a `main`
 
 ---

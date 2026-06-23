@@ -95,10 +95,10 @@ type ConfirmLeadResult = {
 export async function confirmLead(
   leadId: string,
   date: string,
-  client?: DbClient
+  client?: DbClient,
+  today: string = todayIso()
 ): Promise<ConfirmLeadResult> {
   const supabase = client ?? (await createClient())
-  const today = todayIso()
 
   const slots = await getDayAvailability(date, client)
   const classification = classifyDate(date, today, slots)
@@ -189,7 +189,6 @@ export async function promoteTentativeLeads(
   client?: DbClient
 ): Promise<{ promoted: number; rescheduleNeeded: number; error?: string }> {
   const supabase = client ?? (await createClient())
-  const currentMonth = today.slice(0, 7)
 
   const { data: tentativeLeads, error } = await supabase
     .from('participants')
@@ -199,18 +198,20 @@ export async function promoteTentativeLeads(
 
   if (error) return { promoted: 0, rescheduleNeeded: 0, error: error.message }
 
-  const dueLeads = (tentativeLeads ?? []).filter(
-    (l) => l.preferred_date && l.preferred_date.slice(0, 7) <= currentMonth
-  )
-
+  const leads = tentativeLeads ?? []
   let promoted = 0
   let rescheduleNeeded = 0
 
-  for (const lead of dueLeads) {
-    const result = await confirmLead(lead.id, lead.preferred_date as string, client)
+  // No separate "due" date filter here — confirmLead's own classifyDate call
+  // is the single source of truth for the CONFIRMABLE_WINDOW_DAYS rolling
+  // window. A lead still beyond the window classifies as TENTATIVE_ONLY
+  // again (a harmless no-op) and must NOT be marked RESCHEDULE_NEEDED —
+  // only a genuinely full/weather-cancelled/non-operating day should.
+  for (const lead of leads) {
+    const result = await confirmLead(lead.id, lead.preferred_date as string, client, today)
     if (result.classification === 'CONFIRMABLE' && result.flightId) {
       promoted++
-    } else {
+    } else if (result.classification !== 'TENTATIVE_ONLY') {
       await supabase
         .from('participants')
         .update({ lead_status: 'RESCHEDULE_NEEDED' })
@@ -219,7 +220,7 @@ export async function promoteTentativeLeads(
     }
   }
 
-  if (dueLeads.length > 0) revalidatePath('/', 'layout')
+  if (leads.length > 0) revalidatePath('/', 'layout')
   return { promoted, rescheduleNeeded }
 }
 

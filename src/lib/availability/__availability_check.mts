@@ -8,10 +8,16 @@
  *
  * Reference dates (2026, non-leap year, verified by day-of-year math):
  *   2026-06-20  Saturday   (past, before TODAY)
- *   2026-06-22  Monday     == TODAY (anchor for the "current month" tests)
+ *   2026-06-22  Monday     == TODAY (anchor for the rolling-window tests)
  *   2026-06-24  Wednesday  (weekday, NOT an operating day)
- *   2026-06-27  Saturday   (future, same month as TODAY)
- *   2026-07-04  Saturday   (future month — TENTATIVE_ONLY territory)
+ *   2026-06-27  Saturday   (future, 5 days ahead — within the 30-day window)
+ *   2026-08-01  Saturday   (40 days ahead — beyond the 30-day window, TENTATIVE_ONLY)
+ *
+ * Regression coverage for the calendar-month bug (fixed 2026-06-23): classifying
+ * by "same calendar month" instead of a rolling day window meant a date just
+ * past a month boundary (e.g. asking on the 28th for the following weekend,
+ * which fell in the next month) was wrongly TENTATIVE_ONLY even though it was
+ * only days away. TODAY2/TARGET2 below reproduce that exact scenario.
  */
 
 import {
@@ -108,15 +114,24 @@ assert(slotsWeather.bookable === false,
 
 console.log('\n-- classifyDate --')
 
-// Same month as TODAY, in the future, with free seats -> CONFIRMABLE
+// Within the rolling window (5 days ahead), with free seats -> CONFIRMABLE
 assert(classifyDate('2026-06-27', TODAY, slotsPartial) === 'CONFIRMABLE',
-  'same-month future date with free seats classifies as CONFIRMABLE')
+  'date 5 days ahead with free seats classifies as CONFIRMABLE')
 
-// Future month, with free seats -> TENTATIVE_ONLY
-const futureMonthDay: DayLoad = { date: '2026-07-04', weatherStatus: 'OK', flights: [] }
-const slotsFutureMonth = computeDaySlots(futureMonthDay, POLICY)
-assert(classifyDate('2026-07-04', TODAY, slotsFutureMonth) === 'TENTATIVE_ONLY',
-  'future-month date with free seats classifies as TENTATIVE_ONLY')
+// Beyond the rolling window (40 days ahead), with free seats -> TENTATIVE_ONLY
+const beyondWindowDay: DayLoad = { date: '2026-08-01', weatherStatus: 'OK', flights: [] }
+const slotsBeyondWindow = computeDaySlots(beyondWindowDay, POLICY)
+assert(classifyDate('2026-08-01', TODAY, slotsBeyondWindow) === 'TENTATIVE_ONLY',
+  'date 40 days ahead with free seats classifies as TENTATIVE_ONLY')
+
+// Regression: asking near a month boundary for a date just past it must NOT
+// fall back to TENTATIVE_ONLY just because it's technically "next month".
+const TODAY2 = '2026-06-28' // Sunday
+const TARGET2 = '2026-07-04' // Saturday, 6 days ahead, crosses the month boundary
+const nextWeekendDay: DayLoad = { date: TARGET2, weatherStatus: 'OK', flights: [] }
+const slotsNextWeekend = computeDaySlots(nextWeekendDay, POLICY)
+assert(classifyDate(TARGET2, TODAY2, slotsNextWeekend) === 'CONFIRMABLE',
+  'a date just past a month boundary but within the rolling window classifies as CONFIRMABLE (regression: calendar-month classification)')
 
 // Full day -> UNAVAILABLE
 assert(classifyDate('2026-06-27', TODAY, slotsFull) === 'UNAVAILABLE',

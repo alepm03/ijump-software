@@ -72,23 +72,42 @@ export function computeDaySlots(load: DayLoad, policy: AvailabilityPolicy): DayS
 }
 
 /**
+ * Rolling confirmation window, in days. A date within this many days of
+ * `today` is CONFIRMABLE; beyond it, TENTATIVE_ONLY. Deliberately a fixed
+ * day count rather than "same calendar month" — a calendar-month boundary
+ * shrinks the effective window as the month progresses (e.g. on the 28th,
+ * next weekend already falls in next month and would wrongly classify as
+ * tentative even though it's only ~1 week away).
+ */
+export const CONFIRMABLE_WINDOW_DAYS = 30
+
+/** Whole days between two YYYY-MM-DD date strings (UTC, DST-safe). */
+function daysBetween(from: string, to: string): number {
+  const ms = Date.UTC(...parseIso(to)) - Date.UTC(...parseIso(from))
+  return Math.round(ms / 86_400_000)
+}
+
+function parseIso(date: string): [number, number, number] {
+  const [y, m, d] = date.split('-').map(Number)
+  return [y, m - 1, d]
+}
+
+/**
  * Classify a target date for booking purposes.
  *
  * - NOT_OPERATING  — the weekday is not an operating day for the center
  * - UNAVAILABLE    — operating day but full (or weather-cancelled), or in the past
- * - CONFIRMABLE    — same calendar month as `today`, on/after `today`, with free seats
+ * - CONFIRMABLE    — within CONFIRMABLE_WINDOW_DAYS of `today`, with free seats
  *                     → the lead can be assigned a real flight_id immediately
- * - TENTATIVE_ONLY — a future month with free seats
- *                     → the lead is parked as TENTATIVE until that month arrives
+ * - TENTATIVE_ONLY — beyond that window, with free seats
+ *                     → the lead is parked as TENTATIVE until the window reaches it
  */
 export function classifyDate(target: string, today: string, slots: DaySlots): DateClass {
   if (!slots.isOperatingDay) return 'NOT_OPERATING'
   if (slots.weatherCancelled || slots.totalFreeSeats === 0) return 'UNAVAILABLE'
 
-  const targetMonth = target.slice(0, 7) // YYYY-MM
-  const todayMonth = today.slice(0, 7)
+  if (target < today) return 'UNAVAILABLE' // past date
 
-  if (targetMonth === todayMonth && target >= today) return 'CONFIRMABLE'
-  if (targetMonth > todayMonth) return 'TENTATIVE_ONLY'
-  return 'UNAVAILABLE' // past date (this month before today, or a past month)
+  const daysAhead = daysBetween(today, target)
+  return daysAhead <= CONFIRMABLE_WINDOW_DAYS ? 'CONFIRMABLE' : 'TENTATIVE_ONLY'
 }

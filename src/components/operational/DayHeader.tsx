@@ -8,6 +8,7 @@ import { ArrowLeft, Cloud, CloudOff, Sun } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { updateOperationalDay } from '@/lib/actions/operational-day'
+import { handleWeatherCancellation } from '@/lib/actions/leads'
 import { computeManifestSummary } from '@/lib/manifest-summary'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -63,8 +64,19 @@ export function DayHeader({ day }: DayHeaderProps) {
   function handleWeatherChange(status: WeatherStatus) {
     startTransition(async () => {
       const result = await updateOperationalDay(day.id, { weatherStatus: status })
-      if (result.error) toast.error(result.error)
-      else router.refresh()
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      if (status === 'CANCELLED') {
+        const cancelResult = await handleWeatherCancellation(day.id)
+        if (cancelResult.error) {
+          toast.error(cancelResult.error)
+          return
+        }
+        toast.success('Jornada cancelada por meteorología — reservas liberadas para reagendar')
+      }
+      router.refresh()
     })
   }
 

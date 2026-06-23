@@ -80,7 +80,11 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
 
       <div className="w-32 flex-shrink-0">
         {tab === 'pending' ? (
-          <AvailabilityBadge classification={lead.preferredDate ? classification : null} />
+          lead.leadStatus === 'RESCHEDULE_NEEDED' ? (
+            <LeadStatusBadge status="RESCHEDULE_NEEDED" />
+          ) : (
+            <AvailabilityBadge classification={lead.preferredDate ? classification : null} />
+          )
         ) : (
           lead.leadStatus && <LeadStatusBadge status={lead.leadStatus} />
         )}

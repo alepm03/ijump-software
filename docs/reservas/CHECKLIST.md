@@ -45,7 +45,7 @@ Rama: `feature/reservations-availability-engine`
   - [x] Tope 2 participantes/vuelo
   - [x] Límite `max_flights_per_day`
   - [x] Meteo cancelada → 0 plazas
-  - [x] `classifyDate` mes actual vs mes futuro
+  - [x] `classifyDate` mes actual vs mes futuro (⚠ superado, ver fix `fix/availability-rolling-window`: ahora es ventana rodante de 30 días, no mes natural — bug encontrado por el usuario: pedir el finde siguiente cruzando un cambio de mes daba TENTATIVE_ONLY aunque solo faltaran días)
   - [x] Día lleno → `UNAVAILABLE`
   - [x] Todas las aserciones PASS (`node_modules/.bin/jiti src/lib/availability/__availability_check.mts`)
 - [x] `src/lib/actions/availability.ts` (wrappers con BD):
@@ -160,6 +160,19 @@ Rama: `feature/reservations-cron-promote`
 - [ ] Lógica: buscar `TENTATIVE` con `preferred_date` en mes actual → intentar `confirmLead` → `CONFIRMED` o `RESCHEDULE_NEEDED`
 - [ ] Configurar cron en Vercel (`vercel.json` o panel) con secret de autenticación
 - [ ] Probar con `today` simulado (mes que aún no ha llegado → llega → promueve)
+- [ ] PR a `main`
+
+---
+
+## Fix — Ventana de confirmación rodante (no por mes natural) ✅
+
+Rama: `fix/availability-rolling-window`
+
+- [x] Bug encontrado por el usuario: `classifyDate` clasificaba CONFIRMABLE vs TENTATIVE_ONLY comparando **mes natural** (`target.slice(0,7) === today.slice(0,7)`) en vez de una ventana de días. Efecto: pedir el finde siguiente estando a 28 de junio (cae en julio) daba TENTATIVE_ONLY aunque solo faltaran ~6 días; el margen de confirmación inmediata se iba achicando a medida que avanzaba el mes
+- [x] `src/lib/availability/availability-engine.ts`: `classifyDate` ahora usa `CONFIRMABLE_WINDOW_DAYS = 30` (constante exportada) — CONFIRMABLE si `target` está a ≤30 días de `today`, TENTATIVE_ONLY si está más lejos, sin importar el mes natural
+- [x] `__availability_check.mts` actualizado: caso de 5 días (CONFIRMABLE), 40 días (TENTATIVE_ONLY), y regresión explícita del bug reportado (28 jun → 4 jul, cruza mes, 6 días → CONFIRMABLE). Todas las aserciones PASS
+- [x] `npx tsc --noEmit` limpio · lint sin nuevos errores
+- [ ] ⚠ Pendiente al mergear `feature/reservations-cron-promote` (R9): el filtro de "due leads" en `promoteTentativeLeads` (`l.preferred_date.slice(0,7) <= currentMonth`) sigue usando mes natural — hay que alinearlo a la misma ventana de `CONFIRMABLE_WINDOW_DAYS` para que un lead TENTATIVE se promueva en el momento correcto y no un mes tarde o pronto
 - [ ] PR a `main`
 
 ---

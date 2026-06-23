@@ -140,13 +140,14 @@ Rama: `feature/reservations-sidebar-integration`
 
 ---
 
-## R8 — Cancelación por meteorología
+## R8 — Cancelación por meteorología ✅
 
 Rama: `feature/reservations-weather-cancellation`
 
-- [ ] Cablear `handleWeatherCancellation` a `updateOperationalDay` (al marcar `weather_status = 'CANCELLED'`)
-- [ ] Verificar que libera `flight_id` y marca `RESCHEDULE_NEEDED` en todos los participantes confirmados de esa jornada
-- [ ] Badge "Reagendar" visible en `/reservas` para esos leads
+- [x] Cablear `handleWeatherCancellation` a `updateOperationalDay` en `DayHeader.tsx` — al marcar `weather_status = 'CANCELLED'` desde el dropdown del manifest, se llama automáticamente tras el update exitoso
+- [x] Verificado contra Supabase real con datos de prueba (sembrados y limpiados después): un lead confirmado libera `flight_id` y pasa a `RESCHEDULE_NEEDED`; un walk-in sin `lead_status` se queda `WEATHER_CANCELLED` sin convertirse en lead
+- [x] Badge "Reagendar" visible en `/reservas` (pestaña Pendientes) para leads `RESCHEDULE_NEEDED` — antes solo se veía el botón de acción, ahora también el badge de estado en vez del badge de disponibilidad por fecha
+- [x] `npx tsc --noEmit` limpio · lint sin nuevos errores
 - [ ] PR a `main`
 
 ---

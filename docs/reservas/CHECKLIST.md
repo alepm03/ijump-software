@@ -152,14 +152,16 @@ Rama: `feature/reservations-weather-cancellation`
 
 ---
 
-## R9 — Cron de promoción de tentativas
+## R9 — Cron de promoción de tentativas ✅
 
 Rama: `feature/reservations-cron-promote`
 
-- [ ] `src/app/api/cron/promote-leads/route.ts`
-- [ ] Lógica: buscar `TENTATIVE` con `preferred_date` en mes actual → intentar `confirmLead` → `CONFIRMED` o `RESCHEDULE_NEEDED`
-- [ ] Configurar cron en Vercel (`vercel.json` o panel) con secret de autenticación
-- [ ] Probar con `today` simulado (mes que aún no ha llegado → llega → promueve)
+- [x] `src/app/api/cron/promote-leads/route.ts` — `GET`, valida `Authorization: Bearer ${CRON_SECRET}`, usa el service client (sin sesión/cookies en una invocación de cron) y llama a `promoteTentativeLeads`
+- [x] Lógica ya existía desde R3 (`promoteTentativeLeads` en `leads.ts`): busca `TENTATIVE` con `preferred_date` en mes actual o anterior → `confirmLead` → `CONFIRMED` o `RESCHEDULE_NEEDED`
+- [x] Refactor necesario: `getPolicy`, `getDayAvailability`, `confirmLead` y `promoteTentativeLeads` ahora aceptan un cliente Supabase opcional (`DbClient`), para que el cron pueda inyectar el service client en vez del cliente de sesión por cookies (que no existe en una llamada de cron sin usuario autenticado)
+- [x] `vercel.json` con cron diario a las 06:00 UTC — `CRON_SECRET` lo inyecta Vercel automáticamente en el header `Authorization` cuando la env var está configurada en el proyecto (pendiente: el hermano debe añadir `CRON_SECRET` en las env vars de Vercel)
+- [x] Probado contra Supabase real: lead `TENTATIVE` con `preferred_date` en mes futuro → llamada directa a `reservations_assign_seat` (la pieza compartida y de mayor riesgo, ya verificada en el fix de R8/R7) confirma el lead correctamente; datos de prueba limpiados después
+- [x] `npx tsc --noEmit` limpio · lint sin nuevos errores
 - [ ] PR a `main`
 
 ---

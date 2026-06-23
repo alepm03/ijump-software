@@ -1,5 +1,6 @@
 'use server'
 
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import {
   isOperatingDay,
@@ -12,7 +13,11 @@ import type {
   DaySlots,
   DateClass,
 } from '@/types/domain'
+import type { Database } from '@/lib/supabase/database.types'
 import { NON_COMPLETED_STATUSES } from '@/lib/finance/pnl-engine'
+
+/** Both the cookie-based session client and the service client satisfy this. */
+export type DbClient = SupabaseClient<Database>
 
 const DEFAULT_POLICY: AvailabilityPolicy = {
   maxClientsPerFlight: 2,
@@ -26,8 +31,8 @@ function todayIso(): string {
 }
 
 /** Reads business_settings and builds the policy the pure engine needs. */
-export async function getPolicy(): Promise<AvailabilityPolicy> {
-  const supabase = await createClient()
+export async function getPolicy(client?: DbClient): Promise<AvailabilityPolicy> {
+  const supabase = client ?? (await createClient())
   const { data, error } = await supabase.from('business_settings').select('key, value')
   if (error) throw new Error(error.message)
 
@@ -66,9 +71,9 @@ function buildDayLoad(date: string, row: RawDayRow): DayLoad {
 }
 
 /** Availability breakdown for a single day. A day without an operational_day row is treated as empty/open. */
-export async function getDayAvailability(date: string): Promise<DaySlots> {
-  const supabase = await createClient()
-  const policy = await getPolicy()
+export async function getDayAvailability(date: string, client?: DbClient): Promise<DaySlots> {
+  const supabase = client ?? (await createClient())
+  const policy = await getPolicy(client)
 
   const { data, error } = await supabase
     .from('operational_days')

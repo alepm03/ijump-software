@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createParticipant, freeSeat } from '@/lib/actions/participant'
-import { getDayAvailability } from '@/lib/actions/availability'
+import { getDayAvailability, type DbClient } from '@/lib/actions/availability'
 import { classifyDate } from '@/lib/availability/availability-engine'
 import type {
   Channel,
@@ -92,11 +92,15 @@ type ConfirmLeadResult = {
  * - UNAVAILABLE / NOT_OPERATING → returns the classification so the UI can prompt
  *                    the staff to pick another date (reschedule flow).
  */
-export async function confirmLead(leadId: string, date: string): Promise<ConfirmLeadResult> {
-  const supabase = await createClient()
+export async function confirmLead(
+  leadId: string,
+  date: string,
+  client?: DbClient
+): Promise<ConfirmLeadResult> {
+  const supabase = client ?? (await createClient())
   const today = todayIso()
 
-  const slots = await getDayAvailability(date)
+  const slots = await getDayAvailability(date, client)
   const classification = classifyDate(date, today, slots)
 
   if (classification === 'NOT_OPERATING' || classification === 'UNAVAILABLE') {
@@ -181,9 +185,10 @@ export async function handleWeatherCancellation(dayId: string): Promise<{ error?
  * they are marked RESCHEDULE_NEEDED instead of silently staying TENTATIVE.
  */
 export async function promoteTentativeLeads(
-  today: string = todayIso()
+  today: string = todayIso(),
+  client?: DbClient
 ): Promise<{ promoted: number; rescheduleNeeded: number; error?: string }> {
-  const supabase = await createClient()
+  const supabase = client ?? (await createClient())
   const currentMonth = today.slice(0, 7)
 
   const { data: tentativeLeads, error } = await supabase
@@ -202,7 +207,7 @@ export async function promoteTentativeLeads(
   let rescheduleNeeded = 0
 
   for (const lead of dueLeads) {
-    const result = await confirmLead(lead.id, lead.preferred_date as string)
+    const result = await confirmLead(lead.id, lead.preferred_date as string, client)
     if (result.classification === 'CONFIRMABLE' && result.flightId) {
       promoted++
     } else {

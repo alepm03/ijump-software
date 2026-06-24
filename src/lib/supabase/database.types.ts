@@ -715,6 +715,13 @@ export type Database = {
           flight_id: string
         }[]
       }
+      bump_rate_limit: {
+        Args: { p_api_key_id: string; p_limit_per_min: number }
+        Returns: {
+          allowed: boolean
+          retry_after_seconds: number
+        }[]
+      }
     }
     Enums: {
       expense_type: "FUEL_OVERRIDE" | "HANGAR_OVERRIDE" | "CUSTOM"

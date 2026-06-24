@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import type { TablesUpdate } from '@/lib/supabase/database.types'
 import type { Channel, LeadStatus, OperationalStatus, PackageType, ReservationSource } from '@/types/domain'
+import type { DbClient } from '@/lib/actions/availability'
 
 export type CreateParticipantData = {
   fullName: string
@@ -42,9 +43,10 @@ export type UpdateParticipantData = Partial<{
 
 export async function createParticipant(
   flightId: string | null,
-  data: CreateParticipantData
-): Promise<{ error?: string; id?: string }> {
-  const supabase = await createClient()
+  data: CreateParticipantData,
+  client?: DbClient
+): Promise<{ error?: string; id?: string; token?: string | null }> {
+  const supabase = client ?? (await createClient())
 
   let resolvedGroupId = data.reservationGroupId ?? null
 
@@ -76,11 +78,11 @@ export async function createParticipant(
       ...(data.channel !== undefined && { channel: data.channel }),
       ...(data.createdBy !== undefined && { created_by: data.createdBy }),
     })
-    .select('id')
+    .select('id, token')
     .single()
   if (error) return { error: error.message }
   revalidatePath('/', 'layout')
-  return { id: inserted.id }
+  return { id: inserted.id, token: inserted.token }
 }
 
 /** Releases a participant's flight slot (used when rescheduling or freeing a lead). */

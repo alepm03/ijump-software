@@ -127,13 +127,16 @@ export async function getMonthAvailability(
 }
 
 /** Walks forward from `fromDate` looking for the next `limit` bookable operating days. */
-export async function listNextAvailableSlots(params: {
-  fromDate?: string
-  limit?: number
-  maxDaysToScan?: number
-}): Promise<{ date: string; slots: DaySlots; classification: DateClass }[]> {
+export async function listNextAvailableSlots(
+  params: {
+    fromDate?: string
+    limit?: number
+    maxDaysToScan?: number
+  },
+  client?: DbClient
+): Promise<{ date: string; slots: DaySlots; classification: DateClass }[]> {
   const { fromDate, limit = 6, maxDaysToScan = 120 } = params
-  const policy = await getPolicy()
+  const policy = await getPolicy(client)
   const today = todayIso()
   const startDate = fromDate ?? today
 
@@ -143,7 +146,7 @@ export async function listNextAvailableSlots(params: {
   for (let i = 0; i < maxDaysToScan && results.length < limit; i++) {
     const date = cursor.toISOString().slice(0, 10)
     if (isOperatingDay(date, policy)) {
-      const slots = await getDayAvailability(date)
+      const slots = await getDayAvailability(date, client)
       if (slots.bookable) {
         results.push({ date, slots, classification: classifyDate(date, today, slots) })
       }

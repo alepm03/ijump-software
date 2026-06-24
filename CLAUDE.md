@@ -125,42 +125,41 @@ gh pr create --title "..." --body "..."
 | UI redesign v4 (design system OKLCH, sidebar, logo) | ✅ Producción | #19 |
 | Finanzas v2 (P&L, KPI dashboard, catálogo, export Excel/CSV/PDF) | ✅ Producción | #20 |
 | Finanzas v2.1 (reclasificación de gastos COSTES_DIRECTOS/COMISIONES + comisiones por canal ajustables) | 🔄 En PR | `feature/finance-expense-model` |
-| Sistema de reservas (lead → pago Stripe → manifiesto) | 🔄 En diseño | — |
-| API del bot (chatbot → software) | 🔄 En diseño | — |
-| Chatbot rewire (R5 — lado Ricardo) | ⏳ Pendiente R1–R4 | — |
+| Sistema de reservas (lead → confirmación/tentativa → manifiesto, sin pago online) | ✅ Producción (R1–R10) | #23, #25–#37 (ver `docs/reservas/CHECKLIST.md`) |
+| API del bot v1 (chatbot → software: disponibilidad, crear/consultar reserva) | ✅ Producción | #37 — contrato en `docs/reservas/BOT_API_CONTRACT.md` |
+| Chatbot rewire (R5 — lado Ricardo, consumir la API del bot) | ⏳ Pendiente (lado Ricardo) | — |
 
 ### Lo que NO está en scope (aún)
 - CRM avanzado
-- Automatización WhatsApp con IA (viene en R5)
+- Automatización WhatsApp con IA (viene en R5, lado Ricardo)
 - Multimedia / vídeos
 - App móvil cliente
 - Multi-empresa / multi-avión
 - Múltiples manifests
-- Pagos online de participantes (viene en Reservas R3)
+- Pagos online / depósito (Stripe) — excluido de todo el módulo de reservas, fase futura separada
+- Reservas de grupo vía API del bot (una reserva = una persona por ahora)
+- Reagendar/cancelar una reserva vía API del bot (solo desde `/reservas` por el staff)
 
 ---
 
-## Próximo módulo: Sistema de reservas
+## Módulo completado: Sistema de reservas
 
-**El siguiente trabajo grande es el sistema de reservas** (lead → pago → manifiesto + API del bot).
+**Lead → confirmación/tentativa → manifiesto + API del bot, sin pago online.** Implementado en R1–R10 (todo el lado hermano/alepm03); pendiente solo R5 del lado de Ricardo (rewire del chatbot para consumir la API).
 
-- **R1–R4** (datos, disponibilidad, API del bot, Stripe, tentativa/meteo): **hermano (alepm03)**.
-- **R5** (rewire del chatbot para consumir la API): **Ricardo**.
-
-### Antes de empezar a implementar — lectura obligatoria
+### Documentación de referencia
 ```
-docs/reservas/MASTER_PLAN_v2.md       # Estrategia, decisiones de arquitectura ya tomadas, 6 fases
-docs/reservas/TECH_APPENDIX_v2.md    # SQL completo, motor de disponibilidad, webhook Stripe, API del bot
-docs/reservas/HANDOFF_PROMPT.md      # Prompt de arranque para la sesión de implementación
+docs/reservas/CHECKLIST.md             # Estado real fase por fase (fuente de verdad de progreso)
+docs/reservas/RESERVATIONS_INTEGRATION.md  # Guía post-merge: arquitectura, decisiones, qué tocar para extenderlo
+docs/reservas/BOT_API_CONTRACT.md      # Contrato final de la API del bot — para Ricardo (R5)
+docs/reservas/RESERVAS_MASTER_PLAN_v2.md   # Estrategia y decisiones de arquitectura (referencia histórica)
+docs/reservas/RESERVAS_TECH_APPENDIX_v2.md # SQL/diseño original (referencia histórica — incluye Stripe, fuera de alcance real)
+docs/reservas/RESERVAS_MODULE_PLAN_v1.md   # Plan preliminar (referencia histórica, ver nota de corrección al inicio del archivo)
 ```
 
-**Plantilla de calidad a seguir:** `docs/FINANCE_V2_INTEGRATION.md` — migración aditiva/reversible, motor puro + checks jiti, service client, waiver token pattern.
-
-### Decisiones humanas pendientes antes de arrancar (🔵)
-- Capacidad real: `max_flights_per_day` y nº instructores/avión (confirmar con Raúl).
-- Acceso cruzado repos + Supabase (write mutuo entre Ricardo y hermano).
-- Política de reembolso/cancelación cerrada + privacidad/T&C publicados (bloqueante para cobrar).
-- Confirmar Stripe, importe depósito (60€) y si es reembolsable.
+### Decisiones humanas que quedaron pendientes (🔵, no bloqueantes para lo ya implementado)
+- Capacidad real: `max_flights_per_day` y nº instructores/avión (confirmar con Raúl) — actualmente seed por defecto en `business_settings`.
+- Política de reembolso/cancelación + privacidad/T&C publicados — solo relevante si se retoma Stripe en una fase futura.
+- Pago online (Stripe), importe de depósito y si es reembolsable — módulo completo excluido por ahora.
 
 ---
 

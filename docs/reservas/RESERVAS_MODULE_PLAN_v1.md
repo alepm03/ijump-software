@@ -1,8 +1,9 @@
 # Plan de Implementación: Módulo de Gestión de Reservas (Leads → Manifest)
 
 > **Versión**: 2.0 — 21 Jun 2026  
-> **Estado**: Pendiente de implementación  
-> **Pago online (Stripe)**: excluido de este plan — se implementará en una fase posterior separada.
+> **Estado**: ✅ Implementado (R1–R10) — este documento queda como referencia histórica del diseño original. Ver `CHECKLIST.md` para el estado real fase por fase y `BOT_API_CONTRACT.md` para el contrato final de la API del bot.  
+> **Pago online (Stripe)**: excluido de este plan — se implementará en una fase posterior separada.  
+> **⚠ Corrección post-implementación (24 Jun 2026)**: este documento describe la regla CONFIRMABLE/TENTATIVE_ONLY como "mes actual vs mes futuro" (mes natural). Un bug real de negocio encontrado durante pruebas (pedir el finde siguiente cruzando un cambio de mes daba TENTATIVE_ONLY aunque solo faltaran días) llevó a cambiarlo a una **ventana rodante de 30 días desde hoy** — ver `src/lib/availability/availability-engine.ts` (`classifyDate`, `CONFIRMABLE_WINDOW_DAYS`). Todas las referencias a "mes actual"/"mes futuro" en este documento deben leerse como "dentro de los próximos 30 días" / "más allá de los próximos 30 días".
 
 ---
 

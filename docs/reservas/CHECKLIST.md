@@ -180,18 +180,20 @@ Rama: `fix/availability-rolling-window`
 
 ---
 
-## R10 — API del bot
+## R10 — API del bot ✅
 
 Rama: `feature/reservations-bot-api`
 
-- [ ] `src/lib/api/auth.ts` (validación `X-API-Key` vía sha256 contra `api_keys`)
-- [ ] `src/lib/api/rate-limit.ts` (`bump_rate_limit` sobre `api_rate_limits`)
-- [ ] `GET /api/bot/v1/availability`
-- [ ] `GET /api/bot/v1/availability/day`
-- [ ] `POST /api/bot/v1/reservations`
-- [ ] `GET /api/bot/v1/reservations/{idOrToken}`
-- [ ] Sembrar una `api_key` de test y probar cada endpoint (`curl`): happy path, 401, 422, 429, 409 con `suggestedDates`
-- [ ] Documentar el contrato final para Ricardo (coordinación R5 del chatbot)
+- [x] `src/lib/api/auth.ts` (validación `X-API-Key` vía sha256 contra `api_keys` + scopes + `last_used_at`)
+- [x] `src/lib/api/rate-limit.ts` (`bump_rate_limit` sobre `api_rate_limits`, migración `20260628000000_bump_rate_limit.sql`)
+- [x] `GET /api/bot/v1/availability`
+- [x] `GET /api/bot/v1/availability/day`
+- [x] `POST /api/bot/v1/reservations` — **sin Stripe** (fuera de alcance): crea y confirma el lead en la misma llamada en vez del flujo original `AWAITING_PAYMENT`→pago→`CONFIRMED`; devuelve `CONFIRMED`/`TENTATIVE`/409 directamente
+- [x] `GET /api/bot/v1/reservations/{idOrToken}` (`getLeadByIdOrToken` nuevo en `leads.ts`, busca por `id` o `token`)
+- [x] Refactor necesario (mismo patrón de R9): `createParticipant`, `createLead` y `listNextAvailableSlots` ahora aceptan un cliente Supabase opcional, para que la API del bot inyecte el service client (sin sesión/cookies en una llamada de bot)
+- [x] Sembrada una `api_key` de test (límite bajo a propósito) y probados los 5 casos contra producción: happy path (200/201), 401 sin key, 401 key inválida, 422 validación, 429 rate-limit, 409 con `suggestedDates` (saturando temporalmente `max_flights_per_day`); api_key de test y todos los datos sembrados limpiados después
+- [x] Documentado el contrato final en `docs/reservas/BOT_API_CONTRACT.md` para Ricardo (coordinación R5 del chatbot)
+- [x] `npx tsc --noEmit` limpio · lint sin nuevos errores
 - [ ] PR a `main`
 
 ---

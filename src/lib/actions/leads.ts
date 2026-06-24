@@ -37,26 +37,31 @@ export type CreateLeadInput = {
 
 /** Creates a lead: a participant row with flight_id NULL and lead_status = 'NEW'. */
 export async function createLead(
-  input: CreateLeadInput
-): Promise<{ error?: string; leadId?: string }> {
-  const result = await createParticipant(null, {
-    fullName: input.fullName,
-    phone: input.phone ?? null,
-    email: input.email ?? null,
-    packageType: input.packageType,
-    weight: input.weight ?? null,
-    notes: input.notes ?? null,
-    source: input.source,
-    payerName: input.payerName ?? null,
-    reservationGroupId: input.reservationGroupId ?? null,
-    leadStatus: 'NEW',
-    preferredDate: input.preferredDate,
-    preferredTime: input.preferredTime ?? null,
-    channel: input.channel ?? 'STAFF',
-    createdBy: input.createdBy ?? null,
-  })
+  input: CreateLeadInput,
+  client?: DbClient
+): Promise<{ error?: string; leadId?: string; token?: string | null }> {
+  const result = await createParticipant(
+    null,
+    {
+      fullName: input.fullName,
+      phone: input.phone ?? null,
+      email: input.email ?? null,
+      packageType: input.packageType,
+      weight: input.weight ?? null,
+      notes: input.notes ?? null,
+      source: input.source,
+      payerName: input.payerName ?? null,
+      reservationGroupId: input.reservationGroupId ?? null,
+      leadStatus: 'NEW',
+      preferredDate: input.preferredDate,
+      preferredTime: input.preferredTime ?? null,
+      channel: input.channel ?? 'STAFF',
+      createdBy: input.createdBy ?? null,
+    },
+    client
+  )
   if (result.error) return { error: result.error }
-  return { leadId: result.id }
+  return { leadId: result.id, token: result.token }
 }
 
 /** Completes a lead created without a preferred date (e.g. a bare phone inquiry). */
@@ -244,6 +249,51 @@ export async function countPendingLeads(): Promise<number> {
     .in('lead_status', ['NEW', 'RESCHEDULE_NEEDED'])
   if (error) return 0
   return count ?? 0
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export type LeadStatusSummary = {
+  id: string
+  status: LeadStatus | null
+  depositPaid: boolean
+  confirmedDate: string | null
+  confirmedTime: string | null
+  preferredDate: string | null
+  packageType: PackageType
+  fullName: string
+}
+
+/** Looks up a lead by its internal id or its public token — used by GET /api/bot/v1/reservations/{idOrToken}. */
+export async function getLeadByIdOrToken(
+  idOrToken: string,
+  client?: DbClient
+): Promise<{ lead?: LeadStatusSummary; error?: string }> {
+  if (!UUID_RE.test(idOrToken)) return { error: 'not_found' }
+
+  const supabase = client ?? (await createClient())
+  const { data, error } = await supabase
+    .from('participants')
+    .select('id, lead_status, deposit_paid, confirmed_date, confirmed_time, preferred_date, package_type, full_name')
+    .or(`id.eq.${idOrToken},token.eq.${idOrToken}`)
+    .not('lead_status', 'is', null)
+    .maybeSingle()
+
+  if (error) return { error: error.message }
+  if (!data) return { error: 'not_found' }
+
+  return {
+    lead: {
+      id: data.id,
+      status: data.lead_status as LeadStatus | null,
+      depositPaid: data.deposit_paid,
+      confirmedDate: data.confirmed_date,
+      confirmedTime: data.confirmed_time,
+      preferredDate: data.preferred_date,
+      packageType: data.package_type,
+      fullName: data.full_name,
+    },
+  }
 }
 
 export type LeadFilter = 'pending' | 'confirmed' | 'cancelled'

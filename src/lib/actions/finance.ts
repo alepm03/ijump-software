@@ -863,7 +863,7 @@ function rowToExpenseCategory(row: {
   code: string
   name: string
   group_type: string
-  subgroup?: string | null  // optional until migration 20260629 is applied and types regenerated
+  subgroup: string | null
   default_rate: number | null
   rate_basis: string | null
   sort_order: number

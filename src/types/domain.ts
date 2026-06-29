@@ -217,7 +217,7 @@ export type ProductCategory =
   | 'GROUND_REPORT'
   | 'OTHER'
 
-export type ExpenseGroup = 'COSTES_DIRECTOS' | 'COMISIONES' | 'PERSONAL' | 'GENERALES'
+export type ExpenseGroup = 'COSTES_OPERATIVOS' | 'GENERALES'
 
 export type RateBasis = 'PER_FLIGHT' | 'PER_JUMP' | 'FIXED_PER_DAY'
 
@@ -273,6 +273,7 @@ export interface ExpenseCategory {
   code: string
   name: string
   groupType: ExpenseGroup
+  subgroup: string | null
   defaultRate: number | null
   rateBasis: RateBasis | null
   sortOrder: number
@@ -312,14 +313,17 @@ export interface CostCategoryLine {
   categoryCode: string
   name: string
   group: ExpenseGroup
+  subgroup: string | null
   amount: number
 }
 
-/** One EBITDA group (COSTES_DIRECTOS | COMISIONES | PERSONAL | GENERALES) with its categories */
+/** One EBITDA group (COSTES_OPERATIVOS | GENERALES) with its categories */
 export interface CostGroup {
   group: ExpenseGroup
   total: number
   categories: CostCategoryLine[]
+  /** Pre-computed subtotals per subgroup (only populated when the group has subgroups) */
+  subgroupTotals: Record<string, number>
 }
 
 /** Full P&L for a period (day / ISO week / month / year) */

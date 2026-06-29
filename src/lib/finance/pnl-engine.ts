@@ -15,7 +15,6 @@ import type {
   ExpenseCategory,
   ExpenseGroup,
   Expense,
-  SaleChannel,
   RevenueByCategory,
   CostCategoryLine,
   CostGroup,
@@ -40,6 +39,7 @@ export interface ParticipantPnlRow {
 
 export interface FlightPnlRow {
   id: string
+  is_back_to_back: boolean
   participants: ParticipantPnlRow[]
 }
 
@@ -98,9 +98,14 @@ export function accumulateRevenue(
 
 /**
  * Cost for a single category over a single operational day.
- * Implements §5 of FINANCE_MODEL_V2.md.
+ * Implements the cost model from docs/FINANCE_MODEL_V2.md.
  *
- * INSTRUCTORES is handled separately (additive: formula + manual expenses).
+ * Special cases (intercept before the rateBasis switch):
+ *   INSTRUCTORES    — additive: per-instructor formula + manual expense rows.
+ *   CAMARA_EXTERNA  — conditional: 35 €/completed jump with external video.
+ *   EQUIPOS         — conditional: 25 €/completed jump on back-to-back flights.
+ *
+ * For all others: manual expense rows override the formula; formula uses rateBasis.
  */
 export function categoryDayCost(params: {
   category: ExpenseCategory
@@ -108,13 +113,39 @@ export function categoryDayCost(params: {
   flightCount: number
   completedJumpCount: number
   instructorCostForDay: number
+  /** Completed jumps where the participant has a VIDEO_EXT (CAMERA_EXTERNAL) item */
+  videoExtJumpCount: number
+  /** Completed jumps on back-to-back flights (equipment rental needed) */
+  backToBackJumpCount: number
 }): number {
-  const { category, expensesForCatOnDay, flightCount, completedJumpCount, instructorCostForDay } = params
+  const {
+    category,
+    expensesForCatOnDay,
+    flightCount,
+    completedJumpCount,
+    instructorCostForDay,
+    videoExtJumpCount,
+    backToBackJumpCount,
+  } = params
 
   if (category.code === 'INSTRUCTORES') {
     // Special: instructor formula cost (already computed) + any manual expense entries (additive)
     const manualAdjustments = expensesForCatOnDay.reduce((s, e) => s + e.amount, 0)
     return instructorCostForDay + manualAdjustments
+  }
+
+  if (category.code === 'CAMARA_EXTERNA') {
+    // Special: only applies when there is external video in the day's jumps.
+    // Manual expense rows override (same "real data wins" rule as other categories).
+    if (expensesForCatOnDay.length > 0) return expensesForCatOnDay.reduce((s, e) => s + e.amount, 0)
+    return (category.defaultRate ?? 35) * videoExtJumpCount
+  }
+
+  if (category.code === 'EQUIPOS') {
+    // Special: only applies on back-to-back flights (rented equipment, 25 €/jump).
+    // Manual expense rows override.
+    if (expensesForCatOnDay.length > 0) return expensesForCatOnDay.reduce((s, e) => s + e.amount, 0)
+    return (category.defaultRate ?? 25) * backToBackJumpCount
   }
 
   // Override: if real expense rows exist for this day+category, they replace the formula
@@ -160,19 +191,16 @@ export function computeInstructorCostForDay(participants: ParticipantPnlRow[]): 
   return total
 }
 
-/** Synthetic cost line that holds the auto-computed per-channel commission. */
+/**
+ * @deprecated Revenue from platforms (Groupon, Smartbox, etc.) already arrives
+ * NET — the platform retains its commission before paying iJump. Deducting a
+ * commission in the P&L would be double-counting. This function is kept for
+ * reference but is no longer called by buildPnl. The sale_channels table is
+ * preserved as a channel registry for the reservations module.
+ */
 export const CHANNEL_COMMISSION_CODE = 'COMISION_CANAL'
 
-/**
- * Per-channel sale commission for a list of participants.
- * commission = Σ participantRevenue(p) × pct(p.source) / 100
- *
- * The rate is resolved from sale_channels, keyed by code, mapped directly
- * from reservation_groups.source (GROUPON, SMARTBOX, DIRECT, ...). Sources
- * with no matching active channel — or a channel whose rate is still NULL
- * (pending confirmation) — contribute 0, so historical totals are unchanged
- * until a real rate is entered.
- */
+/** @deprecated See CHANNEL_COMMISSION_CODE above. */
 export function computeChannelCommission(
   participants: ParticipantPnlRow[],
   pctByCode: Map<string, number>
@@ -197,15 +225,8 @@ export function buildPnl(params: {
   days: DayPnlRow[]
   expenses: Expense[]
   categories: ExpenseCategory[]
-  saleChannels?: SaleChannel[]
 }): ProfitAndLoss {
-  const { periodLabel, days, expenses, categories, saleChannels = [] } = params
-
-  // Rate lookup: channel code -> commission % (only active channels with a confirmed rate).
-  const pctByCode = new Map<string, number>()
-  for (const ch of saleChannels) {
-    if (ch.active && ch.commissionPct != null) pctByCode.set(ch.code, ch.commissionPct)
-  }
+  const { periodLabel, days, expenses, categories } = params
 
   // Index expenses by (operationalDayId, categoryId) for O(1) lookup
   type ExpenseKey = `${string}:${string}` // `${dayId}:${categoryId}`
@@ -227,7 +248,6 @@ export function buildPnl(params: {
   // Accumulate revenue and per-category costs across all days
   const revByCategory: RevenueByCategory = {}
   let revenueTotal = 0
-  let channelCommissionTotal = 0
   const catCostAccum = new Map<string, number>() // categoryId -> total cost
 
   for (const day of days) {
@@ -238,12 +258,20 @@ export function buildPnl(params: {
     const flightCount = day.flights.length
     const completedJumpCount = completedParticipants.length
 
+    // Conditional counts for special-case cost categories
+    const videoExtJumpCount = completedParticipants.filter((p) =>
+      p.participant_items.some((item) => item.products?.category === 'CAMERA_EXTERNAL')
+    ).length
+
+    const backToBackJumpCount = day.flights
+      .filter((f) => f.is_back_to_back)
+      .flatMap((f) => f.participants)
+      .filter((p) => !NON_COMPLETED_STATUSES.has(p.operational_status))
+      .length
+
     // Revenue
     accumulateRevenue(allParticipants, revByCategory)
     revenueTotal += allParticipants.reduce((s, p) => s + participantRevenue(p), 0)
-
-    // Per-channel sale commission (same participant base as revenue)
-    channelCommissionTotal += computeChannelCommission(allParticipants, pctByCode)
 
     // Instructor formula cost for this day
     const instructorCostForDay = computeInstructorCostForDay(allParticipants)
@@ -258,6 +286,8 @@ export function buildPnl(params: {
         flightCount,
         completedJumpCount,
         instructorCostForDay,
+        videoExtJumpCount,
+        backToBackJumpCount,
       })
       catCostAccum.set(cat.id, (catCostAccum.get(cat.id) ?? 0) + cost)
     }
@@ -269,7 +299,7 @@ export function buildPnl(params: {
   }
 
   // Build P&L cost groups
-  const groupOrder: ExpenseGroup[] = ['COSTES_DIRECTOS', 'COMISIONES', 'PERSONAL', 'GENERALES']
+  const groupOrder: ExpenseGroup[] = ['COSTES_OPERATIVOS', 'GENERALES']
   const groupMap = new Map<ExpenseGroup, CostCategoryLine[]>()
   for (const g of groupOrder) groupMap.set(g, [])
 
@@ -279,35 +309,28 @@ export function buildPnl(params: {
       categoryCode: cat.code,
       name: cat.name,
       group: cat.groupType,
+      subgroup: cat.subgroup ?? null,
       amount,
     }
-    groupMap.get(cat.groupType)!.push(line)
-  }
-
-  // Synthetic line: auto-computed per-channel commission, inside COMISIONES.
-  // Single source of truth: if the period has manual COMISION_GROUPON expense
-  // rows, those win and the auto line is suppressed — mirroring the engine's
-  // "manual expense rows override the formula" rule (see categoryDayCost). This
-  // prevents double counting the same channel commission once a rate is set.
-  const manualCommissionTotal = categories
-    .filter((c) => c.code === 'COMISION_GROUPON')
-    .reduce((s, c) => s + (catCostAccum.get(c.id) ?? 0), 0)
-
-  if (channelCommissionTotal !== 0 && manualCommissionTotal === 0) {
-    groupMap.get('COMISIONES')!.push({
-      categoryCode: CHANNEL_COMMISSION_CODE,
-      name: 'Comisiones de canal',
-      group: 'COMISIONES',
-      amount: channelCommissionTotal,
-    })
+    groupMap.get(cat.groupType)?.push(line)
   }
 
   const costGroups: CostGroup[] = groupOrder.map((group) => {
     const catLines = groupMap.get(group) ?? []
+
+    // Pre-compute subtotals per subgroup for the UI
+    const subgroupTotals: Record<string, number> = {}
+    for (const line of catLines) {
+      if (line.subgroup) {
+        subgroupTotals[line.subgroup] = (subgroupTotals[line.subgroup] ?? 0) + line.amount
+      }
+    }
+
     return {
       group,
       total: catLines.reduce((s, l) => s + l.amount, 0),
       categories: catLines,
+      subgroupTotals,
     }
   })
 

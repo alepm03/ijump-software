@@ -6,7 +6,8 @@
  * Renders:
  *   • KPI strip (Ingresos / Gastos / EBITDA / Margen)
  *   • Ingresos section — one row per non-zero revenue category with proportion bar
- *   • Gastos section   — grouped by COSTES_DIRECTOS / COMISIONES / PERSONAL / GENERALES
+ *   • Gastos section   — grouped by COSTES_OPERATIVOS / GENERALES, with subgroup
+ *                        headers (Personal / Material) inside COSTES_OPERATIVOS
  *   • Resultado        — EBITDA + margin
  *
  * Design tokens: semantic only (bg-background, bg-card, text-foreground,
@@ -59,10 +60,8 @@ const CATEGORY_ORDER: Array<ProductCategory | 'SIN_DESGLOSE'> = [
 // ─── Expense group display names ───────────────────────────────────────────────
 
 const GROUP_LABELS: Record<ExpenseGroup, string> = {
-  COSTES_DIRECTOS: 'Costes directos',
-  COMISIONES:      'Comisiones',
-  PERSONAL:        'Personal',
-  GENERALES:       'Gastos generales',
+  COSTES_OPERATIVOS: 'Costes Operativos',
+  GENERALES:         'Gastos Generales',
 }
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
@@ -293,18 +292,77 @@ function RevenueSection({ pnl }: { pnl: ProfitAndLoss }) {
 
 // ─── Cost group section ────────────────────────────────────────────────────────
 
+const SUBGROUP_LABELS: Record<string, string> = {
+  PERSONAL: 'Personal',
+  MATERIAL: 'Material',
+}
+
+/** Ordered list of known subgroups; unlisted ones appear last */
+const SUBGROUP_ORDER = ['PERSONAL', 'MATERIAL']
+
+function CostCategoryRow({
+  cat,
+  globalTotal,
+  indent = false,
+}: {
+  cat: ProfitAndLoss['costGroups'][number]['categories'][number]
+  globalTotal: number
+  indent?: boolean
+}) {
+  return (
+    <div
+      className="grid items-center px-4 py-[9px] border-b border-border last:border-b-0 hover:bg-secondary/10 transition-colors"
+      style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(120px,1fr) 120px 64px' }}
+    >
+      <span className={`text-[13px] text-muted-foreground truncate ${indent ? 'pl-6' : 'pl-3'}`}>
+        {cat.name}
+      </span>
+      <div className="pr-4">
+        <div className="h-[6px] rounded-full bg-secondary overflow-hidden">
+          <div
+            className="h-full rounded-full bg-border"
+            style={{ width: globalTotal > 0 ? `${Math.min((cat.amount / globalTotal) * 100, 100)}%` : '0%' }}
+          />
+        </div>
+      </div>
+      <span className="text-right text-[13.5px] font-medium tabular-nums text-foreground">
+        {euro(cat.amount)}
+      </span>
+      <span className="text-right text-[12.5px] tabular-nums text-muted-foreground">
+        {globalTotal > 0 ? ((cat.amount / globalTotal) * 100).toFixed(0) : 0} %
+      </span>
+    </div>
+  )
+}
+
 function CostGroupSection({
   group,
   total,
   categories,
+  subgroupTotals,
   globalTotal,
 }: {
   group: ExpenseGroup
   total: number
   categories: ProfitAndLoss['costGroups'][number]['categories']
+  subgroupTotals: Record<string, number>
   globalTotal: number
 }) {
   const groupProportion = globalTotal > 0 ? (total / globalTotal) * 100 : 0
+  const hasSubgroups = Object.keys(subgroupTotals).length > 0
+
+  // Sort subgroups by known order, then alphabetically
+  const subgroups = Object.keys(subgroupTotals).sort((a, b) => {
+    const ia = SUBGROUP_ORDER.indexOf(a)
+    const ib = SUBGROUP_ORDER.indexOf(b)
+    if (ia !== -1 && ib !== -1) return ia - ib
+    if (ia !== -1) return -1
+    if (ib !== -1) return 1
+    return a.localeCompare(b)
+  })
+
+  // Separate categories that don't belong to any subgroup
+  const ungrouped = categories.filter((c) => !c.subgroup)
 
   return (
     <>
@@ -330,32 +388,43 @@ function CostGroupSection({
         </span>
       </div>
 
-      {/* Category lines */}
-      {categories.map((cat) => (
-        <div
-          key={cat.categoryCode}
-          className="grid items-center px-4 py-[9px] border-b border-border last:border-b-0 hover:bg-secondary/10 transition-colors"
-          style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(120px,1fr) 120px 64px' }}
-        >
-          <span className="text-[13px] text-muted-foreground pl-3 truncate">
-            {cat.name}
-          </span>
-          <div className="pr-4">
-            <div className="h-[6px] rounded-full bg-secondary overflow-hidden">
-              <div
-                className="h-full rounded-full bg-border"
-                style={{ width: globalTotal > 0 ? `${Math.min((cat.amount / globalTotal) * 100, 100)}%` : '0%' }}
-              />
-            </div>
-          </div>
-          <span className="text-right text-[13.5px] font-medium tabular-nums text-foreground">
-            {euro(cat.amount)}
-          </span>
-          <span className="text-right text-[12.5px] tabular-nums text-muted-foreground">
-            {globalTotal > 0 ? ((cat.amount / globalTotal) * 100).toFixed(0) : 0} %
-          </span>
-        </div>
-      ))}
+      {hasSubgroups ? (
+        <>
+          {subgroups.map((sg) => {
+            const sgTotal = subgroupTotals[sg] ?? 0
+            const sgCats = categories.filter((c) => c.subgroup === sg)
+            return (
+              <div key={sg}>
+                {/* Subgroup header */}
+                <div className="grid items-center px-4 py-[6px] bg-secondary/10 border-b border-border"
+                  style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(120px,1fr) 120px 64px' }}>
+                  <span className="text-[10.5px] font-semibold uppercase tracking-[0.06em] text-muted-foreground pl-3">
+                    {SUBGROUP_LABELS[sg] ?? sg}
+                  </span>
+                  <div />
+                  <span className="text-right text-[12px] font-semibold tabular-nums text-muted-foreground">
+                    {euro(sgTotal)}
+                  </span>
+                  <span />
+                </div>
+                {/* Subgroup categories */}
+                {sgCats.map((cat) => (
+                  <CostCategoryRow key={cat.categoryCode} cat={cat} globalTotal={globalTotal} indent />
+                ))}
+              </div>
+            )
+          })}
+          {/* Ungrouped categories (shouldn't exist in COSTES_OPERATIVOS but safe fallback) */}
+          {ungrouped.map((cat) => (
+            <CostCategoryRow key={cat.categoryCode} cat={cat} globalTotal={globalTotal} />
+          ))}
+        </>
+      ) : (
+        /* Flat list — no subgroups (GENERALES) */
+        categories.map((cat) => (
+          <CostCategoryRow key={cat.categoryCode} cat={cat} globalTotal={globalTotal} />
+        ))
+      )}
     </>
   )
 }
@@ -364,7 +433,7 @@ function CostGroupSection({
 
 function CostsSection({ pnl }: { pnl: ProfitAndLoss }) {
   // Ensure consistent group order
-  const GROUP_ORDER: ExpenseGroup[] = ['COSTES_DIRECTOS', 'COMISIONES', 'PERSONAL', 'GENERALES']
+  const GROUP_ORDER: ExpenseGroup[] = ['COSTES_OPERATIVOS', 'GENERALES']
   const groupMap = new Map(pnl.costGroups.map((g) => [g.group, g]))
 
   const groups = GROUP_ORDER.map((g) => groupMap.get(g)).filter(
@@ -398,6 +467,7 @@ function CostsSection({ pnl }: { pnl: ProfitAndLoss }) {
             group={g.group}
             total={g.total}
             categories={g.categories}
+            subgroupTotals={g.subgroupTotals}
             globalTotal={pnl.costsTotal}
           />
         ))

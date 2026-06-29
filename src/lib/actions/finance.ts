@@ -863,6 +863,7 @@ function rowToExpenseCategory(row: {
   code: string
   name: string
   group_type: string
+  subgroup?: string | null  // optional until migration 20260629 is applied and types regenerated
   default_rate: number | null
   rate_basis: string | null
   sort_order: number
@@ -873,6 +874,7 @@ function rowToExpenseCategory(row: {
     code: row.code,
     name: row.name,
     groupType: row.group_type as ExpenseGroup,
+    subgroup: row.subgroup ?? null,
     defaultRate: row.default_rate,
     rateBasis: row.rate_basis as RateBasis | null,
     sortOrder: row.sort_order,
@@ -1107,6 +1109,7 @@ const PNL_DAY_SELECT = `
   date,
   flights (
     id,
+    is_back_to_back,
     participants (
       id,
       operational_status,
@@ -1210,14 +1213,13 @@ export async function getOperationalDayId(date: string): Promise<string | null> 
 /** Day P&L for a single operational day (Europe/Madrid, ISO 8601) */
 export async function getDayPnl(date: string): Promise<ProfitAndLoss> {
   const supabase = await createClient()
-  const [days, expenses, categories, saleChannels] = await Promise.all([
+  const [days, expenses, categories] = await Promise.all([
     fetchPnlDays(supabase, date, date),
     fetchPnlExpenses(supabase, date, date),
     fetchCategories(supabase),
-    fetchSaleChannels(supabase),
   ])
 
-  return buildPnl({ periodLabel: date, days, expenses, categories, saleChannels })
+  return buildPnl({ periodLabel: date, days, expenses, categories })
 }
 
 /** ISO week P&L (Monday–Sunday). isoWeek is 1-based (1–53). */
@@ -1241,14 +1243,13 @@ export async function getWeekPnl(
   const periodLabel = `${year}-W${String(isoWeek).padStart(2, '0')}`
 
   const supabase = await createClient()
-  const [days, expenses, categories, saleChannels] = await Promise.all([
+  const [days, expenses, categories] = await Promise.all([
     fetchPnlDays(supabase, from, to),
     fetchPnlExpenses(supabase, from, to),
     fetchCategories(supabase),
-    fetchSaleChannels(supabase),
   ])
 
-  return buildPnl({ periodLabel, days, expenses, categories, saleChannels })
+  return buildPnl({ periodLabel, days, expenses, categories })
 }
 
 /** Month P&L. month is 'YYYY-MM'. */
@@ -1260,14 +1261,13 @@ export async function getMonthPnl(month: string): Promise<ProfitAndLoss> {
   const to = `${month}-${String(lastDay).padStart(2, '0')}`
 
   const supabase = await createClient()
-  const [days, expenses, categories, saleChannels] = await Promise.all([
+  const [days, expenses, categories] = await Promise.all([
     fetchPnlDays(supabase, from, to),
     fetchPnlExpenses(supabase, from, to),
     fetchCategories(supabase),
-    fetchSaleChannels(supabase),
   ])
 
-  return buildPnl({ periodLabel: month, days, expenses, categories, saleChannels })
+  return buildPnl({ periodLabel: month, days, expenses, categories })
 }
 
 /**
@@ -1284,14 +1284,13 @@ export async function getYearPnl(
   const periodLabel = isYtd ? `${year} YTD (through ${to})` : String(year)
 
   const supabase = await createClient()
-  const [days, expenses, categories, saleChannels] = await Promise.all([
+  const [days, expenses, categories] = await Promise.all([
     fetchPnlDays(supabase, from, to),
     fetchPnlExpenses(supabase, from, to),
     fetchCategories(supabase),
-    fetchSaleChannels(supabase),
   ])
 
-  return buildPnl({ periodLabel, days, expenses, categories, saleChannels })
+  return buildPnl({ periodLabel, days, expenses, categories })
 }
 
 // ═══════════════════════════════════════════════════════════════

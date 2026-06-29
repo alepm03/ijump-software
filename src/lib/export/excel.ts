@@ -23,9 +23,7 @@ export const CATEGORY_LABELS: Record<ProductCategory | 'SIN_DESGLOSE', string> =
 }
 
 export const GROUP_LABELS: Record<ExpenseGroup, string> = {
-  COSTES_DIRECTOS: 'Costes Directos',
-  COMISIONES: 'Comisiones',
-  PERSONAL: 'Personal',
+  COSTES_OPERATIVOS: 'Costes Operativos',
   GENERALES: 'Generales',
 }
 

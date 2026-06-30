@@ -310,6 +310,19 @@ docs/
 - Regenerar `database.types.ts` después de aplicar: `supabase gen types typescript --local > src/lib/supabase/database.types.ts`.
 - Timestamp del archivo: posterior a la última migración existente.
 
+> **⚠️ Las migraciones NO se aplican automáticamente al mergear.**
+> Vercel redespliega el código Next.js automáticamente, pero Supabase es un sistema independiente: no sabe nada del merge. Si el código desplegado usa una columna, tabla o valor de enum que aún no existe en la BD, la app da 500 en producción.
+>
+> **Checklist obligatorio para Alejandro tras cada merge que incluya migraciones:**
+> 1. Identificar los archivos nuevos en `supabase/migrations/` (los de mayor timestamp que no hayas aplicado aún).
+> 2. Abrirlos en orden ascendente de timestamp.
+> 3. Copiar el SQL y pegarlo en el **SQL Editor de Supabase** del proyecto (`ojngrplnuhcenulfnfps`) → Run.
+> 4. Comprobar que la app en producción responde sin errores (`https://ijump-software.vercel.app`).
+> 5. Si el PR lo indica: regenerar `database.types.ts` con el CLI.
+>
+> **Mejora pendiente:** configurar una GitHub Action que ejecute `supabase db push` automáticamente tras cada merge a `main` (requiere añadir `SUPABASE_ACCESS_TOKEN` + project ref como secrets del repo).
+> Esta tarea está en el backlog de Ricardo.
+
 ---
 
 ## Supabase — configuración

@@ -349,20 +349,30 @@ function CostGroupSection({
   globalTotal: number
 }) {
   const groupProportion = globalTotal > 0 ? (total / globalTotal) * 100 : 0
-  const hasSubgroups = Object.keys(subgroupTotals).length > 0
 
-  // Sort subgroups by known order, then alphabetically
-  const subgroups = Object.keys(subgroupTotals).sort((a, b) => {
-    const ia = SUBGROUP_ORDER.indexOf(a)
-    const ib = SUBGROUP_ORDER.indexOf(b)
-    if (ia !== -1 && ib !== -1) return ia - ib
-    if (ia !== -1) return -1
-    if (ib !== -1) return 1
-    return a.localeCompare(b)
-  })
+  // Hide zero-amount lines, consistent with the revenue section (which only
+  // shows non-zero categories). Categories pending a rate (Swoopware, plane
+  // loan, insurance) or operationally zero this period (e.g. Equipos with no
+  // back-to-back) drop out of the breakdown; they remain editable in Ajustes.
+  const nonZero = categories.filter((c) => c.amount !== 0)
 
-  // Separate categories that don't belong to any subgroup
-  const ungrouped = categories.filter((c) => !c.subgroup)
+  // Only keep subgroups that still have a non-zero total
+  const hasSubgroups = Object.entries(subgroupTotals).some(([, t]) => t !== 0)
+
+  // Sort subgroups by known order, then alphabetically (skip zero subtotals)
+  const subgroups = Object.keys(subgroupTotals)
+    .filter((sg) => (subgroupTotals[sg] ?? 0) !== 0)
+    .sort((a, b) => {
+      const ia = SUBGROUP_ORDER.indexOf(a)
+      const ib = SUBGROUP_ORDER.indexOf(b)
+      if (ia !== -1 && ib !== -1) return ia - ib
+      if (ia !== -1) return -1
+      if (ib !== -1) return 1
+      return a.localeCompare(b)
+    })
+
+  // Separate categories that don't belong to any subgroup (non-zero only)
+  const ungrouped = nonZero.filter((c) => !c.subgroup)
 
   return (
     <>
@@ -392,7 +402,7 @@ function CostGroupSection({
         <>
           {subgroups.map((sg) => {
             const sgTotal = subgroupTotals[sg] ?? 0
-            const sgCats = categories.filter((c) => c.subgroup === sg)
+            const sgCats = nonZero.filter((c) => c.subgroup === sg)
             return (
               <div key={sg}>
                 {/* Subgroup header */}
@@ -421,7 +431,7 @@ function CostGroupSection({
         </>
       ) : (
         /* Flat list — no subgroups (GENERALES) */
-        categories.map((cat) => (
+        nonZero.map((cat) => (
           <CostCategoryRow key={cat.categoryCode} cat={cat} globalTotal={globalTotal} />
         ))
       )}

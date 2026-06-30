@@ -25,8 +25,9 @@ export default async function AdminPage() {
         <div className="pt-2">
           <h2 className="text-base font-semibold text-foreground">Canales de venta y comisiones</h2>
           <p className="text-sm text-muted-foreground mt-0.5 mb-3">
-            Comisión de cada plataforma de venta. Se aplica sobre el importe de venta de cada
-            participante según su canal de reserva. Las ventas directas no llevan comisión.
+            Registro de la comisión de cada plataforma de venta. Los ingresos de plataforma
+            (Groupon, Smartbox, etc.) llegan ya netos: la plataforma descuenta su comisión antes
+            de pagar, por lo que este porcentaje es solo informativo y no se resta del P&L.
           </p>
           <SaleChannelsForm channels={saleChannels} />
         </div>

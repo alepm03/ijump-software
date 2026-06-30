@@ -52,6 +52,8 @@ export interface Flight {
   actualDepartureTime: string | null
   status: FlightStatus
   orderIndex: number
+  /** Back-to-back flight: rented equipment needed → EQUIPOS cost applies (25 €/jump). */
+  isBackToBack: boolean
   createdAt: string
 }
 
@@ -219,7 +221,7 @@ export type ProductCategory =
 
 export type ExpenseGroup = 'COSTES_OPERATIVOS' | 'GENERALES'
 
-export type RateBasis = 'PER_FLIGHT' | 'PER_JUMP' | 'FIXED_PER_DAY'
+export type RateBasis = 'PER_FLIGHT' | 'PER_JUMP' | 'FIXED_PER_DAY' | 'FIXED_PER_MONTH'
 
 export type ChannelKind = 'DIRECT' | 'PLATFORM'
 

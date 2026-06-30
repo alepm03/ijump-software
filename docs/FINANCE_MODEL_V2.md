@@ -53,6 +53,7 @@ coste(día, cat) =
   ELIF cat.rate_basis = PER_FLIGHT:      cat.default_rate * nº_vuelos
   ELIF cat.rate_basis = PER_JUMP:        cat.default_rate * nº_saltos_completados
   ELIF cat.rate_basis = FIXED_PER_DAY:   cat.default_rate
+  ELIF cat.rate_basis = FIXED_PER_MONTH: 0  (se aplica una vez por mes, fuera del bucle de jornadas — ver §12)
   ELSE 0
 INSTRUCTORES (especial): Σ por instructor (instructors.fee_per_jump * saltos_de_ese_instructor)
                          + ajustes manuales (expenses en categoría INSTRUCTORES), aditivos.
@@ -163,3 +164,66 @@ directos). Entra como línea sintética `COMISION_CANAL` en el grupo `COMISIONES
 > proyecto (org del hermano), así que `database.types.ts` se editó a mano. **Tras aplicar la
 > migración en una rama Supabase, regenerar los tipos con el CLI** y revisar `/admin` y
 > `/finanzas` a ~820px.
+
+## 12. Costes fijos mensuales (v2.2) — `FIXED_PER_MONTH`
+
+Migración `20260630000000_finance_fixed_monthly.sql`. Corrige un bug de modelado: el motor
+acumula coste por jornada y lo suma; con `FIXED_PER_DAY` un coste mensual (renta del aeródromo,
+cuota del préstamo, seguros, software) se cobraba **una vez por jornada operativa**, así que un
+mes con 5 jornadas facturaba la renta de 1.040 € como 5 × 1.040 = 5.200 €.
+
+### 12.1 Qué cambia
+- `rate_basis` deja de ser un ENUM de Postgres y pasa a **TEXT + CHECK** (igual que se hizo con
+  `group_type` en v2.1), porque `ALTER TYPE ADD VALUE` no es reversible. Valores permitidos:
+  `PER_FLIGHT`, `PER_JUMP`, `FIXED_PER_DAY`, `FIXED_PER_MONTH`.
+- Se reclasifican a `FIXED_PER_MONTH`: `TASAS_AERODROMO`, `SWOOPWARE`, `CUOTA_PRESTAMO_AVION`,
+  `SEGURO_AVION`.
+
+### 12.2 Cómo lo aplica el motor
+`buildPnl` recibe `monthsInPeriod` y carga los `FIXED_PER_MONTH` **una sola vez tras el bucle de
+jornadas**, multiplicando `default_rate × monthsInPeriod`:
+
+| Vista | `monthsInPeriod` | Motivo |
+|---|---|---|
+| Día | 0 | El overhead mensual no se atribuye a una jornada suelta (prorratear sería arbitrario). |
+| Semana | 0 | Igual: una semana es un tramo submensual. |
+| Mes | 1 | Se cobra una vez. |
+| Año / YTD | nº de meses calendario del rango | p. ej. año completo = 12, YTD a junio = 6. |
+
+Consecuencia esperada: **el total mensual NO es la suma de los totales diarios** (el mes carga el
+overhead fijo que ninguna jornada individual carga). Una fila de gasto manual
+(`operational_day_id IS NULL`) para la misma categoría **anula** la tarifa automática (gana el
+dato real, sin doble conteo).
+
+Limitación documentada: la tarifa automática × meses asume que el coste estuvo activo todos los
+meses del rango. Para costes que empiezan/terminan a mitad de periodo (p. ej. el préstamo del
+avión desde jun-2026), registrar **filas de gasto mensuales reales** (anulan la tarifa automática).
+
+### 12.3 UI
+- `/admin`: las categorías `FIXED_PER_MONTH` muestran "Tarifa por mes".
+- `/finanzas`: el desglose de gastos oculta las líneas a 0 € (consistente con la sección de
+  ingresos), así las categorías aún pendientes de importe no generan ruido. Siguen editables en
+  `/admin`.
+- Manifiesto: nuevo toggle "Marcar back-to-back" en el menú ⋮ de cada vuelo (`flights.is_back_to_back`),
+  con badge visual. Activa el coste condicional de `EQUIPOS` (25 €/salto en vuelos back-to-back).
+
+### 12.4 Decisiones cerradas (Raúl, jun-2026)
+- **`VUELOS` archivado** (`active = false`). El "coste por vuelo" era el alquiler del avión, que ya
+  no existe: el avión es propio (préstamo). El combustible es `COMBUSTIBLE` (PER_FLIGHT) y el coste
+  del avión es la cuota del préstamo. `VUELOS` no tiene significado y solo arriesgaba doble conteo.
+- **El coste del avión es el préstamo** (150.000 € / 7 años, desde jun-2026), cuota mensual que ya
+  **incluye intereses**. Se modela como `CUOTA_PRESTAMO_AVION` (FIXED_PER_MONTH): aparece mensual en
+  la vista de mes y **×12 en la vista anual** (donde Raúl quiere verlo). No se construye tabla de
+  amortización (principal/interés) a propósito: la cuota real ya es el coste de caja.
+- **Costes por salto solo sobre saltos realizados** (no planificados): confirmado. El motor ya cuenta
+  únicamente saltos completados (instructores, plegados, edición, cámara, equipos). Una jornada con
+  saltos en estado "Pendiente" muestra 0 hasta marcarlos "Completado" — comportamiento correcto.
+
+### 12.5 Pendientes contables (🔵 Raúl)
+- Cuota real mensual del préstamo del avión (importe exacto del banco). Hoy `CUOTA_PRESTAMO_AVION` = 0.
+- Amortización de los 2 paracaídas comprados (ligados a la compra del avión).
+- Seguro del avión: ¿separado del bundle del aeródromo? Hoy `SEGURO_AVION` = 0.
+- Swoopware: importe exacto en EUR (~30 USD/mes). Hoy = 0.
+- El +200 €/mes de aplazamiento (may–dic 2026): financiación temporal, no coste recurrente; si se
+  modela, línea aparte acotada en el tiempo, nunca mezclada en el bundle de 1.040 €.
+- IVA: club deportivo exento por ahora; revisar al cambiar de régimen.

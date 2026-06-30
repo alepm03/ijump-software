@@ -770,7 +770,7 @@ export type Database = {
         | "OVERWEIGHT"
         | "GROUND_REPORT"
         | "OTHER"
-      rate_basis: "PER_FLIGHT" | "PER_JUMP" | "FIXED_PER_DAY"
+      rate_basis: "PER_FLIGHT" | "PER_JUMP" | "FIXED_PER_DAY" | "FIXED_PER_MONTH"
       reservation_source: "DIRECT" | "GROUPON" | "BONO" | "PROMO" | "SMARTBOX"
       weather_status: "OK" | "MARGINAL" | "CANCELLED"
     }
@@ -945,7 +945,7 @@ export const Constants = {
         "GROUND_REPORT",
         "OTHER",
       ],
-      rate_basis: ["PER_FLIGHT", "PER_JUMP", "FIXED_PER_DAY"],
+      rate_basis: ["PER_FLIGHT", "PER_JUMP", "FIXED_PER_DAY", "FIXED_PER_MONTH"],
       reservation_source: ["DIRECT", "GROUPON", "BONO", "PROMO", "SMARTBOX"],
       weather_status: ["OK", "MARGINAL", "CANCELLED"],
     },

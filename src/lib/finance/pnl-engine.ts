@@ -161,6 +161,11 @@ export function categoryDayCost(params: {
       return (category.defaultRate ?? 0) * completedJumpCount
     case 'FIXED_PER_DAY':
       return category.defaultRate ?? 0
+    case 'FIXED_PER_MONTH':
+      // Monthly fixed costs (rent, loan, insurance, software) are NOT a per-day
+      // cost. They are added once per calendar month after the day loop in
+      // buildPnl (× monthsInPeriod), so they contribute 0 here.
+      return 0
     default:
       return 0
   }
@@ -219,14 +224,26 @@ export function computeChannelCommission(
 /**
  * Build P&L from a list of operational days plus their expenses and all expense categories.
  * periodLabel is provided by the caller (day / week / month / year string).
+ *
+ * `monthsInPeriod` controls how many times a FIXED_PER_MONTH auto-rate is
+ * charged (rent, loan, insurance, software):
+ *   - day / week view  → 0  (monthly overhead is not attributed to sub-monthly
+ *                            slices; prorating would be arbitrary/misleading)
+ *   - month view       → 1
+ *   - year / YTD view  → number of distinct calendar months in the range
+ * As a result, a month total is intentionally NOT the sum of its day totals:
+ * the month carries fixed overhead that no individual day carries.
+ * A manual fixed expense row (operational_day_id IS NULL) for the same category
+ * overrides the auto-rate ("real data wins"), so there is no double counting.
  */
 export function buildPnl(params: {
   periodLabel: string
   days: DayPnlRow[]
   expenses: Expense[]
   categories: ExpenseCategory[]
+  monthsInPeriod: number
 }): ProfitAndLoss {
-  const { periodLabel, days, expenses, categories } = params
+  const { periodLabel, days, expenses, categories, monthsInPeriod } = params
 
   // Index expenses by (operationalDayId, categoryId) for O(1) lookup
   type ExpenseKey = `${string}:${string}` // `${dayId}:${categoryId}`
@@ -293,9 +310,20 @@ export function buildPnl(params: {
     }
   }
 
-  // Add fixed monthly costs to category accumulators
+  // Add manual fixed monthly costs (expense rows with operational_day_id NULL)
   for (const [catId, amount] of fixedByCat) {
     catCostAccum.set(catId, (catCostAccum.get(catId) ?? 0) + amount)
+  }
+
+  // Add FIXED_PER_MONTH auto-rate costs once per calendar month in the period.
+  // A manual fixed expense row for the same category (already in fixedByCat)
+  // overrides the auto-rate — "real data wins", no double counting.
+  for (const cat of categories) {
+    if (cat.rateBasis !== 'FIXED_PER_MONTH') continue
+    if (fixedByCat.has(cat.id)) continue
+    const monthlyCost = (cat.defaultRate ?? 0) * monthsInPeriod
+    if (monthlyCost === 0) continue
+    catCostAccum.set(cat.id, (catCostAccum.get(cat.id) ?? 0) + monthlyCost)
   }
 
   // Build P&L cost groups

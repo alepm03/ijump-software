@@ -71,6 +71,7 @@ export async function getOperationalDay(
     actualDepartureTime: f.actual_departure_time,
     status: f.status,
     orderIndex: f.order_index,
+    isBackToBack: f.is_back_to_back,
     createdAt: f.created_at,
     participants: (f.participants ?? []).map((p): ParticipantWithDetails => ({
       id: p.id,

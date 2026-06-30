@@ -23,7 +23,7 @@
  *     EQUIPOS       25€/B2B completed jump (special: only on B2B flights)
  *     EDICION       10€/jump  PER_JUMP
  *     VUELOS        null/null  → 0
- *     TASAS_AERODROMO 100€/day FIXED_PER_DAY (test value, prod=1040)
+ *     TASAS_AERODROMO 100€/month FIXED_PER_MONTH (test value, prod=1040), monthsInPeriod=1
  *
  * Expected revenue:
  *   P1: 390  P2: 275  P3: 215  (items)
@@ -46,7 +46,7 @@
  *     PERSONAL subgroup:  120 + 60 + 45 + 35 = 260
  *     MATERIAL subgroup:  300 + 25 + 40 + 0  = 365
  *     total = 625
- *   GENERALES: 100
+ *   GENERALES: 100 (TASAS_AERODROMO FIXED_PER_MONTH × monthsInPeriod 1)
  *   costsTotal = 725
  *   ebitda = 1140 - 725 = 415
  *   ebitdaMarginPct ≈ 36.40%
@@ -191,17 +191,22 @@ const categories: ExpenseCategory[] = [
   { id: CAT_EQUIPOS_ID,      code: 'EQUIPOS',       name: 'Equipos',                groupType: 'COSTES_OPERATIVOS', subgroup: 'MATERIAL', defaultRate: 25,   rateBasis: 'PER_JUMP',     sortOrder: 6,  active: true },
   { id: CAT_EDICION_ID,      code: 'EDICION',       name: 'Edición',                groupType: 'COSTES_OPERATIVOS', subgroup: 'MATERIAL', defaultRate: 10,   rateBasis: 'PER_JUMP',     sortOrder: 7,  active: true },
   { id: CAT_VUELOS_ID,       code: 'VUELOS',        name: 'Vuelos (avión)',          groupType: 'COSTES_OPERATIVOS', subgroup: 'MATERIAL', defaultRate: null, rateBasis: null,           sortOrder: 8,  active: true },
-  // GENERALES
-  { id: CAT_TASAS_ID,        code: 'TASAS_AERODROMO', name: 'Tasas aeródromo',      groupType: 'GENERALES',         subgroup: null,       defaultRate: 100,  rateBasis: 'FIXED_PER_DAY', sortOrder: 9, active: true },
+  // GENERALES — monthly fixed cost (rent bundle). FIXED_PER_MONTH: charged once
+  // per calendar month (× monthsInPeriod), NOT per operational day.
+  { id: CAT_TASAS_ID,        code: 'TASAS_AERODROMO', name: 'Tasas aeródromo',      groupType: 'GENERALES',         subgroup: null,       defaultRate: 100,  rateBasis: 'FIXED_PER_MONTH', sortOrder: 9, active: true },
 ]
 
 // ─── Run the engine ──────────────────────────────────────────
 
+// Base scenario as a single-month view (monthsInPeriod = 1): TASAS_AERODROMO
+// FIXED_PER_MONTH at rate 100 → GENERALES = 100, same as the old per-day model
+// charged once. Expected numbers below are unchanged.
 const pnl: ProfitAndLoss = buildPnl({
-  periodLabel: '2026-10-04',
+  periodLabel: '2026-10',
   days,
   expenses,
   categories,
+  monthsInPeriod: 1,
 })
 
 // ─── Assertions ──────────────────────────────────────────────
@@ -279,7 +284,7 @@ console.log('\n-- Group totals --')
 assert(operativos?.total === 625,
   `COSTES_OPERATIVOS total === 625 (got ${operativos?.total})`)
 assert(generales?.total === 100,
-  `GENERALES total === 100 (TASAS_AERODROMO FIXED_PER_DAY; got ${generales?.total})`)
+  `GENERALES total === 100 (TASAS_AERODROMO FIXED_PER_MONTH × 1; got ${generales?.total})`)
 
 console.log('\n-- Bottom line --')
 assert(pnl.costsTotal === 725,
@@ -324,7 +329,7 @@ const nullCatDay: DayPnlRow[] = [
     ],
   },
 ]
-const regPnl = buildPnl({ periodLabel: 'reg', days: nullCatDay, expenses: [], categories })
+const regPnl = buildPnl({ periodLabel: 'reg', days: nullCatDay, expenses: [], categories, monthsInPeriod: 1 })
 const regSum = Object.values(regPnl.revenueByCategory).reduce((s, v) => s + (v ?? 0), 0)
 assert(regPnl.revenueTotal === 215,
   `null-cat: revenueTotal === 215 (got ${regPnl.revenueTotal})`)
@@ -336,7 +341,7 @@ assert(regPnl.revenueByCategory.OTHER === 215,
 // ─── Invariant: group reclassification must not change costsTotal or ebitda ───
 console.log('\n-- Invariant: group reclassification preserves costsTotal & ebitda --')
 const reclassified = categories.map((c) => ({ ...c, groupType: 'COSTES_OPERATIVOS' as const }))
-const reclassifiedPnl = buildPnl({ periodLabel: '2026-10-04', days, expenses, categories: reclassified })
+const reclassifiedPnl = buildPnl({ periodLabel: '2026-10', days, expenses, categories: reclassified, monthsInPeriod: 1 })
 assert(reclassifiedPnl.costsTotal === pnl.costsTotal,
   `reclassified costsTotal (${reclassifiedPnl.costsTotal}) === base (${pnl.costsTotal})`)
 assert(reclassifiedPnl.ebitda === pnl.ebitda,
@@ -351,7 +356,7 @@ const overrideExpense: Expense[] = [
     amount: 50, vatRate: null, createdAt: '', updatedAt: '',
   },
 ]
-const overridePnl = buildPnl({ periodLabel: 'override', days, expenses: overrideExpense, categories })
+const overridePnl = buildPnl({ periodLabel: 'override', days, expenses: overrideExpense, categories, monthsInPeriod: 1 })
 const overrideCamara = overridePnl.costGroups
   .find(g => g.group === 'COSTES_OPERATIVOS')?.categories
   .find(c => c.categoryCode === 'CAMARA_EXTERNA')
@@ -360,6 +365,45 @@ assert(overrideCamara?.amount === 50,
 const overrideDiff = overridePnl.costsTotal - pnl.costsTotal
 assert(overrideDiff === 15,
   `override costsTotal diff === +15 (50 - 35; got ${overrideDiff})`)
+
+// ─── FIXED_PER_MONTH scaling (the 1040×5 bug fix) ─────────────────────────────
+// TASAS_AERODROMO is FIXED_PER_MONTH at 100. It must be charged once per
+// calendar month (× monthsInPeriod), NEVER once per operational day.
+console.log('\n-- FIXED_PER_MONTH scaling --')
+
+// Day view (monthsInPeriod 0): monthly overhead not attributed to a single day.
+// The engine always emits both groups; GENERALES carries 0 here (the UI hides
+// zero-total groups). This proves the 1040×5 bug is gone: TASAS adds nothing
+// per operational day.
+const dayView = buildPnl({ periodLabel: 'day', days, expenses, categories, monthsInPeriod: 0 })
+const dayGenerales = dayView.costGroups.find(g => g.group === 'GENERALES')
+assert(dayGenerales?.total === 0,
+  `day view: GENERALES total === 0 (TASAS not charged per day; got ${dayGenerales?.total})`)
+assert(dayView.costsTotal === 625,
+  `day view: costsTotal === 625 (operativos only, no monthly overhead; got ${dayView.costsTotal})`)
+
+// Month view (monthsInPeriod 1): charged once.
+assert(generales?.total === 100,
+  `month view: TASAS === 100 (×1; got ${generales?.total})`)
+
+// Year/multi-month view (monthsInPeriod 3): charged 3×, NOT × number of days.
+const yearView = buildPnl({ periodLabel: '2026', days, expenses, categories, monthsInPeriod: 3 })
+const yearGenerales = yearView.costGroups.find(g => g.group === 'GENERALES')
+assert(yearGenerales?.total === 300,
+  `multi-month view: TASAS === 300 (100 × 3 months, not × days; got ${yearGenerales?.total})`)
+
+// Manual monthly expense row overrides the FIXED_PER_MONTH auto-rate (no double count).
+const monthlyOverride: Expense[] = [
+  {
+    id: 'exp-rent', expenseCategoryId: CAT_TASAS_ID, operationalDayId: null,
+    incurredOn: '2026-10-01', description: 'Renta real octubre', supplier: null, sociedad: null,
+    amount: 1240, vatRate: null, createdAt: '', updatedAt: '',
+  },
+]
+const monthlyOverridePnl = buildPnl({ periodLabel: '2026-10', days, expenses: monthlyOverride, categories, monthsInPeriod: 1 })
+const moGenerales = monthlyOverridePnl.costGroups.find(g => g.group === 'GENERALES')
+assert(moGenerales?.total === 1240,
+  `monthly override: TASAS === 1240 (manual row wins, NOT 1240+100; got ${moGenerales?.total})`)
 
 console.log('\n-- Raw output --')
 console.log(JSON.stringify(pnl, null, 2))

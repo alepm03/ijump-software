@@ -28,9 +28,10 @@ function euro(amount: number): string {
 // ─── Rate basis labels ─────────────────────────────────────────────────────────
 
 const RATE_BASIS_LABELS: Record<RateBasis, string> = {
-  PER_FLIGHT:    'por vuelo',
-  PER_JUMP:      'por salto',
-  FIXED_PER_DAY: 'por día',
+  PER_FLIGHT:      'por vuelo',
+  PER_JUMP:        'por salto',
+  FIXED_PER_DAY:   'por día',
+  FIXED_PER_MONTH: 'por mes',
 }
 
 // ─── Single category field ─────────────────────────────────────────────────────

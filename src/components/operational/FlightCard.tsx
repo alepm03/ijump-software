@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useSortable } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Trash2 } from 'lucide-react'
+import { GripVertical, Repeat, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateFlight, deleteFlight as deleteFlightAction } from '@/lib/actions/flight'
 import { ParticipantRow } from './ParticipantRow'
@@ -207,6 +207,12 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: 
           {flight.participants.length} {flight.participants.length === 1 ? 'participante' : 'participantes'}
         </span>
 
+        {flight.isBackToBack && (
+          <span className="flex-shrink-0 bg-secondary text-muted-foreground text-2xs px-2 py-0.5 rounded-full font-medium">
+            Back-to-back
+          </span>
+        )}
+
         <div className="flex-1" />
 
         {/* + Añadir — Button outline */}
@@ -227,6 +233,19 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: 
             </svg>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={() =>
+                startTransition(async () => {
+                  const r = await updateFlight(flight.id, { isBackToBack: !flight.isBackToBack })
+                  if (r.error) toast.error(r.error)
+                  else router.refresh()
+                })
+              }
+              className="cursor-pointer text-xs"
+            >
+              <Repeat size={12} className="mr-2" />
+              {flight.isBackToBack ? 'Quitar back-to-back' : 'Marcar back-to-back'}
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={onDelete}

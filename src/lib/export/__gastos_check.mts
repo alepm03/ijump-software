@@ -21,24 +21,20 @@ const pnl: ProfitAndLoss = {
   revenueByCategory: { TANDEM_BASE: 1000 },
   costGroups: [
     {
-      group: 'COSTES_DIRECTOS',
-      total: 80,
+      group: 'COSTES_OPERATIVOS',
+      total: 230,
+      subgroupTotals: { MATERIAL: 80, PERSONAL: 150 },
       categories: [
-        { categoryCode: 'COMBUSTIBLE', name: 'Combustible', group: 'COSTES_DIRECTOS', amount: 80 },
-      ],
-    },
-    {
-      group: 'PERSONAL',
-      total: 150,
-      categories: [
-        { categoryCode: 'INSTRUCTORES', name: 'Instructores', group: 'PERSONAL', amount: 150 },
+        { categoryCode: 'COMBUSTIBLE', name: 'Combustible', group: 'COSTES_OPERATIVOS', subgroup: 'MATERIAL', amount: 80 },
+        { categoryCode: 'INSTRUCTORES', name: 'Instructores', group: 'COSTES_OPERATIVOS', subgroup: 'PERSONAL', amount: 150 },
       ],
     },
     {
       group: 'GENERALES',
       total: 30,
+      subgroupTotals: {},
       categories: [
-        { categoryCode: 'GENERALES', name: 'Generales', group: 'GENERALES', amount: 30 },
+        { categoryCode: 'GENERALES', name: 'Generales', group: 'GENERALES', subgroup: null, amount: 30 },
       ],
     },
   ],
@@ -51,7 +47,7 @@ const expenses: ExpenseWithCategory[] = [
   {
     id: 'e1', expenseCategoryId: 'c1', operationalDayId: 'd1', incurredOn: '2026-10-04',
     description: 'fuel', supplier: 'Repsol', sociedad: 'S1', amount: 80, vatRate: null,
-    createdAt: '', updatedAt: '', categoryName: 'Combustible', groupType: 'COSTES_DIRECTOS',
+    createdAt: '', updatedAt: '', categoryName: 'Combustible', groupType: 'COSTES_OPERATIVOS',
   },
   {
     id: 'e2', expenseCategoryId: 'c2', operationalDayId: 'd1', incurredOn: '2026-10-04',

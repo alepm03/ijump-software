@@ -173,7 +173,7 @@ export async function buildFinancePnlPdf(pnl: ProfitAndLoss): Promise<Uint8Array
   sectionHeading('GASTOS')
   y += 1
 
-  const groupOrder: ExpenseGroup[] = ['COSTES_DIRECTOS', 'COMISIONES', 'PERSONAL', 'GENERALES']
+  const groupOrder: ExpenseGroup[] = ['COSTES_OPERATIVOS', 'GENERALES']
 
   for (const groupKey of groupOrder) {
     const group = pnl.costGroups.find((g) => g.group === groupKey)

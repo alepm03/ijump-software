@@ -37,6 +37,7 @@ export async function updateFlight(
     status?: FlightStatus
     estimatedDepartureTime?: string | null
     actualDepartureTime?: string | null
+    isBackToBack?: boolean
   }
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
@@ -50,6 +51,7 @@ export async function updateFlight(
       ...(data.actualDepartureTime !== undefined && {
         actual_departure_time: data.actualDepartureTime,
       }),
+      ...(data.isBackToBack !== undefined && { is_back_to_back: data.isBackToBack }),
     })
     .eq('id', id)
   if (error) return { error: error.message }

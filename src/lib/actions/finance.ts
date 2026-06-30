@@ -863,6 +863,7 @@ function rowToExpenseCategory(row: {
   code: string
   name: string
   group_type: string
+  subgroup: string | null
   default_rate: number | null
   rate_basis: string | null
   sort_order: number
@@ -873,6 +874,7 @@ function rowToExpenseCategory(row: {
     code: row.code,
     name: row.name,
     groupType: row.group_type as ExpenseGroup,
+    subgroup: row.subgroup ?? null,
     defaultRate: row.default_rate,
     rateBasis: row.rate_basis as RateBasis | null,
     sortOrder: row.sort_order,
@@ -1107,6 +1109,7 @@ const PNL_DAY_SELECT = `
   date,
   flights (
     id,
+    is_back_to_back,
     participants (
       id,
       operational_status,
@@ -1207,17 +1210,27 @@ export async function getOperationalDayId(date: string): Promise<string | null> 
 // FINANCE V2 — P&L public server actions
 // ═══════════════════════════════════════════════════════════════
 
+/**
+ * Number of distinct calendar months spanned by an inclusive [from, to] range.
+ * Both args are 'YYYY-MM-DD'. Used to scale FIXED_PER_MONTH auto-rates.
+ */
+function countCalendarMonths(from: string, to: string): number {
+  const [fy, fm] = from.split('-').map((n) => parseInt(n, 10))
+  const [ty, tm] = to.split('-').map((n) => parseInt(n, 10))
+  return (ty * 12 + tm) - (fy * 12 + fm) + 1
+}
+
 /** Day P&L for a single operational day (Europe/Madrid, ISO 8601) */
 export async function getDayPnl(date: string): Promise<ProfitAndLoss> {
   const supabase = await createClient()
-  const [days, expenses, categories, saleChannels] = await Promise.all([
+  const [days, expenses, categories] = await Promise.all([
     fetchPnlDays(supabase, date, date),
     fetchPnlExpenses(supabase, date, date),
     fetchCategories(supabase),
-    fetchSaleChannels(supabase),
   ])
 
-  return buildPnl({ periodLabel: date, days, expenses, categories, saleChannels })
+  // Day view: monthly fixed overhead is not attributed to a single day.
+  return buildPnl({ periodLabel: date, days, expenses, categories, monthsInPeriod: 0 })
 }
 
 /** ISO week P&L (Monday–Sunday). isoWeek is 1-based (1–53). */
@@ -1241,14 +1254,14 @@ export async function getWeekPnl(
   const periodLabel = `${year}-W${String(isoWeek).padStart(2, '0')}`
 
   const supabase = await createClient()
-  const [days, expenses, categories, saleChannels] = await Promise.all([
+  const [days, expenses, categories] = await Promise.all([
     fetchPnlDays(supabase, from, to),
     fetchPnlExpenses(supabase, from, to),
     fetchCategories(supabase),
-    fetchSaleChannels(supabase),
   ])
 
-  return buildPnl({ periodLabel, days, expenses, categories, saleChannels })
+  // Week view: monthly fixed overhead is not attributed to a sub-monthly slice.
+  return buildPnl({ periodLabel, days, expenses, categories, monthsInPeriod: 0 })
 }
 
 /** Month P&L. month is 'YYYY-MM'. */
@@ -1260,14 +1273,14 @@ export async function getMonthPnl(month: string): Promise<ProfitAndLoss> {
   const to = `${month}-${String(lastDay).padStart(2, '0')}`
 
   const supabase = await createClient()
-  const [days, expenses, categories, saleChannels] = await Promise.all([
+  const [days, expenses, categories] = await Promise.all([
     fetchPnlDays(supabase, from, to),
     fetchPnlExpenses(supabase, from, to),
     fetchCategories(supabase),
-    fetchSaleChannels(supabase),
   ])
 
-  return buildPnl({ periodLabel: month, days, expenses, categories, saleChannels })
+  // Month view: monthly fixed costs charged once.
+  return buildPnl({ periodLabel: month, days, expenses, categories, monthsInPeriod: 1 })
 }
 
 /**
@@ -1284,14 +1297,23 @@ export async function getYearPnl(
   const periodLabel = isYtd ? `${year} YTD (through ${to})` : String(year)
 
   const supabase = await createClient()
-  const [days, expenses, categories, saleChannels] = await Promise.all([
+  const [days, expenses, categories] = await Promise.all([
     fetchPnlDays(supabase, from, to),
     fetchPnlExpenses(supabase, from, to),
     fetchCategories(supabase),
-    fetchSaleChannels(supabase),
   ])
 
-  return buildPnl({ periodLabel, days, expenses, categories, saleChannels })
+  // Year/YTD view: monthly fixed costs charged once per calendar month in range.
+  // NOTE: this assumes a FIXED_PER_MONTH cost was active every month in the
+  // range. For costs that start/stop mid-period (e.g. the plane loan from
+  // Jun 2026), record actual monthly expense rows — they override the auto-rate.
+  return buildPnl({
+    periodLabel,
+    days,
+    expenses,
+    categories,
+    monthsInPeriod: countCalendarMonths(from, to),
+  })
 }
 
 // ═══════════════════════════════════════════════════════════════

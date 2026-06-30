@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -145,6 +145,7 @@ export type Database = {
           name: string
           rate_basis: Database["public"]["Enums"]["rate_basis"] | null
           sort_order: number
+          subgroup: string | null
         }
         Insert: {
           active?: boolean
@@ -155,6 +156,7 @@ export type Database = {
           name: string
           rate_basis?: Database["public"]["Enums"]["rate_basis"] | null
           sort_order?: number
+          subgroup?: string | null
         }
         Update: {
           active?: boolean
@@ -165,6 +167,7 @@ export type Database = {
           name?: string
           rate_basis?: Database["public"]["Enums"]["rate_basis"] | null
           sort_order?: number
+          subgroup?: string | null
         }
         Relationships: []
       }
@@ -256,6 +259,7 @@ export type Database = {
           estimated_departure_time: string | null
           flight_number: number
           id: string
+          is_back_to_back: boolean
           operational_day_id: string
           order_index: number
           status: Database["public"]["Enums"]["flight_status"]
@@ -266,6 +270,7 @@ export type Database = {
           estimated_departure_time?: string | null
           flight_number: number
           id?: string
+          is_back_to_back?: boolean
           operational_day_id: string
           order_index: number
           status?: Database["public"]["Enums"]["flight_status"]
@@ -276,6 +281,7 @@ export type Database = {
           estimated_departure_time?: string | null
           flight_number?: number
           id?: string
+          is_back_to_back?: boolean
           operational_day_id?: string
           order_index?: number
           status?: Database["public"]["Enums"]["flight_status"]
@@ -708,18 +714,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      reservations_assign_seat: {
-        Args: { p_date: string; p_lead_id: string }
-        Returns: {
-          confirmed_time: string
-          flight_id: string
-        }[]
-      }
       bump_rate_limit: {
         Args: { p_api_key_id: string; p_limit_per_min: number }
         Returns: {
           allowed: boolean
           retry_after_seconds: number
+        }[]
+      }
+      reservations_assign_seat: {
+        Args: { p_date: string; p_lead_id: string }
+        Returns: {
+          confirmed_time: string
+          flight_id: string
         }[]
       }
     }
@@ -764,7 +770,7 @@ export type Database = {
         | "OVERWEIGHT"
         | "GROUND_REPORT"
         | "OTHER"
-      rate_basis: "PER_FLIGHT" | "PER_JUMP" | "FIXED_PER_DAY"
+      rate_basis: "PER_FLIGHT" | "PER_JUMP" | "FIXED_PER_DAY" | "FIXED_PER_MONTH"
       reservation_source: "DIRECT" | "GROUPON" | "BONO" | "PROMO" | "SMARTBOX"
       weather_status: "OK" | "MARGINAL" | "CANCELLED"
     }
@@ -939,7 +945,7 @@ export const Constants = {
         "GROUND_REPORT",
         "OTHER",
       ],
-      rate_basis: ["PER_FLIGHT", "PER_JUMP", "FIXED_PER_DAY"],
+      rate_basis: ["PER_FLIGHT", "PER_JUMP", "FIXED_PER_DAY", "FIXED_PER_MONTH"],
       reservation_source: ["DIRECT", "GROUPON", "BONO", "PROMO", "SMARTBOX"],
       weather_status: ["OK", "MARGINAL", "CANCELLED"],
     },

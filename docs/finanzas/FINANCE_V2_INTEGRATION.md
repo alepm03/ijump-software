@@ -36,7 +36,7 @@ Migración: `supabase/migrations/20260618000000_finance_v2.sql`.
 - `src/app/(dashboard)/finanzas/export/route.ts` — endpoint de descarga.
 - `src/components/operational/FinancePnlView.tsx`, `FinancePeriodSelector.tsx`, `ProductCatalogManager.tsx`, `ExpenseCategoryRatesForm.tsx`.
 - `src/app/(dashboard)/finanzas/catalogo/page.tsx`.
-- `docs/FINANCE_MODEL_V2.md` (diseño) y este doc.
+- `docs/finanzas/FINANCE_MODEL_V2.md` (diseño) y este doc.
 
 **Archivos modificados** (revisar con cuidado el diff):
 - `src/lib/actions/finance.ts` — se **añaden** funciones v2 (getDay/Week/Month/Year Pnl + CRUD). Las funciones v1 existentes se conservan; solo se movieron los helpers puros a `pnl-engine.ts`. Comportamiento v1 sin cambios.

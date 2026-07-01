@@ -7,7 +7,7 @@ PR a `main` en `alepm03/ijump-software` solo cuando Ricardo lo pida. Nada se mer
 - [x] Reconciliar spec vs finanzas v1 (ground truth verificado por subagente Explore)
 - [x] Migración `20260618000000_finance_v2.sql` (products, participant_items, expense_categories, expenses; aditiva + reversible)
 - [x] Migración aparte `20260618000001_extend_reservation_sources.sql` (enum, no reversible, aislada)
-- [x] Doc as-built `docs/FINANCE_MODEL_V2.md` con las 3 correcciones (forward-only itemization, bucket "sin desglosar", reversibilidad)
+- [x] Doc as-built `docs/finanzas/FINANCE_MODEL_V2.md` con las 3 correcciones (forward-only itemization, bucket "sin desglosar", reversibilidad)
 - [ ] **Validar en BD real** (branch Supabase del proyecto del hermano) — BLOQUEADO por conexión del MCP. Datos intactos + P&L cuadra vs mes real del Excel.
 - [ ] Regenerar `database.types.ts` tras aplicar la migración
 

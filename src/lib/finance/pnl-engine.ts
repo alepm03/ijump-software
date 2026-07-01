@@ -98,7 +98,7 @@ export function accumulateRevenue(
 
 /**
  * Cost for a single category over a single operational day.
- * Implements the cost model from docs/FINANCE_MODEL_V2.md.
+ * Implements the cost model from docs/finanzas/FINANCE_MODEL_V2.md.
  *
  * Special cases (intercept before the rateBasis switch):
  *   INSTRUCTORES    — additive: per-instructor formula + manual expense rows.

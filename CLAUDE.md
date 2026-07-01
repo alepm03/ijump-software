@@ -107,7 +107,7 @@ gh pr create --title "..." --body "..."
 | Cambio | Qué actualizar |
 |---|---|
 | Nueva tabla o columna | `supabase/migrations/`, regenerar `src/lib/supabase/database.types.ts`, actualizar `docs/[MODULO]_INTEGRATION.md` |
-| Nuevo módulo grande | Crear `docs/[MODULO]_INTEGRATION.md` como guía post-merge (ver `docs/FINANCE_V2_INTEGRATION.md` como plantilla) |
+| Nuevo módulo grande | Crear `docs/[MODULO]_INTEGRATION.md` como guía post-merge (ver `docs/finanzas/FINANCE_V2_INTEGRATION.md` como plantilla) |
 | Cambio en design system | `docs/DESIGN_SYSTEM.md` + reglas en este `CLAUDE.md` (§Sistema de diseño) |
 | Nuevo enum o tipo de dominio | `src/types/domain.ts` + `database.types.ts` |
 | Merge de PR a main | Borrar rama remota, actualizar §Estado actual en este `CLAUDE.md` |
@@ -151,9 +151,9 @@ gh pr create --title "..." --body "..."
 docs/reservas/CHECKLIST.md             # Estado real fase por fase (fuente de verdad de progreso)
 docs/reservas/RESERVATIONS_INTEGRATION.md  # Guía post-merge: arquitectura, decisiones, qué tocar para extenderlo
 docs/reservas/BOT_API_CONTRACT.md      # Contrato final de la API del bot — para Ricardo (R5)
-docs/reservas/RESERVAS_MASTER_PLAN_v2.md   # Estrategia y decisiones de arquitectura (referencia histórica)
-docs/reservas/RESERVAS_TECH_APPENDIX_v2.md # SQL/diseño original (referencia histórica — incluye Stripe, fuera de alcance real)
-docs/reservas/RESERVAS_MODULE_PLAN_v1.md   # Plan preliminar (referencia histórica, ver nota de corrección al inicio del archivo)
+docs/reservas/_archivado/RESERVAS_MASTER_PLAN_v2.md   # Estrategia y decisiones de arquitectura (referencia histórica)
+docs/reservas/_archivado/RESERVAS_TECH_APPENDIX_v2.md # SQL/diseño original (referencia histórica — incluye Stripe, fuera de alcance real)
+docs/reservas/_archivado/RESERVAS_MODULE_PLAN_v1.md   # Plan preliminar (referencia histórica, ver nota de corrección al inicio del archivo)
 ```
 
 ### Decisiones humanas que quedaron pendientes (🔵, no bloqueantes para lo ya implementado)
@@ -284,15 +284,27 @@ src/
     domain.ts               # tipos de dominio TypeScript
 
 docs/
+  README.md                 # índice y guía de navegación de docs/ — leer primero
+  ijump_operational_system_architecture_masterplan.md  # visión y arquitectura global
+  CHECKLIST.md              # checklist MVP general
   DESIGN_SYSTEM.md          # sistema de diseño completo
-  FINANCE_V2_INTEGRATION.md # guía post-merge finanzas v2 (plantilla para futuros módulos)
-  FINANCE_MODEL_V2.md       # modelo de datos finanzas v2
-  reservas/                 # documentos del sistema de reservas (próximo módulo)
-    MASTER_PLAN_v2.md
-    TECH_APPENDIX_v2.md
-    HANDOFF_PROMPT.md
-    RESERVAS_MODULE_PLAN_v1.md  # plan preliminar del hermano (referencia histórica)
+  PERFORMANCE.md            # plan de optimización de rendimiento
+  legal/                    # documentos legales (waiver, T&C)
+  finanzas/
+    FINANCE_MODEL_V2.md       # modelo de datos finanzas v2 (as-built, referencia vigente)
+    FINANCE_V2_INTEGRATION.md # guía post-merge finanzas v2 (plantilla para futuros módulos)
+    FINANZAS_TODO.md          # backlog finanzas
+    PREGUNTAS_NEGOCIO_FINANZAS.md  # preguntas de negocio (algunas abiertas)
+    finance_v2_validation.sql
+    _archivado/                # spec preliminar superada por el as-built
+  reservas/                 # documentos activos del sistema de reservas
+    CHECKLIST.md
+    RESERVATIONS_INTEGRATION.md
+    BOT_API_CONTRACT.md
+    _archivado/                # planes preliminares de reservas ya ejecutados
+  _archivado/                # referencia histórica sin módulo propio — no vigente, no borrar sin revisar
 ```
+> Cada carpeta temática (`finanzas/`, `reservas/`) guarda su propio histórico en su `_archivado/` interno, para que quien trabaje en ese módulo lo encuentre junto al resto sin tener que buscar en otro sitio. El `_archivado/` de la raíz de `docs/` es solo para lo que no pertenece a ningún módulo concreto.
 
 ### Reglas generales
 - TypeScript estricto en todo el proyecto (`strict: true`). Sin `any`.

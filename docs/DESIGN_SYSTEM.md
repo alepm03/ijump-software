@@ -3,7 +3,7 @@
 > Sistema de diseño normativo para el CRM/manifiesto operativo de iJump Skydive, concebido para escalar a otros centros de paracaidismo (white-label).
 > Versión: v1 · Fecha: 2026-06-17 · Owner: Dirección de Diseño (Edrai Solutions)
 
-Este documento es la **única fuente de verdad** de tokens, escalas y patrones de UI. Toda nueva pantalla debe ajustarse a él. Reemplaza y formaliza las reglas dispersas en `CLAUDE.md` y `docs/REDESIGN.md`, que quedan como contexto histórico.
+Este documento es la **única fuente de verdad** de tokens, escalas y patrones de UI. Toda nueva pantalla debe ajustarse a él. Reemplaza y formaliza las reglas dispersas en `CLAUDE.md` y `docs/_archivado/REDESIGN.md`, que quedan como contexto histórico.
 
 **Stack de referencia (no se cambia):** Next.js 16, React 19, Tailwind CSS v4 (config CSS-native vía `@theme inline` en `src/app/globals.css`, sin `tailwind.config.ts`), shadcn/ui preset `base-nova` sobre Base UI, lucide-react, next-themes (instalado, dark mode no cableado), sonner, dnd-kit. Fuente: Inter.
 

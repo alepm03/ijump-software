@@ -52,8 +52,9 @@
 13. Plegados: ¿precio por plegado o por salto? ¿El plegador es fijo o externo?
 14. Edición de vídeos: ¿coste por vídeo? ¿Se hace internamente o se externaliza?
 15. Tasas de aeródromo: ¿qué importe y con qué periodicidad (por día, por vuelo o mensual)?
-16. Instructores: tarifa por salto de cada instructor (Mihai, Raúl, Bravo, Isaac y cualquier otro).
-    - ¿La tarifa cambia según el tipo de salto o de paquete?
+16. ~~Instructores: tarifa por salto de cada instructor (Mihai, Raúl, Bravo, Isaac y cualquier otro).~~
+    - ~~¿La tarifa cambia según el tipo de salto o de paquete?~~
+    - **RESUELTO (2026-07-01, Ricardo):** No, la tarifa del instructor es fija, siempre la misma independientemente del tipo de salto o paquete. La única variación es que **el instructor que salta con la cámara externa cobra menos** que el instructor del salto tándem estándar — es una tarifa distinta por *rol en el vuelo* (tándem vs. cámara externa), no por tipo de paquete vendido. Pendiente: importe exacto de la tarifa de cámara externa por instructor (hoy solo `instructors.fee_per_jump` de Mihai = 40 €, sin distinguir rol).
 17. Gastos fijos mensuales: seguro (responsabilidad civil y accidentes), hangar, gestoría y cualquier otro. ¿Importes y periodicidad?
 
 ### Fiscalidad y cuentas anuales

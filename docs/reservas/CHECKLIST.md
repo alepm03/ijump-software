@@ -202,4 +202,4 @@ Rama: `feature/reservations-bot-api`
 
 - [ ] Actualizar tabla "Estado actual del software" en `CLAUDE.md`
 - [ ] Actualizar `docs/reservas/RESERVAS_MODULE_PLAN_v1.md` si algo cambió durante la implementación
-- [ ] Crear `docs/RESERVATIONS_INTEGRATION.md` (plantilla: `docs/FINANCE_V2_INTEGRATION.md`)
+- [ ] Crear `docs/reservas/RESERVATIONS_INTEGRATION.md` (plantilla: `docs/finanzas/FINANCE_V2_INTEGRATION.md`)

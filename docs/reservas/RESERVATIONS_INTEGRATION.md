@@ -1,6 +1,6 @@
 # Sistema de Reservas — Guía de integración (post-merge, R1–R10)
 
-> Plantilla: `docs/FINANCE_V2_INTEGRATION.md`. Este documento es la referencia para entender qué se construyó, cómo revertir cualquier pieza si hace falta, y qué tener en cuenta antes de extender el módulo (Stripe, multi-participante, etc.).
+> Plantilla: `docs/finanzas/FINANCE_V2_INTEGRATION.md`. Este documento es la referencia para entender qué se construyó, cómo revertir cualquier pieza si hace falta, y qué tener en cuenta antes de extender el módulo (Stripe, multi-participante, etc.).
 >
 > Para el contrato de la API que usa el chatbot, ver `docs/reservas/BOT_API_CONTRACT.md`. Para el detalle fase por fase con lo que se probó en cada una, ver `docs/reservas/CHECKLIST.md`.
 

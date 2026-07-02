@@ -128,7 +128,7 @@ gh pr create --title "..." --body "..."
 | Sistema de reservas (lead → confirmación/tentativa → manifiesto, sin pago online) | ✅ Producción (R1–R10) | #23, #25–#37 (ver `docs/reservas/CHECKLIST.md`) |
 | API del bot v1 (chatbot → software: disponibilidad, crear/consultar reserva) | ✅ Producción | #37 — contrato en `docs/reservas/BOT_API_CONTRACT.md` |
 | Chatbot rewire (R5 — lado Ricardo, consumir la API del bot) | ⏳ Pendiente (lado Ricardo) | — |
-| Tesorería Sprint 1 (itemización automática de `participant_items` + AR/Cobros + `/administracion`) | 🔄 En PR | `feature/treasury-itemization-ar` |
+| Tesorería Sprint 1 (itemización automática de `participant_items` + AR/Cobros + `/administracion`) | ✅ Producción | #42 |
 
 ### Lo que NO está en scope (aún)
 - CRM avanzado

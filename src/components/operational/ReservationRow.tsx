@@ -1,15 +1,18 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { cancelLead, type LeadFilter } from '@/lib/actions/leads'
+import { updateParticipant, type UpdateParticipantData } from '@/lib/actions/participant'
 import { AvailabilityBadge, LeadStatusBadge } from '@/components/operational/ReservationStatusBadge'
 import { ConfirmReservationModal } from '@/components/operational/ConfirmReservationModal'
 import { RescheduleReservationModal } from '@/components/operational/RescheduleReservationModal'
 import { CompleteLeadModal } from '@/components/operational/CompleteLeadModal'
+import { InlineField } from '@/components/operational/InlineField'
 import type { DateClass, LeadWithDetails } from '@/types/domain'
 
 function formatDate(date: string | null): string {
@@ -29,6 +32,7 @@ interface ReservationRowProps {
 }
 
 export function ReservationRow({ lead, tab, classification }: ReservationRowProps) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [rescheduleOpen, setRescheduleOpen] = useState(false)
@@ -52,11 +56,27 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
     })
   }
 
+  function saveField(data: UpdateParticipantData, successLabel?: string) {
+    startTransition(async () => {
+      const result = await updateParticipant(lead.id, data)
+      if (result.error) toast.error(result.error)
+      else {
+        if (successLabel) toast.success(successLabel)
+        router.refresh()
+      }
+    })
+  }
+
   return (
     <div className="flex items-center gap-3 px-4 py-3 bg-card border border-border rounded-lg">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-foreground truncate">{lead.fullName}</span>
+          <InlineField
+            value={lead.fullName}
+            placeholder="Nombre"
+            onSave={(v) => { if (v) saveField({ fullName: v }) }}
+            className="font-semibold text-sm"
+          />
           {hasGroup && (
             <span
               className="inline-flex items-center gap-1 text-2xs text-muted-foreground"
@@ -66,8 +86,20 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
             </span>
           )}
         </div>
-        <div className="text-xs text-muted-foreground truncate">
-          {lead.phone ?? lead.email ?? 'Sin contacto'}
+        <div className="flex items-center gap-1 text-xs text-muted-foreground truncate">
+          <InlineField
+            value={lead.phone ?? ''}
+            placeholder="Sin teléfono"
+            onSave={(v) => saveField({ phone: v || null })}
+            inputType="tel"
+          />
+          <span>·</span>
+          <InlineField
+            value={lead.email ?? ''}
+            placeholder="Sin email"
+            onSave={(v) => saveField({ email: v || null })}
+            inputType="email"
+          />
         </div>
       </div>
 
@@ -75,7 +107,16 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
         {formatDate(tab === 'pending' ? lead.preferredDate : lead.confirmedDate ?? lead.preferredDate)}
       </div>
       <div className="w-14 text-sm text-muted-foreground flex-shrink-0">
-        {formatTime(tab === 'pending' ? lead.preferredTime : lead.confirmedTime ?? lead.preferredTime)}
+        {tab === 'pending' ? (
+          <InlineField
+            value={lead.preferredTime?.slice(0, 5) ?? ''}
+            placeholder="–"
+            onSave={(v) => saveField({ preferredTime: v || null })}
+            inputType="time"
+          />
+        ) : (
+          formatTime(lead.confirmedTime ?? lead.preferredTime)
+        )}
       </div>
 
       <div className="w-32 flex-shrink-0">

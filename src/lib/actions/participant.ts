@@ -47,6 +47,7 @@ export type UpdateParticipantData = Partial<{
   checkInCompleted: boolean
   gearedUp: boolean
   operationalStatus: OperationalStatus
+  preferredTime: string | null
 }>
 
 export async function createParticipant(
@@ -147,6 +148,7 @@ export async function updateParticipant(
   if (data.checkInCompleted !== undefined) update.check_in_completed = data.checkInCompleted
   if (data.gearedUp !== undefined) update.geared_up = data.gearedUp
   if (data.operationalStatus !== undefined) update.operational_status = data.operationalStatus
+  if (data.preferredTime !== undefined) update.preferred_time = data.preferredTime || null
 
   const { error } = await supabase.from('participants').update(update).eq('id', id)
   if (error) return { error: error.message }

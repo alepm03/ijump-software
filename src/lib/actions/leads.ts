@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createParticipant, freeSeat } from '@/lib/actions/participant'
 import { getDayAvailability, type DbClient } from '@/lib/actions/availability'
 import { classifyDate } from '@/lib/availability/availability-engine'
+import { syncAutoParticipantItems, clearAutoParticipantItems } from '@/lib/actions/finance'
 import type {
   Channel,
   DateClass,
@@ -134,6 +135,24 @@ export async function confirmLead(
     return { error: error.message }
   }
 
+  // Treasury Sprint 1 — the lead now has a real flight_id: auto-generate its
+  // participant_items from packageType (one data entry — already captured
+  // at intake, see createLead/AddParticipantDrawer). Idempotent (see
+  // syncAutoParticipantItems header) so a retried confirm never duplicates
+  // items. Best-effort: a pricing/catalog error must not fail the
+  // confirmation itself — the seat is already assigned.
+  const { data: leadRow } = await supabase
+    .from('participants')
+    .select('package_type')
+    .eq('id', leadId)
+    .single()
+  if (leadRow) {
+    const itemsResult = await syncAutoParticipantItems(leadId, leadRow.package_type, supabase)
+    if (itemsResult.error) {
+      console.error('confirmLead: auto-itemization failed', itemsResult.error)
+    }
+  }
+
   revalidatePath('/', 'layout')
   return { classification: 'CONFIRMABLE', flightId: data.flight_id }
 }
@@ -166,6 +185,19 @@ export async function handleWeatherCancellation(dayId: string): Promise<{ error?
   const flightIds = (flights ?? []).map((f) => f.id)
   if (flightIds.length === 0) return {}
 
+  // Treasury Sprint 1 — capture the affected participant ids BEFORE the
+  // updates below clear flight_id, so their auto-generated items can be
+  // cleared afterwards. Every participant on these flights stops flying
+  // today regardless of whether they are a lead or a walk-in, so their
+  // itemized revenue must not linger — see pnl-engine.ts: revenueTotal
+  // sums ALL participants regardless of operational_status.
+  const { data: affectedParticipants, error: affectedError } = await supabase
+    .from('participants')
+    .select('id')
+    .in('flight_id', flightIds)
+  if (affectedError) return { error: affectedError.message }
+  const affectedIds = (affectedParticipants ?? []).map((p) => p.id)
+
   const { error } = await supabase
     .from('participants')
     .update({ operational_status: 'WEATHER_CANCELLED' })
@@ -178,6 +210,19 @@ export async function handleWeatherCancellation(dayId: string): Promise<{ error?
     .in('flight_id', flightIds)
     .not('lead_status', 'is', null)
   if (leadError) return { error: leadError.message }
+
+  // Single batched delete instead of one clearAutoParticipantItems call per
+  // participant — same effect (only auto_generated rows), one round-trip.
+  if (affectedIds.length > 0) {
+    const { error: clearError } = await supabase
+      .from('participant_items')
+      .delete()
+      .in('participant_id', affectedIds)
+      .eq('auto_generated', true)
+    if (clearError) {
+      console.error('handleWeatherCancellation: clearing auto-generated items failed', clearError.message)
+    }
+  }
 
   revalidatePath('/', 'layout')
   return {}
@@ -236,6 +281,15 @@ export async function cancelLead(leadId: string): Promise<{ error?: string }> {
     .update({ flight_id: null, lead_status: 'CANCELLED' })
     .eq('id', leadId)
   if (error) return { error: error.message }
+
+  // Treasury Sprint 1 — a confirmed lead that gets cancelled may already
+  // have auto-generated items (confirmLead itemizes as soon as a seat is
+  // assigned). Clear them so a cancelled lead never carries phantom
+  // revenue. No-op for leads that were never confirmed (nothing to delete).
+  const clearResult = await clearAutoParticipantItems(leadId, supabase)
+  if (clearResult.error) {
+    console.error('cancelLead: clearAutoParticipantItems failed', clearResult.error)
+  }
   revalidatePath('/', 'layout')
   return {}
 }

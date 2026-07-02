@@ -100,6 +100,47 @@ export type Database = {
         }
         Relationships: []
       }
+      channel_product_prices: {
+        Row: {
+          active: boolean
+          channel: Database["public"]["Enums"]["reservation_source"]
+          created_at: string
+          id: string
+          notes: string | null
+          product_id: string
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          channel: Database["public"]["Enums"]["reservation_source"]
+          created_at?: string
+          id?: string
+          notes?: string | null
+          product_id: string
+          unit_price: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          channel?: Database["public"]["Enums"]["reservation_source"]
+          created_at?: string
+          id?: string
+          notes?: string | null
+          product_id?: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_product_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       day_expenses: {
         Row: {
           amount: number
@@ -350,6 +391,7 @@ export type Database = {
       participant_items: {
         Row: {
           amount: number | null
+          auto_generated: boolean
           created_at: string
           id: string
           notes: string | null
@@ -361,6 +403,7 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          auto_generated?: boolean
           created_at?: string
           id?: string
           notes?: string | null
@@ -372,6 +415,7 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          auto_generated?: boolean
           created_at?: string
           id?: string
           notes?: string | null

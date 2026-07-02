@@ -7,6 +7,8 @@ import { GripVertical, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateParticipant, deleteParticipant } from '@/lib/actions/participant'
 import { createPayment, updatePayment, deletePayment } from '@/lib/actions/payment'
+import { addOverweightSupplement } from '@/lib/actions/finance'
+import { AR_BALANCE_EPSILON } from '@/lib/finance/itemization-engine'
 import {
   Select,
   SelectContent,
@@ -51,6 +53,7 @@ import type {
   PaymentMethod,
   PaymentStage,
   Payment,
+  ParticipantItem,
   Waiver,
   WaiverDocumentType,
 } from '@/types/domain'
@@ -228,6 +231,28 @@ function getPaymentStatus(payments: Payment[]) {
   }
 }
 
+// ─── AR balance helper (Sprint 1 treasury) ────────────────────────────────────
+// balance = Σ(items) − Σ(payments), derived — see getArSummary in finance.ts
+// for the equivalent server-side aggregate used by the Cobros view.
+
+function getBalance(items: ParticipantItem[], payments: Payment[]): number {
+  const itemsTotal = items.reduce((s, i) => s + i.amount, 0)
+  const paymentsTotal = payments.reduce((s, p) => s + p.amount, 0)
+  return itemsTotal - paymentsTotal
+}
+
+function BalanceBadge({ balance }: { balance: number }) {
+  if (balance <= AR_BALANCE_EPSILON) return null
+  return (
+    <span
+      className="flex-shrink-0 text-2xs font-semibold px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive whitespace-nowrap"
+      title="Saldo pendiente de cobro"
+    >
+      Debe {balance.toFixed(0)}€
+    </span>
+  )
+}
+
 // ─── Payment manager (inside Dialog) ─────────────────────────────────────────
 
 function PaymentManager({
@@ -394,39 +419,72 @@ function PaymentManager({
   )
 }
 
+// ─── OW quick-add button (Sprint 1 treasury — one click, no form) ────────────
+
+function AddOverweightButton({ participantId }: { participantId: string }) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+
+  function handleClick() {
+    startTransition(async () => {
+      const result = await addOverweightSupplement(participantId)
+      if (result.error) toast.error(result.error)
+      else router.refresh()
+    })
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={isPending}
+      title="Añadir suplemento de sobrepeso"
+      className="flex-shrink-0 text-2xs font-medium px-1.5 py-1 rounded-full border border-border bg-transparent text-muted-foreground hover:border-foreground/30 hover:text-foreground transition-colors cursor-pointer min-h-[28px] flex items-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:opacity-40"
+    >
+      + OW
+    </button>
+  )
+}
+
 // ─── Payment badge (row trigger) ─────────────────────────────────────────────
 
 function PaymentCell({
   participantId,
   participantName,
   payments,
+  items,
 }: {
   participantId: string
   participantName: string
   payments: Payment[]
+  items: ParticipantItem[]
 }) {
   const status = getPaymentStatus(payments)
+  const balance = getBalance(items, payments)
 
   return (
-    <Dialog>
-      {status ? (
-        <DialogTrigger
-          className={`flex-shrink-0 text-xs font-semibold px-2 py-1 rounded-full transition-opacity hover:opacity-70 cursor-pointer min-h-[32px] flex items-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${status.className}`}
-        >
-          {status.label} · {status.total.toFixed(0)}€
-        </DialogTrigger>
-      ) : (
-        <DialogTrigger className="flex-shrink-0 px-1.5 py-1 rounded-full border border-border bg-transparent text-muted-foreground text-xs hover:border-foreground/30 hover:text-foreground transition-colors cursor-pointer min-h-[32px] flex items-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1">
-          + Pago
-        </DialogTrigger>
-      )}
-      <DialogContent className="w-full max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-body">Pagos — {participantName}</DialogTitle>
-        </DialogHeader>
-        <PaymentManager participantId={participantId} payments={payments} />
-      </DialogContent>
-    </Dialog>
+    <div className="flex items-center gap-1.5 flex-wrap">
+      <Dialog>
+        {status ? (
+          <DialogTrigger
+            className={`flex-shrink-0 text-xs font-semibold px-2 py-1 rounded-full transition-opacity hover:opacity-70 cursor-pointer min-h-[32px] flex items-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${status.className}`}
+          >
+            {status.label} · {status.total.toFixed(0)}€
+          </DialogTrigger>
+        ) : (
+          <DialogTrigger className="flex-shrink-0 px-1.5 py-1 rounded-full border border-border bg-transparent text-muted-foreground text-xs hover:border-foreground/30 hover:text-foreground transition-colors cursor-pointer min-h-[32px] flex items-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1">
+            + Pago
+          </DialogTrigger>
+        )}
+        <DialogContent className="w-full max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-body">Pagos — {participantName}</DialogTitle>
+          </DialogHeader>
+          <PaymentManager participantId={participantId} payments={payments} />
+        </DialogContent>
+      </Dialog>
+      <BalanceBadge balance={balance} />
+      <AddOverweightButton participantId={participantId} />
+    </div>
   )
 }
 
@@ -998,6 +1056,7 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
               participantId={p.id}
               participantName={p.fullName}
               payments={p.payments}
+              items={p.items}
             />
             {/* Delete button — at the end of the last column */}
             <div className="flex-shrink-0 flex items-center ml-1">
@@ -1127,6 +1186,7 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
             participantId={p.id}
             participantName={p.fullName}
             payments={p.payments}
+            items={p.items}
           />
         </div>
 

@@ -124,10 +124,11 @@ gh pr create --title "..." --body "..."
 | Manifest operacional diario | ✅ Producción | — |
 | UI redesign v4 (design system OKLCH, sidebar, logo) | ✅ Producción | #19 |
 | Finanzas v2 (P&L, KPI dashboard, catálogo, export Excel/CSV/PDF) | ✅ Producción | #20 |
-| Finanzas v2.1 (reclasificación de gastos COSTES_DIRECTOS/COMISIONES + comisiones por canal ajustables) | 🔄 En PR | `feature/finance-expense-model` |
+| Finanzas v2.1 (reclasificación de gastos COSTES_DIRECTOS/COMISIONES + comisiones por canal ajustables) | ✅ Producción | #27 |
 | Sistema de reservas (lead → confirmación/tentativa → manifiesto, sin pago online) | ✅ Producción (R1–R10) | #23, #25–#37 (ver `docs/reservas/CHECKLIST.md`) |
 | API del bot v1 (chatbot → software: disponibilidad, crear/consultar reserva) | ✅ Producción | #37 — contrato en `docs/reservas/BOT_API_CONTRACT.md` |
 | Chatbot rewire (R5 — lado Ricardo, consumir la API del bot) | ⏳ Pendiente (lado Ricardo) | — |
+| Tesorería Sprint 1 (itemización automática de `participant_items` + AR/Cobros + `/administracion`) | 🔄 En PR | `feature/treasury-itemization-ar` |
 
 ### Lo que NO está en scope (aún)
 - CRM avanzado
@@ -368,6 +369,7 @@ npm run build
 npx tsc --noEmit                     # verificación de tipos
 node_modules/.bin/jiti src/lib/finance/__pnl_check.mts    # check regresión P&L
 node_modules/.bin/jiti src/lib/export/__gastos_check.mts  # check regresión gastos
+node_modules/.bin/jiti src/lib/finance/__itemization_check.mts  # check motor auto-itemización (Sprint 1 tesorería)
 
 # Supabase
 supabase start

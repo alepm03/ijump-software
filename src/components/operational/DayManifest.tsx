@@ -20,6 +20,7 @@ import { moveParticipant } from '@/lib/actions/participant'
 import { DayHeader } from './DayHeader'
 import { CashCloseButton } from './CashCloseButton'
 import { FlightCard } from './FlightCard'
+import { CancelFlightDialog } from './CancelFlightDialog'
 import { AddParticipantDrawer } from './AddParticipantDrawer'
 import { DayFinanceTab } from './DayFinanceTab'
 import { useRealtimeManifest } from '@/hooks/useRealtimeManifest'
@@ -29,19 +30,33 @@ import {
   TabsTrigger,
   TabsContent,
 } from '@/components/ui/tabs'
-import type { FlightWithParticipants, Instructor, OperationalDayWithDetails } from '@/types/domain'
+import type {
+  AvailabilityPolicy,
+  FlightWithParticipants,
+  Instructor,
+  OperationalDayWithDetails,
+} from '@/types/domain'
+
+/** operational_status values that mean "not actually occupying a seat" — same rule as pnl-engine's NON_COMPLETED_STATUSES. */
+const INACTIVE_STATUSES: ReadonlySet<string> = new Set([
+  'CANCELLED',
+  'NO_SHOW',
+  'WEATHER_CANCELLED',
+])
 
 interface DayManifestProps {
   day: OperationalDayWithDetails
   instructors: Instructor[]
+  policy: AvailabilityPolicy
 }
 
-export function DayManifest({ day, instructors }: DayManifestProps) {
+export function DayManifest({ day, instructors, policy }: DayManifestProps) {
   const router = useRouter()
   const dndId = useId()
   const [isPending, startTransition] = useTransition()
   const [flights, setFlights] = useState<FlightWithParticipants[]>(day.flights)
   const [addToFlightId, setAddToFlightId] = useState<string | null>(null)
+  const [cancelFlightId, setCancelFlightId] = useState<string | null>(null)
   const [dragType, setDragType] = useState<'flight' | 'participant' | null>(null)
 
   useEffect(() => {
@@ -105,6 +120,14 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
         .flatMap((f) => f.participants)
         .find((p) => p.id === participantId)
       if (!participant) return
+
+      const activeInTarget = targetFlight.participants.filter(
+        (p) => !INACTIVE_STATUSES.has(p.operationalStatus)
+      ).length
+      if (activeInTarget >= policy.maxClientsPerFlight) {
+        toast.error('El vuelo destino está completo')
+        return
+      }
 
       setFlights((prev) =>
         prev.map((f) => {
@@ -221,6 +244,7 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
                       instructors={instructors}
                       onAddParticipant={() => setAddToFlightId(flight.id)}
                       onDelete={() => handleDeleteFlight(flight.id)}
+                      onCancel={() => setCancelFlightId(flight.id)}
                     />
                   ))}
 
@@ -257,6 +281,13 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
           setAddToFlightId(null)
           router.refresh()
         }}
+      />
+
+      <CancelFlightDialog
+        flight={flights.find((f) => f.id === cancelFlightId) ?? null}
+        flights={flights}
+        policy={policy}
+        onClose={() => setCancelFlightId(null)}
       />
     </div>
   )

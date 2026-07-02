@@ -194,18 +194,49 @@ export async function updateParticipant(
   return {}
 }
 
+/**
+ * Moves one or more participants into `toFlightId`, validating destination
+ * capacity server-side via reservations_move_participants (see
+ * supabase/migrations/20260703000000_reservations_move_participants.sql).
+ * Confirmed leads get confirmed_time realigned to the destination flight's
+ * departure time, mirroring reservations_assign_seat.
+ */
+export async function moveParticipants(
+  toFlightId: string,
+  participantIds: string[]
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('reservations_move_participants', {
+    p_to_flight_id: toFlightId,
+    p_participant_ids: participantIds,
+  })
+  if (error) {
+    if (error.message.includes('NO_SEATS_AVAILABLE')) {
+      return { error: 'El vuelo destino está completo' }
+    }
+    if (error.message.includes('FLIGHT_CANCELLED')) {
+      return { error: 'El vuelo destino está cancelado' }
+    }
+    if (error.message.includes('FLIGHT_NOT_FOUND')) {
+      return { error: 'El vuelo destino no existe' }
+    }
+    return { error: error.message }
+  }
+  revalidatePath('/', 'layout')
+  return {}
+}
+
+/**
+ * Moves a single participant into `newFlightId`. Reimplemented on top of
+ * moveParticipants (RPC-backed): this now validates destination capacity
+ * server-side, fixing the drag&drop overbooking bug where a bare UPDATE
+ * flight_id had no capacity check at all. Signature unchanged.
+ */
 export async function moveParticipant(
   id: string,
   newFlightId: string
 ): Promise<{ error?: string }> {
-  const supabase = await createClient()
-  const { error } = await supabase
-    .from('participants')
-    .update({ flight_id: newFlightId })
-    .eq('id', id)
-  if (error) return { error: error.message }
-  revalidatePath('/', 'layout')
-  return {}
+  return moveParticipants(newFlightId, [id])
 }
 
 export async function updateOperationalStatus(

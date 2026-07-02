@@ -1,34 +1,47 @@
 # Plan integrado: Administración/Tesorería + Reservas-CRM (iJump)
 
-> ## ⚠️ ESTADO DE EJECUCIÓN (actualizado 2026-07-02)
+> ## ⚠️ ESTADO DE EJECUCIÓN (actualizado 2026-07-02, sesión Sprint 2)
 >
-> **Solo se ha ejecutado el Sprint 1.** Los Sprints 2 y 3 quedan pendientes y los hará Ricardo.
+> **Sprints 1 y 2 ejecutados. Sprint 3 pendiente (sesión nueva) con diseño ya verificado — ver handoff abajo.**
 >
-> - ✅ **Sprint 1 — HECHO**: rama `feature/treasury-itemization-ar` pusheada a origin, verificación en verde
->   (`__pnl_check`, `__gastos_check`, nuevo `__itemization_check`, `tsc`, `build`). **PR pendiente de crear**
->   (no hay `gh` local): https://github.com/alepm03/ijump-software/pull/new/feature/treasury-itemization-ar
->   Tras el merge: aplicar a mano `supabase/migrations/20260701000000_treasury_itemization_ar.sql` en Supabase
->   (`ojngrplnuhcenulfnfps`) y regenerar `database.types.ts`.
-> - ⏳ **Sprints 2 y 3 — PENDIENTES (Ricardo)**. Coordinación importante:
->   - Mientras el PR del Sprint 1 no esté mergeado, las ramas de los Sprints 2 y 3 deben partir de
->     `feature/treasury-itemization-ar` (PRs apilados), NO de `main`: el Sprint 1 crea la sección
->     `/administracion` + `AdministracionNav` que el Sprint 2 extiende, y modifica `leads.ts`/`participant.ts`
->     (sync de `participant_items`) que el Sprint 3 debe respetar. Tras el merge del 1, desde `main` normal.
->   - Sprint 3, alcance corregido vs. este plan: NO crear `updateLead` (ya existe `updateParticipant` con
->     edición inline en el manifiesto — solo falta exponerla en `/reservas` y añadir `preferredTime`);
->     la reubicación individual tras cancelación ya existe (`handleWeatherCancellation` → RESCHEDULE_NEEDED
->     → "Reagendar" con calendario). Lo nuevo real: `cancelFlight` dedicado, `moveParticipants` en bloque
->     con validación de capacidad, y reubicación grupal de un día cancelado.
->   - Sprint 2: el cierre de caja toca `DayHeader.tsx`; Alejandro tiene cambios locales sin commitear ahí —
->     coordinar antes de tocarlo (mejor montar el modal en componente nuevo y minimizar el diff).
-> - 📌 **Decisión del Sprint 1 a validar con Ricardo**: `channel_product_prices` quedó keyed por el enum
->   `reservation_source` (no por `sale_channels.id`, que tiene canales sin valor de enum). Añadir una
->   plataforma nueva (Wonderbox…) exigirá ampliar el enum (`ALTER TYPE ADD VALUE`, no reversible).
+> - ✅ **Sprint 1 — MERGEADO (PR #42)**. Tras el merge: aplicar a mano
+>   `supabase/migrations/20260701000000_treasury_itemization_ar.sql` en Supabase (`ojngrplnuhcenulfnfps`)
+>   si no se ha hecho ya.
+> - ✅ **Sprint 2 — HECHO (sesión 2026-07-02, Ricardo)**: rama `feature/treasury-cash-close`, PR abierto.
+>   Verificación en verde (`__pnl_check`, `__gastos_check`, `__itemization_check`, nuevo `__cashclose_check`,
+>   `tsc`, `build`). Entregado: `cash_close` + `cash_close_lines` (normalizada por `payment_method`;
+>   `expected` = snapshot congelado al cerrar, nunca recalculado; `counted` = único tecleo), motor puro
+>   `cash-close-engine.ts`, actions `getCashCloseSummary`/`closeCash`/`updateCashClose`/`listCashCloses`,
+>   modal de cierre + botón en la barra de tabs del manifiesto (**cero cambios en `DayHeader.tsx`**,
+>   los cambios locales de Alejandro siguen a salvo), pestaña "Caja" en `/administracion/caja`.
+>   Tras el merge: aplicar a mano `20260702000000_treasury_cash_close.sql` y regenerar `database.types.ts`
+>   (los tipos de las tablas nuevas ya están añadidos a mano, como en Sprint 1).
+>   ⚠️ Verificación visual en preview pendiente (login sin credenciales documentadas): probar el flujo
+>   cerrar caja → descuadre → nota → vista Caja al aplicar la migración.
+> - ✅ **Decisión keying cerrada (Ricardo, 2026-07-02)**: `channel_product_prices` se queda keyed por el
+>   enum `reservation_source`. Pendiente documentado en **issue #43** (ampliar enum + filas de precio en la
+>   misma migración cuando llegue Wonderbox/Jumping/Freedom).
+> - ⏳ **Sprint 3 — PENDIENTE (sesión nueva). HANDOFF con diseño verificado contra main (2026-07-02):**
+>   - Rama `feature/reservations-crm` desde `main` (tras merge del Sprint 2 no hay solape de superficies).
+>   - **E1 — Edición inline en `/reservas` + preferredTime**: extraer `InlineField` de `ParticipantRow.tsx`
+>     a componente compartido y usarlo en `ReservationRow` (fullName, phone, email, preferredTime type=time);
+>     extender `updateParticipant` (`participant.ts:69-117`) con `preferredTime` → `preferred_time`.
+>     NO crear `updateLead`.
+>   - **E2 — cancelFlight + moveParticipants**: extraer helper DRY `releaseParticipantsFromFlights(flightIds)`
+>     de `handleWeatherCancellation` (`leads.ts:195-229`: captura ids → libera flight_id → leads a
+>     RESCHEDULE_NEEDED → limpia items auto en bloque) y reutilizarlo. `cancelFlight(flightId)` en `flight.ts`
+>     (marca `flights.status='CANCELLED'`, enum ya existe sin usar). `moveParticipants(toFlightId, ids)` vía
+>     nueva RPC `reservations_move_participants` (patrón `20260623000000_reservations_assign_seat.sql`:
+>     FOR UPDATE sobre vuelo destino, cuenta activos vs `max_clients_per_flight`, o excepción
+>     NO_SEATS_AVAILABLE). OJO: el `moveParticipant` singular existente (`participant.ts:119-128`) NO valida
+>     capacidad — considerar migrarlo a la RPC también. Items no dependen de vuelo/fecha → sin resync.
+>   - **E3 — Reubicación GRUPAL de día cancelado (caso real de Raúl)**: action
+>     `rescheduleLeadsBatch(assignments: {leadId, newDate}[])` (itera `rescheduleLead`, resumen por lead) +
+>     `GroupRescheduleModal` que lista los RESCHEDULE_NEEDED del día y permite repartirlos entre DISTINTOS
+>     días con hueco (`getMonthAvailability`/`listNextAvailableSlots` + `WeekendAvailabilityCalendar`).
+>     Entradas: banner en `/reservas` cuando hay N leads RESCHEDULE_NEEDED del mismo día + toast tras cancelar.
+>   - Al terminar E3: avisar a Ricardo para trasladar la operativa al proyecto del chatbot.
 > - ⛔ Sprints 4-5 siguen bloqueados por datos de Raúl; Sprint 6 futuro (decisión 5.3).
-> - Correcciones a este plan detectadas en la verificación previa: el PR #41 **ya está mergeado**;
->   `commission_pct` **ya estaba** fuera del motor P&L (migración `20260629_finance_raul_data.sql`) y el doc
->   `PROPUESTA_ADMINISTRACION_TESORERIA` ya asumía el modelo neto (la "corrección" del §5.1 era innecesaria);
->   las server actions de items se llaman `addParticipantItem` (no `createParticipantItem`).
 
 ## Contexto
 

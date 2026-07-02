@@ -15,7 +15,7 @@
 - [ ] Importes reales de préstamo del avión y seguro
 
 ## Fase 1 — Itemización + saldo pendiente (AR) · LA CLAVE
-**Sprint 1 implementado — rama `feature/treasury-itemization-ar`, PR pendiente de merge por Alejandro. Migración `20260701000000_treasury_itemization_ar.sql` sin aplicar a Supabase aún (checklist en CLAUDE.md §Migraciones).**
+**Sprint 1 MERGEADO (PR #42). Recordar: aplicar `20260701000000_treasury_itemization_ar.sql` a mano en Supabase si no se ha hecho ya (checklist en CLAUDE.md §Migraciones).**
 - [x] Diseño en plan mode del modelo de precio por plataforma según decisión de Fase 0 — `channel_product_prices` keyed por `reservation_source` (no `sale_channels.id`), ver razonamiento en la migración.
 - [x] Alimentar `participant_items` desde el alta/edición de participante (selección de producto — una sola entrada, en el manifiesto, rápida en tablet) — auto-itemización packageType → productos en `createParticipant`/`confirmLead`/`updateParticipant`, sin tecleo extra.
 - [x] Cálculo de saldo pendiente = Σ(items) − Σ(pagos) — `getArSummary()` en `finance.ts`.
@@ -25,10 +25,11 @@
 - [x] Checks de regresión del P&L en verde — `__pnl_check.mts`, `__gastos_check.mts`, más el nuevo `__itemization_check.mts` para el motor de itemización.
 
 ## Fase 2 — Cierre de caja diario (máximo ROI)
-- [ ] Tabla `cash_close` (una por jornada) — plan mode
-- [ ] Cierre por método: efectivo/tarjeta/bizum esperado (derivado de `payments`) vs. contado
-- [ ] Registro de descuadre + nota; log de descuadres
-- [ ] Vista de cierre de caja en administración
+**Sprint 2 implementado — rama `feature/treasury-cash-close` (sesión 2026-07-02). Tras el merge: aplicar `20260702000000_treasury_cash_close.sql` a mano en Supabase.**
+- [x] Tabla `cash_close` (una por jornada, UNIQUE) + `cash_close_lines` (normalizada por `payment_method`; `expected` = snapshot congelado al cerrar, `counted` = único tecleo)
+- [x] Cierre por método: los 5 del enum (efectivo/tarjeta/bizum/transferencia/groupon) esperado (derivado de `payments`) vs. contado — motor puro `cash-close-engine.ts` + `__cashclose_check.mts`
+- [x] Registro de descuadre + nota (obligatoria si |descuadre| > ε); corrección posterior solo de contado/nota (`updateCashClose`), snapshot intacto
+- [x] Vista "Caja" en administración (`/administracion/caja`, `CashCloseView`) + botón "Cerrar caja" en la barra de tabs del manifiesto (cero cambios en `DayHeader.tsx`)
 
 ## Fase 3 — Nómina de personal operativo
 - [ ] Generalizar `instructors` → roles con tarifa propia (tándem, cámara, plegador, piloto)

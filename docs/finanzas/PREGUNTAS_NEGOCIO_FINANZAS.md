@@ -38,6 +38,20 @@
 9b. Promociones: ¿qué promociones concretas se aplican (grupo, pareja, puntuales) y con qué importe o porcentaje de descuento cada una? Son ventas directas (sin comisión), pero afectan al ingreso.
 9c. Bonos regalo: confirmar que vienen pagados íntegramente desde la reserva y que no llevan comisión de terceros (relacionado con la pregunta 7).
 
+> **Decisión cerrada 2026-07-01 (Ricardo):** el modelo de precio por plataforma
+> queda resuelto — **no se registra comisión**. `participant_items.unit_price`
+> guarda directamente el **neto** que iJump recibe por canal+producto (DIRECT =
+> precio de catálogo; plataforma = neto acordado), vía la nueva tabla
+> `channel_product_prices`. `sale_channels.commission_pct` queda como campo
+> puramente informativo, sin uso en el motor de P&L ni en la itemización. Las
+> preguntas 8-9 arriba **siguen abiertas** — no para decidir el modelo (ya
+> decidido) sino para obtener los importes netos reales por plataforma con los
+> que rellenar `channel_product_prices` (hoy solo tiene seed para DIRECT desde
+> `products.base_price`; las filas de plataforma se cargan en cuanto lleguen
+> los datos, sin necesitar otra migración). Ver
+> `docs/act-as-como-mi-co-ceo-co-cto-reactive-kite.md` §Decisiones cerradas y
+> `docs/PROPUESTA_ADMINISTRACION_TESORERIA_2026-07.md` (nota al pie de §5.1).
+
 ### Costes (para reproducir el Excel de explotación)
 
 10. "Vuelos" (la mayor partida del presupuesto, alrededor del 33 %). Indicio de Ricardo: el "vuelo" en realidad sería solo la gasolina, por lo que convendría renombrar esta partida a "Combustible" y evitar confusión con la categoría de combustible actual (riesgo de contar dos veces).

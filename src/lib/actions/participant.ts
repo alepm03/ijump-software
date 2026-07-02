@@ -5,6 +5,14 @@ import { createClient } from '@/lib/supabase/server'
 import type { TablesUpdate } from '@/lib/supabase/database.types'
 import type { Channel, LeadStatus, OperationalStatus, PackageType, ReservationSource } from '@/types/domain'
 import type { DbClient } from '@/lib/actions/availability'
+import { syncAutoParticipantItems, clearAutoParticipantItems } from '@/lib/actions/finance'
+
+/** operational_status values that mean "not actually flying" — see finance.ts clearAutoParticipantItems header. */
+const NON_FLYING_STATUSES: ReadonlySet<OperationalStatus> = new Set([
+  'CANCELLED',
+  'NO_SHOW',
+  'WEATHER_CANCELLED',
+])
 
 export type CreateParticipantData = {
   fullName: string
@@ -67,6 +75,11 @@ export async function createParticipant(
       full_name: data.fullName,
       phone: data.phone ?? null,
       email: data.email ?? null,
+      // Treasury Sprint 1: this default now also drives auto-itemization
+      // (see below) — a caller that omits packageType (e.g. the bot API,
+      // where it's optional in the contract) gets billed as SOLO, the base
+      // package. Pre-existing default; itemization just makes its effect
+      // financially visible where it previously wasn't.
       package_type: data.packageType ?? 'SOLO',
       weight: data.weight ?? null,
       reservation_group_id: resolvedGroupId,
@@ -81,6 +94,23 @@ export async function createParticipant(
     .select('id, token')
     .single()
   if (error) return { error: error.message }
+
+  // Treasury Sprint 1 — auto-itemization: only meaningful once the
+  // participant is actually on a flight (a lead with flightId null has no
+  // seat yet; confirmLead triggers itemization separately once it assigns
+  // one). Best-effort: a pricing/catalog error here must not block the
+  // manifest add — the staff can still add items by hand from the row.
+  if (flightId !== null) {
+    const itemsResult = await syncAutoParticipantItems(
+      inserted.id,
+      data.packageType ?? 'SOLO',
+      supabase
+    )
+    if (itemsResult.error) {
+      console.error('createParticipant: auto-itemization failed', itemsResult.error)
+    }
+  }
+
   revalidatePath('/', 'layout')
   return { id: inserted.id, token: inserted.token }
 }
@@ -120,6 +150,46 @@ export async function updateParticipant(
 
   const { error } = await supabase.from('participants').update(update).eq('id', id)
   if (error) return { error: error.message }
+
+  // Treasury Sprint 1 — keep auto-generated participant_items in sync after
+  // any edit made inline from the manifest row (ParticipantRow) that can
+  // affect them: packageType change, or operationalStatus crossing the
+  // flying/non-flying boundary in either direction.
+  //
+  // Re-reads the participant's POST-UPDATE state (rather than branching on
+  // which fields this particular call happened to pass) so the outcome only
+  // depends on where the participant ends up, not on how it got there. This
+  // deliberately also covers a caller that changes packageType AND
+  // operationalStatus in the same call (the Partial<UpdateParticipantData>
+  // type allows it even though today's UI never does), and covers
+  // reactivating a previously-cancelled participant back to a flying status
+  // (their auto items, cleared on cancellation, must be regenerated —
+  // leaving them at zero would silently understate revenue/AR).
+  // Best-effort: this must never fail the participant edit itself.
+  if (data.operationalStatus !== undefined || data.packageType !== undefined) {
+    const { data: current } = await supabase
+      .from('participants')
+      .select('flight_id, operational_status, package_type')
+      .eq('id', id)
+      .single()
+
+    if (current) {
+      const nowNonFlying = NON_FLYING_STATUSES.has(current.operational_status as OperationalStatus)
+      if (nowNonFlying) {
+        const clearResult = await clearAutoParticipantItems(id, supabase)
+        if (clearResult.error) {
+          console.error('updateParticipant: clearAutoParticipantItems failed', clearResult.error)
+        }
+      } else if (current.flight_id) {
+        // Only meaningful once the participant is actually on a flight.
+        const itemsResult = await syncAutoParticipantItems(id, current.package_type, supabase)
+        if (itemsResult.error) {
+          console.error('updateParticipant: auto-itemization sync failed', itemsResult.error)
+        }
+      }
+    }
+  }
+
   revalidatePath('/', 'layout')
   return {}
 }
@@ -148,6 +218,28 @@ export async function updateOperationalStatus(
     .update({ operational_status: status })
     .eq('id', id)
   if (error) return { error: error.message }
+
+  // Treasury Sprint 1 — see updateParticipant for the full rule (this
+  // mirrors it: clear on non-flying, re-sync on reactivation to flying).
+  if (NON_FLYING_STATUSES.has(status)) {
+    const clearResult = await clearAutoParticipantItems(id, supabase)
+    if (clearResult.error) {
+      console.error('updateOperationalStatus: clearAutoParticipantItems failed', clearResult.error)
+    }
+  } else {
+    const { data: current } = await supabase
+      .from('participants')
+      .select('flight_id, package_type')
+      .eq('id', id)
+      .single()
+    if (current?.flight_id) {
+      const itemsResult = await syncAutoParticipantItems(id, current.package_type, supabase)
+      if (itemsResult.error) {
+        console.error('updateOperationalStatus: auto-itemization sync failed', itemsResult.error)
+      }
+    }
+  }
+
   revalidatePath('/', 'layout')
   return {}
 }

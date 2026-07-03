@@ -602,3 +602,62 @@ export interface ArSummary {
   totalPendingPlatform: number
   byPlatform: Record<string, number>
 }
+
+// ─── Treasury — Daily Cash Close (Sprint 2) ───────────────────
+
+/** Header row: one per operational day, created when the till is closed. */
+export interface CashClose {
+  id: string
+  operationalDayId: string
+  closedAt: string
+  closedBy: string
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** One payment-method line within a cash close (or a live/unclosed summary). */
+export interface CashCloseLine {
+  id: string | null
+  cashCloseId: string | null
+  method: PaymentMethod
+  /** Frozen snapshot at closing time (or live-derived if not yet closed). */
+  expected: number
+  /** What the till physically held. 0 before it has been counted. */
+  counted: number
+  /** counted − expected, derived, never stored. */
+  discrepancy: number
+}
+
+/**
+ * Full cash-close view for one operational day, used by both the "already
+ * closed" (snapshot) and "not yet closed" (live) cases in getCashCloseSummary.
+ * `closed` distinguishes the two; closedAt/closedBy/notes are null when live.
+ */
+export interface CashCloseSummary {
+  operationalDayId: string
+  closed: boolean
+  cashCloseId: string | null
+  closedAt: string | null
+  closedBy: string | null
+  notes: string | null
+  lines: CashCloseLine[]
+  totals: {
+    expected: number
+    counted: number
+    discrepancy: number
+  }
+}
+
+/** One recent cash close row for the "Caja" list view. */
+export interface CashCloseListItem {
+  id: string
+  operationalDayId: string
+  operationalDayDate: string
+  closedAt: string
+  closedBy: string
+  notes: string | null
+  totalExpected: number
+  totalCounted: number
+  totalDiscrepancy: number
+}

@@ -1931,3 +1931,272 @@ export async function getYearKpis(kpiYear: number): Promise<FinanceKpis> {
 
   return computeKpis(kpiLabel, kpiDays, pnl.revenueTotal, pnl.revenueByCategory)
 }
+
+// ═══════════════════════════════════════════════════════════════
+// TREASURY SPRINT 2 — Daily Cash Close (cierre de caja)
+// ═══════════════════════════════════════════════════════════════
+//
+// "Expected" is Σ payments.amount grouped by method for the participants
+// flying on that operational day, computed live (getCashCloseSummary,
+// closeCash) via the join payments -> participants -> flights ->
+// operational_days. No operational_status filter is applied here — this
+// mirrors getArSummary above, which also sums ALL payments regardless of
+// status: a deposit collected from a participant who later no-shows or is
+// weather-cancelled is real money that entered the till and must still
+// reconcile at close time (per the waiver's no-refund terms, see
+// clearAutoParticipantItems's doc comment). Filtering by operational_status
+// here would make the till "expected" total disagree with the cash actually
+// collected, which is the one thing a cash close must never do.
+//
+// Once closed, `expected` is frozen in cash_close_lines (see migration
+// header) and never recomputed — closeCash takes one snapshot; every
+// subsequent read (getCashCloseSummary for an already-closed day) returns
+// that frozen snapshot, not a fresh live derivation.
+
+import { buildCashCloseRows, computeExpectedByMethod, round2 } from '@/lib/finance/cash-close-engine'
+import type { CashCloseSummary, CashCloseLine, CashCloseListItem } from '@/types/domain'
+
+/**
+ * Fetches Σ payments.amount grouped by method for every participant flying
+ * on `operationalDayId` (same join shape as getArSummary: payments ->
+ * participants -> flights -> operational_days). No operational_status
+ * filter — see module header above.
+ */
+async function fetchExpectedByMethodForDay(
+  supabase: DbClient,
+  operationalDayId: string
+): Promise<Record<PaymentMethod, number>> {
+  const { data, error } = await supabase
+    .from('payments')
+    .select('amount, method, participant:participants!inner ( flight:flights!inner ( operational_day_id ) )')
+    .eq('participant.flight.operational_day_id', operationalDayId)
+
+  if (error) throw new Error(error.message)
+
+  const payments = (data ?? []).map((p) => ({
+    amount: p.amount,
+    method: p.method as PaymentMethod,
+  }))
+  return computeExpectedByMethod(payments)
+}
+
+/**
+ * Returns the cash-close view for one operational day: if a cash_close
+ * already exists, returns the frozen snapshot (expected never recomputed);
+ * otherwise returns a "live" summary with expected derived from current
+ * payments and counted at 0 (nothing typed yet).
+ */
+export async function getCashCloseSummary(operationalDayId: string): Promise<CashCloseSummary> {
+  const supabase = await createClient()
+
+  const { data: existing, error: existingError } = await supabase
+    .from('cash_close')
+    .select('id, closed_at, closed_by, notes, cash_close_lines ( method, expected, counted )')
+    .eq('operational_day_id', operationalDayId)
+    .maybeSingle()
+
+  if (existingError) throw new Error(existingError.message)
+
+  if (existing) {
+    const expectedMap = {} as Record<PaymentMethod, number>
+    const countedMap = {} as Partial<Record<PaymentMethod, number>>
+    for (const line of existing.cash_close_lines ?? []) {
+      const method = line.method as PaymentMethod
+      expectedMap[method] = line.expected
+      countedMap[method] = line.counted
+    }
+    const { rows, totals } = buildCashCloseRows(expectedMap, countedMap)
+    const lines: CashCloseLine[] = rows.map((r) => ({
+      id: null,
+      cashCloseId: existing.id,
+      method: r.method,
+      expected: r.expected,
+      counted: r.counted,
+      discrepancy: r.discrepancy,
+    }))
+
+    return {
+      operationalDayId,
+      closed: true,
+      cashCloseId: existing.id,
+      closedAt: existing.closed_at,
+      closedBy: existing.closed_by,
+      notes: existing.notes,
+      lines,
+      totals,
+    }
+  }
+
+  const expectedMap = await fetchExpectedByMethodForDay(supabase, operationalDayId)
+  const { rows, totals } = buildCashCloseRows(expectedMap, {})
+  const lines: CashCloseLine[] = rows.map((r) => ({
+    id: null,
+    cashCloseId: null,
+    method: r.method,
+    expected: r.expected,
+    counted: r.counted,
+    discrepancy: r.discrepancy,
+  }))
+
+  return {
+    operationalDayId,
+    closed: false,
+    cashCloseId: null,
+    closedAt: null,
+    closedBy: null,
+    notes: null,
+    lines,
+    totals,
+  }
+}
+
+/**
+ * Closes the till for one operational day: derives `expected` live (see
+ * fetchExpectedByMethodForDay), inserts the cash_close header + one
+ * cash_close_lines row per payment method, and freezes that snapshot.
+ *
+ * Relies on cash_close.operational_day_id's UNIQUE constraint to detect
+ * "already closed" — a second closeCash for the same day fails the insert
+ * with a Postgres unique-violation (code 23505), which is translated into
+ * the user-facing error below instead of a raw DB error.
+ */
+export async function closeCash(params: {
+  operationalDayId: string
+  counted: Partial<Record<PaymentMethod, number>>
+  notes?: string | null
+}): Promise<{ error?: string }> {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
+  if (userError) return { error: userError.message }
+  if (!user) return { error: 'No hay usuario autenticado' }
+
+  const expectedMap = await fetchExpectedByMethodForDay(supabase, params.operationalDayId)
+  const { rows } = buildCashCloseRows(expectedMap, params.counted)
+
+  const { data: closeRow, error: insertError } = await supabase
+    .from('cash_close')
+    .insert({
+      operational_day_id: params.operationalDayId,
+      closed_at: new Date().toISOString(),
+      closed_by: user.id,
+      notes: params.notes ?? null,
+    })
+    .select('id')
+    .single()
+
+  if (insertError) {
+    if (insertError.code === '23505') {
+      return { error: 'La jornada ya está cerrada' }
+    }
+    return { error: insertError.message }
+  }
+
+  const { error: linesError } = await supabase.from('cash_close_lines').insert(
+    rows.map((r) => ({
+      cash_close_id: closeRow.id,
+      method: r.method,
+      expected: r.expected,
+      counted: r.counted,
+    }))
+  )
+
+  if (linesError) {
+    // Header inserted but lines failed — roll back the header so a retry
+    // doesn't hit the UNIQUE constraint for a half-written close.
+    await supabase.from('cash_close').delete().eq('id', closeRow.id)
+    return { error: linesError.message }
+  }
+
+  revalidatePath('/', 'layout')
+  return {}
+}
+
+/**
+ * Updates an existing cash close: ONLY `counted` per line and header
+ * `notes`. The frozen `expected` snapshot is never touched — see migration
+ * header (20260702000000_treasury_cash_close.sql) for why.
+ */
+export async function updateCashClose(
+  cashCloseId: string,
+  params: { counted: Partial<Record<PaymentMethod, number>>; notes?: string | null }
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+
+  if (params.notes !== undefined) {
+    const { error: notesError } = await supabase
+      .from('cash_close')
+      .update({ notes: params.notes })
+      .eq('id', cashCloseId)
+    if (notesError) return { error: notesError.message }
+  }
+
+  const updates = Object.entries(params.counted).filter(([, v]) => v !== undefined) as [
+    PaymentMethod,
+    number,
+  ][]
+
+  for (const [method, counted] of updates) {
+    const { error } = await supabase
+      .from('cash_close_lines')
+      .update({ counted })
+      .eq('cash_close_id', cashCloseId)
+      .eq('method', method)
+    if (error) return { error: error.message }
+  }
+
+  revalidatePath('/', 'layout')
+  return {}
+}
+
+/**
+ * Recent cash closes for the "Caja" list view, most recent operational day
+ * first, with per-close totals and discrepancy (Σ counted − Σ expected).
+ * Does NOT include unclosed recent days — the "Caja" view is expected to
+ * call getCashCloseSummary(operationalDayId) separately for "today" (see
+ * ENTREGABLE 5 note in the Sprint 2 task): keeping this query scoped to
+ * actual cash_close rows avoids a second, differently-shaped query here.
+ */
+export async function listCashCloses(limit = 30): Promise<CashCloseListItem[]> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('cash_close')
+    .select(
+      `
+      id,
+      operational_day_id,
+      closed_at,
+      closed_by,
+      notes,
+      operational_day:operational_days ( date ),
+      cash_close_lines ( expected, counted )
+    `
+    )
+    .order('closed_at', { ascending: false })
+    .limit(limit)
+
+  if (error) throw new Error(error.message)
+
+  return (data ?? []).map((row) => {
+    const lines = row.cash_close_lines ?? []
+    const totalExpected = round2(lines.reduce((s, l) => s + l.expected, 0))
+    const totalCounted = round2(lines.reduce((s, l) => s + l.counted, 0))
+    const day = row.operational_day as { date?: string } | null
+
+    return {
+      id: row.id,
+      operationalDayId: row.operational_day_id,
+      operationalDayDate: day?.date ?? '',
+      closedAt: row.closed_at,
+      closedBy: row.closed_by,
+      notes: row.notes,
+      totalExpected,
+      totalCounted,
+      totalDiscrepancy: round2(totalCounted - totalExpected),
+    }
+  })
+}

@@ -18,6 +18,7 @@ import { toast } from 'sonner'
 import { reorderFlights, createFlight, deleteFlight } from '@/lib/actions/flight'
 import { moveParticipant } from '@/lib/actions/participant'
 import { DayHeader } from './DayHeader'
+import { CashCloseButton } from './CashCloseButton'
 import { FlightCard } from './FlightCard'
 import { AddParticipantDrawer } from './AddParticipantDrawer'
 import { DayFinanceTab } from './DayFinanceTab'
@@ -187,6 +188,11 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
           >
             Finanzas
           </TabsTrigger>
+          {/* Till close lives at the right end of the tab bar: normal flow,
+              no overlap with DayHeader's centered content at any width. */}
+          <div className="ml-auto flex items-center">
+            <CashCloseButton operationalDayId={day.id} />
+          </div>
         </TabsList>
 
         {/* Finance tab */}

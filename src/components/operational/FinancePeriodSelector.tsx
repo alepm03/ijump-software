@@ -182,10 +182,10 @@ export function FinancePeriodSelector({ periodType, periodValue }: Props) {
     <header className="bg-card border-b border-border px-7 py-5 flex items-center justify-between gap-6">
       {/* Left: title */}
       <div className="flex flex-col gap-1 min-w-0">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+        <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
           {subLabel}
         </span>
-        <span className="text-[23px] font-bold tracking-tight text-foreground leading-[1.15] capitalize truncate">
+        <span className="text-[1.4375rem] font-bold tracking-tight text-foreground leading-[1.15] capitalize truncate">
           {label}
         </span>
       </div>
@@ -205,7 +205,7 @@ export function FinancePeriodSelector({ periodType, periodValue }: Props) {
               aria-selected={periodType === tab.id}
               onClick={() => handleTabChange(tab.id)}
               className={cn(
-                'border-none cursor-pointer font-medium text-[12.5px] px-[14px] py-[5px] rounded-md transition-all',
+                'border-none cursor-pointer font-medium text-[0.78125rem] px-[14px] py-[5px] rounded-md transition-all',
                 periodType === tab.id
                   ? 'bg-card text-foreground font-semibold shadow-sm'
                   : 'bg-transparent text-muted-foreground hover:text-foreground'
@@ -239,7 +239,7 @@ export function FinancePeriodSelector({ periodType, periodValue }: Props) {
           {/* Primary Exportar button → xlsx by default */}
           <a
             href={exportUrl(periodType, periodValue, 'xlsx')}
-            className="inline-flex items-center gap-1.5 rounded-l-lg rounded-r-none border border-primary bg-primary text-primary-foreground px-[14px] py-[8px] text-[13px] font-medium hover:bg-primary/90 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-l-lg rounded-r-none border border-primary bg-primary text-primary-foreground px-[14px] py-[8px] text-[0.8125rem] font-medium hover:bg-primary/90 transition-colors"
             download
           >
             <Download size={14} />
@@ -251,7 +251,7 @@ export function FinancePeriodSelector({ periodType, periodValue }: Props) {
               href={exportUrl(periodType, periodValue, 'xlsx')}
               title="Exportar a Excel"
               download
-              className="flex items-center px-3 py-0 text-[12px] font-semibold text-muted-foreground bg-card hover:bg-secondary hover:text-foreground transition-colors border-r border-border"
+              className="flex items-center px-3 py-0 text-[0.75rem] font-semibold text-muted-foreground bg-card hover:bg-secondary hover:text-foreground transition-colors border-r border-border"
             >
               Excel
             </a>
@@ -259,7 +259,7 @@ export function FinancePeriodSelector({ periodType, periodValue }: Props) {
               href={exportUrl(periodType, periodValue, 'csv')}
               title="Exportar a CSV"
               download
-              className="flex items-center px-3 py-0 text-[12px] font-semibold text-muted-foreground bg-card hover:bg-secondary hover:text-foreground transition-colors border-r border-border"
+              className="flex items-center px-3 py-0 text-[0.75rem] font-semibold text-muted-foreground bg-card hover:bg-secondary hover:text-foreground transition-colors border-r border-border"
             >
               CSV
             </a>
@@ -267,7 +267,7 @@ export function FinancePeriodSelector({ periodType, periodValue }: Props) {
               href={exportUrl(periodType, periodValue, 'pdf')}
               title="Exportar a PDF"
               download
-              className="flex items-center px-3 py-0 text-[12px] font-semibold text-muted-foreground bg-card hover:bg-secondary hover:text-foreground transition-colors"
+              className="flex items-center px-3 py-0 text-[0.75rem] font-semibold text-muted-foreground bg-card hover:bg-secondary hover:text-foreground transition-colors"
             >
               PDF
             </a>

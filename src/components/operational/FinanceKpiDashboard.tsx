@@ -62,7 +62,7 @@ function PeriodToggle({ active }: { active: KpiPeriod }) {
           aria-selected={active === p}
           onClick={() => push(p)}
           className={cn(
-            'border-none cursor-pointer font-medium text-[12.5px] px-[14px] py-[5px] rounded-md transition-all',
+            'border-none cursor-pointer font-medium text-[0.78125rem] px-[14px] py-[5px] rounded-md transition-all',
             active === p
               ? 'bg-card text-foreground font-semibold shadow-sm'
               : 'bg-transparent text-muted-foreground hover:text-foreground'
@@ -98,15 +98,15 @@ function KpiCard({
   else if (negative) valueClass = 'text-[oklch(0.560_0.200_18)]'
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 flex flex-col gap-2">
-      <span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+    <div className="rounded-xl border border-border bg-card p-4 flex flex-col gap-2 overflow-hidden">
+      <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
         {label}
       </span>
-      <span className={`text-[26px] leading-none font-bold tabular-nums tracking-tight ${valueClass}`}>
+      <span className={`text-[1.5rem] leading-none font-bold tabular-nums tracking-tight ${valueClass}`}>
         {value}
       </span>
       {sub && (
-        <span className="text-[12px] text-muted-foreground tabular-nums">{sub}</span>
+        <span className="text-[0.75rem] text-muted-foreground tabular-nums">{sub}</span>
       )}
     </div>
   )
@@ -117,9 +117,9 @@ function KpiCard({
 function PanelHeader({ title, right }: { title: string; right?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-      <span className="text-[13.5px] font-semibold text-foreground tracking-tight">{title}</span>
+      <span className="text-[0.84375rem] font-semibold text-foreground tracking-tight">{title}</span>
       {right && (
-        <span className="text-[13px] font-semibold text-muted-foreground tabular-nums">{right}</span>
+        <span className="text-[0.8125rem] font-semibold text-muted-foreground tabular-nums">{right}</span>
       )}
     </div>
   )
@@ -142,8 +142,8 @@ function BarRow({
 }) {
   return (
     <div className="grid items-center px-4 py-[10px] border-b border-border last:border-b-0 hover:bg-secondary/20 transition-colors"
-      style={{ gridTemplateColumns: 'minmax(0,1.5fr) minmax(100px,1fr) 100px' }}>
-      <span className="text-[13px] font-medium text-foreground truncate pr-2">{label}</span>
+      style={{ gridTemplateColumns: 'minmax(0,1.5fr) minmax(6.25rem,1fr) 6.25rem' }}>
+      <span className="text-[0.8125rem] font-medium text-foreground truncate pr-2">{label}</span>
       <div className="pr-3">
         <div className="h-[6px] rounded-full bg-secondary overflow-hidden">
           <div
@@ -153,9 +153,9 @@ function BarRow({
         </div>
       </div>
       <div className="text-right">
-        <span className="text-[13.5px] font-semibold tabular-nums text-foreground">{valuePrimary}</span>
+        <div className="text-[0.84375rem] font-semibold tabular-nums text-foreground leading-tight">{valuePrimary}</div>
         {valueSub && (
-          <span className="text-[11px] text-muted-foreground ml-1.5 tabular-nums">{valueSub}</span>
+          <div className="text-[0.6875rem] text-muted-foreground tabular-nums leading-tight">{valueSub}</div>
         )}
       </div>
     </div>
@@ -284,16 +284,16 @@ function OccupancyMeter({ kpis }: { kpis: FinanceKpis }) {
     : 'bg-border'
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 flex flex-col gap-3">
-      <span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+    <div className="rounded-xl border border-border bg-card p-4 flex flex-col gap-3 overflow-hidden">
+      <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
         Ocupación de vuelo
       </span>
-      <div className="flex items-end gap-3">
-        <span className="text-[26px] leading-none font-bold tabular-nums tracking-tight text-foreground">
+      <div className="flex flex-col gap-0.5">
+        <span className="text-[1.625rem] leading-none font-bold tabular-nums tracking-tight text-foreground">
           {pct(kpis.occupancyPct)}
         </span>
-        <span className="text-[13px] text-muted-foreground mb-0.5 tabular-nums">
-          (cap. 2 pax/vuelo)
+        <span className="text-[0.6875rem] text-muted-foreground tabular-nums">
+          cap. 2 pax/vuelo
         </span>
       </div>
       <div>
@@ -302,10 +302,10 @@ function OccupancyMeter({ kpis }: { kpis: FinanceKpis }) {
             style={{ width: `${capPct}%` }} />
         </div>
         <div className="flex justify-between mt-1.5">
-          <span className="text-[11px] text-muted-foreground tabular-nums">
+          <span className="text-[0.6875rem] text-muted-foreground tabular-nums">
             Media: {kpis.avgClientsPerFlight.toFixed(1).replace('.', ',')} clientes/vuelo
           </span>
-          <span className="text-[11px] text-muted-foreground tabular-nums">
+          <span className="text-[0.6875rem] text-muted-foreground tabular-nums">
             {kpis.totalFlights} vuelos
           </span>
         </div>
@@ -330,10 +330,10 @@ export function FinanceKpiDashboard({ kpis, activePeriod, periodLabel }: Finance
       {/* Header with toggle */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+          <div className="text-[0.6875rem] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
             Dashboard KPI
           </div>
-          <div className="text-[22px] font-bold tracking-tight text-foreground leading-[1.2] capitalize">
+          <div className="text-[1.375rem] font-bold tracking-tight text-foreground leading-[1.2] capitalize">
             {periodLabel}
           </div>
         </div>
@@ -341,7 +341,7 @@ export function FinanceKpiDashboard({ kpis, activePeriod, periodLabel }: Finance
       </div>
 
       {/* Top KPI strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <OccupancyMeter kpis={kpis} />
 
         <KpiCard
@@ -376,7 +376,7 @@ export function FinanceKpiDashboard({ kpis, activePeriod, periodLabel }: Finance
 
       {/* Empty state hint when no data */}
       {kpis.totalParticipants === 0 && (
-        <div className="rounded-xl border border-border bg-card px-5 py-6 text-center text-[13.5px] text-muted-foreground">
+        <div className="rounded-xl border border-border bg-card px-5 py-6 text-center text-[0.84375rem] text-muted-foreground">
           No hay datos para el periodo seleccionado.
         </div>
       )}

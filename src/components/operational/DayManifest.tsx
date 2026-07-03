@@ -207,7 +207,7 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
                 items={flights.map((f) => f.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="flex flex-col gap-2.5 px-7 py-5 max-w-[880px] mx-auto">
+                <div className="flex flex-col gap-2.5 px-7 py-5 max-w-[60rem] mx-auto">
                   {flights.map((flight) => (
                     <FlightCard
                       key={flight.id}
@@ -231,7 +231,7 @@ export function DayManifest({ day, instructors }: DayManifestProps) {
 
               <DragOverlay>
                 {dragType === 'flight' && (
-                  <div className="max-w-[880px] h-14 rounded-[10px] border border-primary/30 bg-card opacity-80 shadow-md" />
+                  <div className="max-w-[60rem] h-14 rounded-[10px] border border-primary/30 bg-card opacity-80 shadow-md" />
                 )}
                 {dragType === 'participant' && (
                   <div className="h-9 rounded-md border border-primary/30 bg-card opacity-80 shadow-sm" />

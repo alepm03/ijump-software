@@ -212,8 +212,8 @@
   --weather-cancelled: var(--state-danger);    --weather-cancelled-bg: var(--state-danger-bg);
 
   /* ── Manifest grid (v4) — shared across ParticipantRow + column header ── */
-  /* Participante | Estado | Paquete | Instructor | Peso | Pago              */
-  --manifest-grid-cols: minmax(0, 1.9fr) 116px 132px 96px 84px 130px;
+  /* Participante | Estado | Paquete | Instructor | OW | Pago                */
+  --manifest-grid-cols: minmax(0, 1.9fr) 7.25rem 8.25rem 6rem 3.5rem 8.125rem;
 }
 
 @layer base {
@@ -225,6 +225,6 @@
   }
   html {
     @apply font-sans;
-    font-size: 16px;
+    font-size: 18px;
   }
 }

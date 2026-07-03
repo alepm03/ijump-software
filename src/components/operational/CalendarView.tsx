@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   startOfMonth,
@@ -10,17 +10,90 @@ import {
   addMonths,
   subMonths,
   getDay,
+  getMonth,
+  getYear,
   isToday as dateFnsIsToday,
   parseISO,
 } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, Plus } from 'lucide-react'
 import { DayCard } from './DayCard'
 import { NewDayDialog } from './NewDayDialog'
 import { Button } from '@/components/ui/button'
 import type { OperationalDaySummary } from '@/types/domain'
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+const MONTHS_ES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+
+function MonthPicker({
+  currentMonth,
+  onSelect,
+  onClose,
+}: {
+  currentMonth: Date
+  onSelect: (month: string) => void
+  onClose: () => void
+}) {
+  const [pickerYear, setPickerYear] = useState(getYear(currentMonth))
+  const ref = useRef<HTMLDivElement>(null)
+  const activeMonthIdx = getMonth(currentMonth)
+  const activeYear = getYear(currentMonth)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [onClose])
+
+  return (
+    <div
+      ref={ref}
+      className="absolute top-full left-0 mt-2 z-50 bg-card border border-border rounded-xl shadow-lg p-4 w-60"
+    >
+      {/* Year nav */}
+      <div className="flex items-center justify-between mb-3">
+        <button
+          onClick={() => setPickerYear((y) => y - 1)}
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+        >
+          <ChevronLeft size={14} />
+        </button>
+        <span className="text-sm font-semibold text-foreground tabular-nums">{pickerYear}</span>
+        <button
+          onClick={() => setPickerYear((y) => y + 1)}
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+        >
+          <ChevronRight size={14} />
+        </button>
+      </div>
+
+      {/* Month grid 4×3 */}
+      <div className="grid grid-cols-4 gap-1">
+        {MONTHS_ES.map((name, idx) => {
+          const isActive = idx === activeMonthIdx && pickerYear === activeYear
+          return (
+            <button
+              key={idx}
+              onClick={() => {
+                onSelect(`${pickerYear}-${String(idx + 1).padStart(2, '0')}`)
+                onClose()
+              }}
+              className={`py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                isActive
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-foreground hover:bg-secondary'
+              }`}
+            >
+              {name}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 interface CalendarViewProps {
   month: string
@@ -31,6 +104,7 @@ export function CalendarView({ month, days }: CalendarViewProps) {
   const router = useRouter()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string | undefined>()
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   const currentMonth = parseISO(`${month}-01`)
   const monthStart = startOfMonth(currentMonth)
@@ -75,14 +149,36 @@ export function CalendarView({ month, days }: CalendarViewProps) {
             >
               <ChevronRight size={16} strokeWidth={2} />
             </Button>
-            <h2 className="text-display font-semibold text-foreground ml-1">
-              {monthLabel}
-            </h2>
+
+            {/* Month title — click to open picker */}
+            <div className="relative">
+              <button
+                onClick={() => setPickerOpen((o) => !o)}
+                className="flex items-center gap-1.5 ml-1 rounded-lg px-2 py-1 hover:bg-secondary transition-colors group"
+              >
+                <h2 className="text-display font-semibold text-foreground">
+                  {monthLabel}
+                </h2>
+                <ChevronDown
+                  size={14}
+                  strokeWidth={2.5}
+                  className={`text-muted-foreground transition-transform ${pickerOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+              {pickerOpen && (
+                <MonthPicker
+                  currentMonth={currentMonth}
+                  onSelect={(m) => router.push(`/?month=${m}`)}
+                  onClose={() => setPickerOpen(false)}
+                />
+              )}
+            </div>
+
             <Button
               variant="outline"
               size="sm"
               onClick={() => router.push('/')}
-              className="ml-2"
+              className="ml-1"
             >
               Hoy
             </Button>

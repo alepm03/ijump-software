@@ -129,7 +129,8 @@ gh pr create --title "..." --body "..."
 | API del bot v1 (chatbot → software: disponibilidad, crear/consultar reserva) | ✅ Producción | #37 — contrato en `docs/reservas/BOT_API_CONTRACT.md` |
 | Chatbot rewire (R5 — lado Ricardo, consumir la API del bot) | ⏳ Pendiente (lado Ricardo) | — |
 | Tesorería Sprint 1 (itemización automática de `participant_items` + AR/Cobros + `/administracion`) | ✅ Producción | #42 |
-| Tesorería Sprint 2 (cierre de caja diario: `cash_close`, esperado vs. contado por método, pestaña Caja) | 🔄 En PR | `feature/treasury-cash-close` |
+| Tesorería Sprint 2 (cierre de caja diario: `cash_close`, esperado vs. contado por método, pestaña Caja) | 🔄 En PR | #44 |
+| Reservas-CRM Sprint 3 (edición inline en `/reservas`, cancelar vuelo con reubicación guiada, DnD con validación de capacidad, reubicación grupal de día cancelado) | 🔄 En PR (apilado sobre #44) | `feature/reservations-crm` |
 
 ### Lo que NO está en scope (aún)
 - CRM avanzado

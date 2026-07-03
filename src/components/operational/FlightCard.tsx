@@ -33,7 +33,7 @@ const STATUS_CONFIG: Record<FlightStatus, { label: string; className: string; do
 // ─── ManifestColHead — column header row (lg+ only, inside FlightCard) ───────
 // Rendered once per FlightCard when there are participants, before the rows.
 // px-3.5 (FlightCard padding) + w-8 handle = offset; grid then starts after.
-// Columns match --manifest-grid-cols: Participante|Estado|Paquete|Instructor|Peso|Pago
+// Columns match --manifest-grid-cols: Participante|Estado|Paquete|Instructor|OW|Pago
 export function ManifestColHead() {
   return (
     <div className="hidden lg:flex items-center px-3.5 border-b border-border bg-background/60">
@@ -46,17 +46,19 @@ export function ManifestColHead() {
           gridTemplateColumns: 'var(--manifest-grid-cols)',
         }}
       >
-        {(['Participante', 'Estado', 'Paquete', 'Instructor', 'Peso', 'Pago'] as const).map(
+        {(['Participante', 'Estado', 'Paquete', 'Instructor', 'OW', 'Pago'] as const).map(
           (col) => (
             <div
               key={col}
-              className="py-[8px] px-3 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground"
+              className="py-[8px] px-3 text-[0.65625rem] font-semibold uppercase tracking-[0.07em] text-muted-foreground"
             >
               {col}
             </div>
           )
         )}
       </div>
+      {/* Spacer for the delete button column — matches w-12 in ParticipantRow */}
+      <div className="w-12 flex-shrink-0" />
     </div>
   )
 }
@@ -125,7 +127,7 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete, on
       className={`w-full rounded-[10px] border overflow-hidden transition-all ${
         isDragging
           ? 'opacity-50 border-primary/30 shadow-lg'
-          : 'border-border shadow-[0_1px_4px_rgba(0,0,0,0.05)]'
+          : 'border-primary/20 shadow-[0_1px_4px_rgba(0,0,0,0.05)] hover:border-primary/45'
       }`}
     >
       {/* Header — slightly lighter than card body to create subtle depth */}

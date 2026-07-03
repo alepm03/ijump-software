@@ -88,7 +88,7 @@ export function ReservationsView({ tab, leads, counts, classifications }: Reserv
               aria-selected={tab === t.id}
               onClick={() => handleTabChange(t.id)}
               className={cn(
-                'border-none cursor-pointer font-medium text-[12.5px] px-[14px] py-[5px] rounded-md transition-all',
+                'border-none cursor-pointer font-medium text-[0.78125rem] px-[14px] py-[5px] rounded-md transition-all',
                 tab === t.id
                   ? 'bg-card text-foreground font-semibold shadow-sm'
                   : 'bg-transparent text-muted-foreground hover:text-foreground'

@@ -37,12 +37,6 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from '@/components/ui/tabs'
 import { User } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { createWaiverToken, getParticipantWaivers } from '@/lib/actions/waiver'
@@ -418,13 +412,12 @@ function PaymentCell({
         )}
         <DialogContent className="w-full max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-body">Pagos — {participantName}</DialogTitle>
+            <DialogTitle className="text-body truncate">Pagos </DialogTitle>
           </DialogHeader>
           <PaymentManager participantId={participantId} payments={payments} />
         </DialogContent>
       </Dialog>
       <BalanceBadge balance={balance} />
-      <AddOverweightButton participantId={participantId} />
     </div>
   )
 }
@@ -579,12 +572,14 @@ function EditableRow({
   placeholder,
   onSave,
   inputType = 'text',
+  suffix,
 }: {
   label: string
   value: string
   placeholder: string
   onSave: (v: string) => void
   inputType?: string
+  suffix?: string
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
@@ -602,8 +597,8 @@ function EditableRow({
   }
 
   return (
-    <div className="flex items-baseline justify-between gap-4 py-2.5 border-b border-border/50 last:border-0">
-      <span className="text-sm text-muted-foreground flex-shrink-0 w-24">{label}</span>
+    <div className="flex flex-col gap-1">
+      <span className="text-xs text-muted-foreground">{label}</span>
       {editing ? (
         <input
           ref={inputRef}
@@ -615,37 +610,24 @@ function EditableRow({
             if (e.key === 'Enter') commit()
             if (e.key === 'Escape') { setDraft(value); setEditing(false) }
           }}
-          className="flex-1 text-sm bg-background border border-input rounded px-2 py-0.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 text-right"
+          className="text-sm bg-background border border-input rounded px-2 py-1.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 w-full"
           autoFocus
         />
       ) : (
         <button
           onClick={startEdit}
-          className={`flex-1 text-sm text-right rounded px-1 py-0.5 hover:bg-secondary transition-colors ${
-            value ? 'text-foreground font-medium' : 'text-muted-foreground/40'
+          className={`text-sm text-left px-2 py-1.5 rounded border transition-colors hover:bg-primary/5 hover:border-primary/50 ${
+            value
+              ? 'text-foreground font-medium border-primary/20'
+              : 'text-muted-foreground/40 border-primary/15'
           }`}
         >
-          {value || placeholder}
+          {value ? (suffix ? `${value} ${suffix}` : value) : placeholder}
         </button>
       )}
     </div>
   )
 }
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-xs font-semibold text-muted-foreground pt-5 pb-1 first:pt-0">
-      {children}
-    </p>
-  )
-}
-
-// Checklist item config — colors via token class names
-const CHECKLIST_ITEMS = [
-  { key: 'checkInCompleted', label: 'Check-in',      activeClass: 'bg-status-checked-in border-status-checked-in' },
-  { key: 'waiverSigned',     label: 'Waiver firmado', activeClass: 'bg-status-waiver-signed border-status-waiver-signed' },
-  { key: 'gearedUp',         label: 'Equipado',       activeClass: 'bg-status-geared-up border-status-geared-up' },
-] as const
 
 function ParticipantInfoSheet({
   participant: p,
@@ -673,115 +655,109 @@ function ParticipantInfoSheet({
               {p.fullName || 'Sin nombre'}
             </SheetTitle>
             <StatusBadge className={statusCfg.className} label={statusCfg.label} />
-            {p.reservationGroup && (
-              <p className="text-sm text-muted-foreground ml-2">
-                {SOURCE_LABELS[p.reservationGroup.source] ?? p.reservationGroup.source}
-                {p.reservationGroup.payerName && (
-                  <span className="text-muted-foreground/60"> · {p.reservationGroup.payerName}</span>
-                )}
-              </p>
-            )}
           </div>
         </div>
 
-        {/* Body — Tabs (responsive: stacks on md, was 3 columns) */}
-        <Tabs defaultValue="contacto" className="flex-1 overflow-hidden flex flex-col">
-          <TabsList variant="line" className="px-6 flex-shrink-0 w-full rounded-none border-b border-border justify-start">
-            <TabsTrigger value="contacto">Contacto</TabsTrigger>
-            <TabsTrigger value="checklist">Checklist</TabsTrigger>
-            <TabsTrigger value="documentos">Notas y docs</TabsTrigger>
-          </TabsList>
+        {/* Body — 2 columnas: datos | notas + docs */}
+        <div className="flex-1 overflow-hidden grid grid-cols-[5fr_6fr] divide-x divide-border">
 
-          {/* Tab 1: Contacto + Datos físicos */}
-          <TabsContent value="contacto" className="px-5 py-4 overflow-y-auto">
-            <SectionLabel>Contacto</SectionLabel>
-            <div>
+          {/* ── Columna izquierda: datos del participante ── */}
+          <div className="px-6 py-5 overflow-y-auto space-y-5">
+
+            <div className="space-y-3">
+              <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground/60">Contacto</p>
               <EditableRow
-                label="Nombre"
+                label="Nombre completo"
                 value={p.fullName}
                 placeholder="Sin nombre"
                 onSave={(v) => save({ fullName: v })}
               />
-              <EditableRow
-                label="Teléfono"
-                value={p.phone ?? ''}
-                placeholder="—"
-                onSave={(v) => save({ phone: v || null })}
-                inputType="tel"
-              />
-              <EditableRow
-                label="Email"
-                value={p.email ?? ''}
-                placeholder="—"
-                onSave={(v) => save({ email: v || null })}
-                inputType="email"
-              />
+              <div className="grid grid-cols-2 gap-3">
+                <EditableRow
+                  label="Teléfono"
+                  value={p.phone ?? ''}
+                  placeholder="—"
+                  onSave={(v) => save({ phone: v || null })}
+                  inputType="tel"
+                />
+                <EditableRow
+                  label="Email"
+                  value={p.email ?? ''}
+                  placeholder="—"
+                  onSave={(v) => save({ email: v || null })}
+                  inputType="email"
+                />
+              </div>
             </div>
-            <SectionLabel>Datos físicos</SectionLabel>
-            <div>
-              <EditableRow
-                label="Peso"
-                value={p.weight ? `${p.weight} kg` : ''}
-                placeholder="—"
-                onSave={(v) => {
-                  const n = parseFloat(v)
-                  save({ weight: isNaN(n) ? null : n })
-                }}
-                inputType="number"
-              />
-              <EditableRow
-                label="Supl. OW"
-                value={p.overweightFee ? `${p.overweightFee} €` : ''}
-                placeholder="0 €"
-                onSave={(v) => {
-                  const n = parseFloat(v)
-                  save({ overweightFee: isNaN(n) ? 0 : n })
-                }}
-                inputType="number"
-              />
-            </div>
-          </TabsContent>
 
-          {/* Tab 2: Checklist */}
-          <TabsContent value="checklist" className="px-5 py-4 overflow-y-auto">
-            <SectionLabel>Checklist</SectionLabel>
-            <div className="space-y-1">
-              {CHECKLIST_ITEMS.map(({ key, label, activeClass }) => {
-                const checked = p[key]
-                return (
-                  <button
-                    key={key}
-                    onClick={() => save({ [key]: !checked })}
-                    className="flex items-center gap-3 w-full px-1 py-2 rounded hover:bg-secondary transition-colors text-left group focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
-                  >
-                    <span
-                      className={`w-4 h-4 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors ${
-                        checked ? activeClass : 'bg-transparent border-border'
-                      }`}
-                    >
-                      {checked && (
-                        <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-                          <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      )}
-                    </span>
-                    <span className={`text-sm transition-colors ${checked ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                      {label}
-                    </span>
-                  </button>
-                )
-              })}
+            <div className="space-y-3 pt-1 border-t border-border/40">
+              <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground/60 pt-2">Datos físicos</p>
+              <div className="grid grid-cols-2 gap-3">
+                <EditableRow
+                  label="Peso"
+                  value={p.weight ? String(p.weight) : ''}
+                  placeholder="—"
+                  suffix="kg"
+                  onSave={(v) => {
+                    const n = parseFloat(v)
+                    save({ weight: isNaN(n) ? null : n })
+                  }}
+                  inputType="number"
+                />
+                <EditableRow
+                  label="Suplemento OW"
+                  value={p.overweightFee ? String(p.overweightFee) : ''}
+                  placeholder="0"
+                  suffix="€"
+                  onSave={(v) => {
+                    const n = parseFloat(v)
+                    save({ overweightFee: isNaN(n) ? 0 : n })
+                  }}
+                  inputType="number"
+                />
+              </div>
             </div>
-          </TabsContent>
 
-          {/* Tab 3: Notas + Documentos */}
-          <TabsContent value="documentos" className="px-5 py-4 overflow-y-auto">
-            <SectionLabel>Notas</SectionLabel>
-            <NotesField value={p.notes ?? ''} onSave={(v) => save({ notes: v || null })} />
-            <SectionLabel>Documentos</SectionLabel>
-            <WaiverSection participantId={p.id} />
-          </TabsContent>
-        </Tabs>
+            {p.reservationGroup && (
+              <div className="space-y-3 pt-1 border-t border-border/40">
+                <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground/60 pt-2">Reserva</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground">Canal</span>
+                    <span className="text-sm font-medium text-foreground px-2 py-1.5">
+                      {SOURCE_LABELS[p.reservationGroup.source] ?? p.reservationGroup.source}
+                    </span>
+                  </div>
+                  {p.reservationGroup.payerName && (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-muted-foreground">Pagador</span>
+                      <span className="text-sm font-medium text-foreground px-2 py-1.5">
+                        {p.reservationGroup.payerName}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+          </div>
+
+          {/* ── Columna derecha: notas + documentos ── */}
+          <div className="px-6 py-5 overflow-y-auto flex flex-col gap-5">
+
+            <div className="flex flex-col gap-2 flex-1 min-h-0">
+              <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground/60">Notas internas</p>
+              <NotesField value={p.notes ?? ''} onSave={(v) => save({ notes: v || null })} />
+            </div>
+
+            <div className="border-t border-border/40 pt-4 flex flex-col gap-3">
+              <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground/60">Documentos</p>
+              <WaiverSection participantId={p.id} />
+            </div>
+
+          </div>
+
+        </div>
       </SheetContent>
     </Sheet>
   )
@@ -971,62 +947,54 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
             </Select>
           </div>
 
-          {/* Col 5: Peso */}
-          <div className="px-3 flex items-center gap-1">
-            <InlineField
-              value={p.weight ? String(p.weight) : ''}
-              placeholder="—"
-              onSave={(v) => {
-                const n = parseFloat(v)
-                save({ weight: isNaN(n) ? null : n })
-              }}
-              inputType="number"
-              className="w-9 text-right text-muted-foreground text-sm"
-            />
-            {p.weight && <span className="text-xs text-muted-foreground">kg</span>}
-            {hasOW && (
-              <span className="text-micro font-bold px-1 py-0.5 rounded-full bg-status-geared-up-bg text-status-geared-up">
+          {/* Col 5: OW */}
+          <div className="px-3 flex items-center">
+            {hasOW ? (
+              <span className="text-micro font-bold px-1.5 py-0.5 rounded-full bg-status-geared-up-bg text-status-geared-up">
                 OW
               </span>
+            ) : (
+              <AddOverweightButton participantId={p.id} />
             )}
           </div>
 
           {/* Col 6: Pago */}
-          <div className="px-3 flex items-center justify-between">
+          <div className="px-3 flex items-center">
             <PaymentCell
               participantId={p.id}
               participantName={p.fullName}
               payments={p.payments}
               items={p.items}
             />
-            {/* Delete button — at the end of the last column */}
-            <div className="flex-shrink-0 flex items-center ml-1">
-              {confirmDelete ? (
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={handleDelete}
-                    disabled={isPending}
-                    className="text-2xs text-destructive hover:text-destructive/80 px-1 py-1 min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
-                  >
-                    Sí
-                  </button>
-                  <button
-                    onClick={() => setConfirmDelete(false)}
-                    className="text-2xs text-muted-foreground hover:text-foreground py-1 min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
-                  >
-                    No
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setConfirmDelete(true)}
-                  className="text-title leading-none w-8 h-8 flex items-center justify-center text-muted-foreground/30 hover:text-destructive transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
-                >
-                  ×
-                </button>
-              )}
-            </div>
           </div>
+        </div>
+
+        {/* Delete button — outside the grid, mirrored by trailing spacer in ManifestColHead */}
+        <div className="flex-shrink-0 flex items-center justify-end w-12">
+          {confirmDelete ? (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleDelete}
+                disabled={isPending}
+                className="text-2xs text-destructive hover:text-destructive/80 px-1 py-1 min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
+              >
+                Sí
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="text-2xs text-muted-foreground hover:text-foreground py-1 min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
+              >
+                No
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="text-title leading-none w-8 h-8 flex items-center justify-center text-muted-foreground/30 hover:text-destructive transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
+            >
+              ×
+            </button>
+          )}
         </div>
       </div>
 
@@ -1185,23 +1153,14 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
           </SelectContent>
         </Select>
 
-        {/* Weight + OW */}
-        <div className="flex items-center gap-1 flex-shrink-0 order-10">
-          <InlineField
-            value={p.weight ? String(p.weight) : ''}
-            placeholder="—"
-            onSave={(v) => {
-              const n = parseFloat(v)
-              save({ weight: isNaN(n) ? null : n })
-            }}
-            inputType="number"
-            className="w-9 text-right text-muted-foreground text-sm"
-          />
-          {p.weight && <span className="text-xs text-muted-foreground">kg</span>}
-          {hasOW && (
-            <span className="text-micro font-bold px-1 py-0.5 rounded-full bg-status-geared-up-bg text-status-geared-up">
+        {/* OW */}
+        <div className="flex items-center flex-shrink-0 order-10">
+          {hasOW ? (
+            <span className="text-micro font-bold px-1.5 py-0.5 rounded-full bg-status-geared-up-bg text-status-geared-up">
               OW
             </span>
+          ) : (
+            <AddOverweightButton participantId={p.id} />
           )}
         </div>
       </div>

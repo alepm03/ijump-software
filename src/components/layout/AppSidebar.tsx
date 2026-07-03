@@ -20,17 +20,20 @@ interface AppSidebarProps {
   pendingLeadsCount?: number
 }
 
-const NAV_ITEMS = (today: string, todayLabel: string) => [
-  { href: '/', label: 'Calendario', icon: Calendar, matchFn: (p: string) => p === '/' || p.startsWith('/?') },
-  { href: `/${today}`, label: todayLabel, icon: Sun, matchFn: (p: string) => p === `/${today}` },
-  { href: '/reservas', label: 'Reservas', icon: ClipboardList, matchFn: (p: string) => p.startsWith('/reservas') },
-  { href: '/finanzas', label: 'Finanzas', icon: TrendingUp, matchFn: (p: string) => p.startsWith('/finanzas') },
-  { href: '/administracion', label: 'Administración', icon: Wallet, matchFn: (p: string) => p.startsWith('/administracion') },
-]
-
-const ADMIN_ITEMS = [
-  { href: '/admin/instructors', label: 'Instructores', icon: Users, matchFn: (p: string) => p.startsWith('/admin/instructors') },
-  { href: '/admin', label: 'Configuración', icon: Settings, matchFn: (p: string) => p === '/admin' },
+const NAV_GROUPS = (today: string, todayLabel: string) => [
+  [
+    { href: '/', label: 'Calendario', icon: Calendar, matchFn: (p: string) => p === '/' || p.startsWith('/?') },
+    { href: `/${today}`, label: todayLabel, icon: Sun, matchFn: (p: string) => p === `/${today}` },
+    { href: '/reservas', label: 'Reservas', icon: ClipboardList, matchFn: (p: string) => p.startsWith('/reservas') },
+  ],
+  [
+    { href: '/finanzas', label: 'Finanzas', icon: TrendingUp, matchFn: (p: string) => p.startsWith('/finanzas') },
+    { href: '/administracion', label: 'Administración', icon: Wallet, matchFn: (p: string) => p.startsWith('/administracion') },
+  ],
+  [
+    { href: '/admin/instructors', label: 'Instructores', icon: Users, matchFn: (p: string) => p.startsWith('/admin/instructors') },
+    { href: '/admin', label: 'Configuración', icon: Settings, matchFn: (p: string) => p === '/admin' },
+  ],
 ]
 
 // ─── Shared nav link — used in both sidebar variants ──────────────────────────
@@ -67,14 +70,14 @@ function NavLink({
       <span className="relative flex-shrink-0">
         <Icon size={14} />
         {showBadge && collapsed && (
-          <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] px-[3px] rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center leading-none">
+          <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] px-[3px] rounded-full bg-primary text-primary-foreground text-[0.5625rem] font-bold flex items-center justify-center leading-none">
             {badgeCount}
           </span>
         )}
       </span>
       {!collapsed && <span className="flex-1">{label}</span>}
       {!collapsed && showBadge && (
-        <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
+        <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[0.625rem] font-bold flex items-center justify-center leading-none flex-shrink-0">
           {badgeCount}
         </span>
       )}
@@ -99,7 +102,7 @@ function SidebarContent({
   collapsed?: boolean
   pendingLeadsCount?: number
 }) {
-  const navItems = NAV_ITEMS(today, todayLabel)
+  const navGroups = NAV_GROUPS(today, todayLabel)
 
   return (
     <>
@@ -127,30 +130,26 @@ function SidebarContent({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-2 pt-2 space-y-0.5">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.href}
-            href={item.href}
-            label={item.label}
-            icon={item.icon}
-            isActive={item.matchFn(pathname)}
-            collapsed={collapsed}
-            badgeCount={item.href === '/reservas' ? pendingLeadsCount : undefined}
-          />
-        ))}
-
-        <div className="my-1.5 border-t border-border/50" />
-
-        {ADMIN_ITEMS.map((item) => (
-          <NavLink
-            key={item.href}
-            href={item.href}
-            label={item.label}
-            icon={item.icon}
-            isActive={item.matchFn(pathname)}
-            collapsed={collapsed}
-          />
+      <nav className="flex-1 px-2 pt-2">
+        {navGroups.map((group, groupIdx) => (
+          <div key={groupIdx}>
+            {groupIdx > 0 && (
+              <div className="my-2 border-t border-border/40" />
+            )}
+            <div className="space-y-0.5">
+              {group.map((item) => (
+                <NavLink
+                  key={item.href}
+                  href={item.href}
+                  label={item.label}
+                  icon={item.icon}
+                  isActive={item.matchFn(pathname)}
+                  collapsed={collapsed}
+                  badgeCount={item.href === '/reservas' ? pendingLeadsCount : undefined}
+                />
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
 

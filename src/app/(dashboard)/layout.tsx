@@ -18,7 +18,7 @@ export default async function DashboardLayout({
   const pendingLeadsCount = await countPendingLeads()
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-background overflow-hidden">
       <AppSidebar email={user.email ?? ''} pendingLeadsCount={pendingLeadsCount} />
       {/* overflow-hidden so each page controls its own scroll — day view keeps summary pinned at bottom */}
       {/* pt-12 on mobile offsets the fixed hamburger button; removed at md+ */}

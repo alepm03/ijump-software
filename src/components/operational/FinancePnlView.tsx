@@ -71,7 +71,7 @@ function KpiStrip({ pnl }: { pnl: ProfitAndLoss }) {
   const ebitdaPositive = pnl.ebitda >= 0
 
   return (
-    <div className="grid grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       <KpiCard
         label="Ingresos"
         value={euro(pnl.revenueTotal)}
@@ -116,12 +116,12 @@ function KpiCard({
   else if (negative) valueClass = 'text-[oklch(0.560_0.200_18)]'    // danger red via arbitrary
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 flex flex-col gap-2">
-      <span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+    <div className="rounded-xl border border-border bg-card p-4 flex flex-col gap-2 overflow-hidden">
+      <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
         {label}
       </span>
       <span
-        className={`text-[28px] leading-none font-bold tabular-nums tracking-tight ${valueClass}`}
+        className={`text-[1.5rem] leading-none font-bold tabular-nums tracking-tight ${valueClass}`}
       >
         {value}
       </span>
@@ -134,17 +134,17 @@ function KpiCard({
 function FinColHead() {
   return (
     <div className="grid gap-0 px-4 py-2 border-b border-border bg-background"
-      style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(120px,1fr) 120px 64px' }}>
-      <span className="text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
+      style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(7.5rem,1fr) 7.5rem 4rem' }}>
+      <span className="text-[0.625rem] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
         Categoría
       </span>
-      <span className="text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
+      <span className="text-[0.625rem] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
         Proporción
       </span>
-      <span className="text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground text-right">
+      <span className="text-[0.625rem] font-semibold uppercase tracking-[0.07em] text-muted-foreground text-right">
         Importe
       </span>
-      <span className="text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground text-right">
+      <span className="text-[0.625rem] font-semibold uppercase tracking-[0.07em] text-muted-foreground text-right">
         %
       </span>
     </div>
@@ -169,10 +169,10 @@ function FinRow({
   return (
     <div
       className="grid items-center px-4 py-[11px] border-b border-border last:border-b-0 hover:bg-secondary/20 transition-colors"
-      style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(120px,1fr) 120px 64px' }}
+      style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(7.5rem,1fr) 7.5rem 4rem' }}
     >
       {/* Category name */}
-      <span className="text-[13.5px] font-medium text-foreground truncate pr-2">
+      <span className="text-[0.84375rem] font-medium text-foreground truncate pr-2">
         {label}
       </span>
 
@@ -187,12 +187,12 @@ function FinRow({
       </div>
 
       {/* Amount */}
-      <span className="text-right text-[14px] font-semibold tabular-nums text-foreground tracking-tight">
+      <span className="text-right text-[0.875rem] font-semibold tabular-nums text-foreground tracking-tight">
         {euro(amount)}
       </span>
 
       {/* Percent */}
-      <span className="text-right text-[12.5px] tabular-nums text-muted-foreground">
+      <span className="text-right text-[0.78125rem] tabular-nums text-muted-foreground">
         {proportion.toFixed(0)} %
       </span>
     </div>
@@ -213,19 +213,19 @@ function PanelFoot({
   return (
     <div
       className="grid items-center px-4 py-3 border-t border-border bg-background"
-      style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(120px,1fr) 120px 64px' }}
+      style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(7.5rem,1fr) 7.5rem 4rem' }}
     >
-      <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-muted-foreground col-span-2">
+      <span className="text-[0.75rem] font-semibold uppercase tracking-[0.05em] text-muted-foreground col-span-2">
         {label}
       </span>
       <span
-        className={`text-right text-[15px] font-bold tabular-nums tracking-tight ${
+        className={`text-right text-[0.9375rem] font-bold tabular-nums tracking-tight ${
           accentAmount ? 'text-primary' : 'text-foreground'
         }`}
       >
         {euro(amount)}
       </span>
-      <span className="text-right text-[12.5px] font-semibold text-muted-foreground tabular-nums">
+      <span className="text-right text-[0.78125rem] font-semibold text-muted-foreground tabular-nums">
         100 %
       </span>
     </div>
@@ -256,10 +256,10 @@ function RevenueSection({ pnl }: { pnl: ProfitAndLoss }) {
     <div className="rounded-xl bg-card border border-border overflow-hidden">
       {/* Panel header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <span className="text-[13.5px] font-semibold text-foreground tracking-tight">
+        <span className="text-[0.84375rem] font-semibold text-foreground tracking-tight">
           Ingresos por producto
         </span>
-        <span className="text-[13px] font-semibold text-muted-foreground tabular-nums">
+        <span className="text-[0.8125rem] font-semibold text-muted-foreground tabular-nums">
           Total: <strong className="text-foreground">{euro(pnl.revenueTotal)}</strong>
         </span>
       </div>
@@ -312,9 +312,9 @@ function CostCategoryRow({
   return (
     <div
       className="grid items-center px-4 py-[9px] border-b border-border last:border-b-0 hover:bg-secondary/10 transition-colors"
-      style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(120px,1fr) 120px 64px' }}
+      style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(7.5rem,1fr) 7.5rem 4rem' }}
     >
-      <span className={`text-[13px] text-muted-foreground truncate ${indent ? 'pl-6' : 'pl-3'}`}>
+      <span className={`text-[0.8125rem] text-muted-foreground truncate ${indent ? 'pl-6' : 'pl-3'}`}>
         {cat.name}
       </span>
       <div className="pr-4">
@@ -325,10 +325,10 @@ function CostCategoryRow({
           />
         </div>
       </div>
-      <span className="text-right text-[13.5px] font-medium tabular-nums text-foreground">
+      <span className="text-right text-[0.84375rem] font-medium tabular-nums text-foreground">
         {euro(cat.amount)}
       </span>
-      <span className="text-right text-[12.5px] tabular-nums text-muted-foreground">
+      <span className="text-right text-[0.78125rem] tabular-nums text-muted-foreground">
         {globalTotal > 0 ? ((cat.amount / globalTotal) * 100).toFixed(0) : 0} %
       </span>
     </div>
@@ -378,8 +378,8 @@ function CostGroupSection({
     <>
       {/* Group header row */}
       <div className="grid items-center px-4 py-2 bg-secondary/30 border-b border-border"
-        style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(120px,1fr) 120px 64px' }}>
-        <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+        style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(7.5rem,1fr) 7.5rem 4rem' }}>
+        <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
           {GROUP_LABELS[group]}
         </span>
         <div className="pr-4">
@@ -390,10 +390,10 @@ function CostGroupSection({
             />
           </div>
         </div>
-        <span className="text-right text-[13px] font-semibold tabular-nums text-muted-foreground">
+        <span className="text-right text-[0.8125rem] font-semibold tabular-nums text-muted-foreground">
           {euro(total)}
         </span>
-        <span className="text-right text-[11.5px] tabular-nums text-muted-foreground">
+        <span className="text-right text-[0.71875rem] tabular-nums text-muted-foreground">
           {groupProportion.toFixed(0)} %
         </span>
       </div>
@@ -407,12 +407,12 @@ function CostGroupSection({
               <div key={sg}>
                 {/* Subgroup header */}
                 <div className="grid items-center px-4 py-[6px] bg-secondary/10 border-b border-border"
-                  style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(120px,1fr) 120px 64px' }}>
-                  <span className="text-[10.5px] font-semibold uppercase tracking-[0.06em] text-muted-foreground pl-3">
+                  style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(7.5rem,1fr) 7.5rem 4rem' }}>
+                  <span className="text-[0.65625rem] font-semibold uppercase tracking-[0.06em] text-muted-foreground pl-3">
                     {SUBGROUP_LABELS[sg] ?? sg}
                   </span>
                   <div />
-                  <span className="text-right text-[12px] font-semibold tabular-nums text-muted-foreground">
+                  <span className="text-right text-[0.75rem] font-semibold tabular-nums text-muted-foreground">
                     {euro(sgTotal)}
                   </span>
                   <span />
@@ -454,10 +454,10 @@ function CostsSection({ pnl }: { pnl: ProfitAndLoss }) {
     <div className="rounded-xl bg-card border border-border overflow-hidden">
       {/* Panel header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <span className="text-[13.5px] font-semibold text-foreground tracking-tight">
+        <span className="text-[0.84375rem] font-semibold text-foreground tracking-tight">
           Gastos
         </span>
-        <span className="text-[13px] font-semibold text-muted-foreground tabular-nums">
+        <span className="text-[0.8125rem] font-semibold text-muted-foreground tabular-nums">
           Total: <strong className="text-foreground">{euro(pnl.costsTotal)}</strong>
         </span>
       </div>
@@ -499,33 +499,33 @@ function ResultadoSection({ pnl }: { pnl: ProfitAndLoss }) {
 
   return (
     <div className="rounded-xl bg-card border-2 border-border overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4">
-        <div>
-          <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+      <div className="flex items-center justify-between gap-6 flex-wrap px-5 py-4">
+        <div className="min-w-0">
+          <span className="text-[0.75rem] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
             Resultado del periodo
           </span>
-          <div className={`text-[32px] font-bold tabular-nums tracking-tight mt-1 ${ebitdaClass}`}>
+          <div className={`text-[1.75rem] font-bold tabular-nums tracking-tight mt-1 ${ebitdaClass}`}>
             {euro(pnl.ebitda)}
           </div>
         </div>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4">
           <div className="text-right">
-            <div className="text-[11px] text-muted-foreground mb-0.5">Ingresos</div>
-            <div className="text-[14px] font-semibold text-foreground tabular-nums">{euro(pnl.revenueTotal)}</div>
+            <div className="text-[0.6875rem] text-muted-foreground mb-0.5">Ingresos</div>
+            <div className="text-[0.875rem] font-semibold text-foreground tabular-nums">{euro(pnl.revenueTotal)}</div>
           </div>
           <span className="text-muted-foreground text-base">−</span>
           <div className="text-right">
-            <div className="text-[11px] text-muted-foreground mb-0.5">Gastos</div>
-            <div className="text-[14px] font-semibold text-foreground tabular-nums">{euro(pnl.costsTotal)}</div>
+            <div className="text-[0.6875rem] text-muted-foreground mb-0.5">Gastos</div>
+            <div className="text-[0.875rem] font-semibold text-foreground tabular-nums">{euro(pnl.costsTotal)}</div>
           </div>
           <span className="text-muted-foreground text-base">=</span>
           <div className="text-right">
-            <div className="text-[11px] text-muted-foreground mb-0.5">EBITDA</div>
-            <div className={`text-[18px] font-bold tabular-nums ${ebitdaClass}`}>{euro(pnl.ebitda)}</div>
+            <div className="text-[0.6875rem] text-muted-foreground mb-0.5">EBITDA</div>
+            <div className={`text-[1.125rem] font-bold tabular-nums ${ebitdaClass}`}>{euro(pnl.ebitda)}</div>
           </div>
-          <div className="text-right border-l border-border pl-6">
-            <div className="text-[11px] text-muted-foreground mb-0.5">Margen</div>
-            <div className={`text-[18px] font-bold tabular-nums ${ebitdaClass}`}>
+          <div className="text-right border-l border-border pl-4">
+            <div className="text-[0.6875rem] text-muted-foreground mb-0.5">Margen</div>
+            <div className={`text-[1.125rem] font-bold tabular-nums ${ebitdaClass}`}>
               {pct(pnl.ebitdaMarginPct)}
             </div>
           </div>

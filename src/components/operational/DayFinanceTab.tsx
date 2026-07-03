@@ -110,7 +110,7 @@ export function DayFinanceTab({ date }: Props) {
   )
 
   return (
-    <div className="space-y-5 max-w-[880px] mx-auto px-7 py-5">
+    <div className="space-y-5 max-w-[60rem] mx-auto px-7 py-5">
       {/* P&L display via FinancePnlView */}
       <FinancePnlView pnl={data.pnl} />
 
@@ -513,7 +513,7 @@ function AddExpenseRow({
 
 function DayFinanceTabSkeleton() {
   return (
-    <div className="space-y-4 max-w-[880px] mx-auto px-7 py-5">
+    <div className="space-y-4 max-w-[60rem] mx-auto px-7 py-5">
       {/* KPI strip */}
       <div className="grid grid-cols-4 gap-3">
         {[1, 2, 3, 4].map((i) => (

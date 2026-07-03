@@ -148,7 +148,7 @@ export default async function FinanzasPage({
       <div className="bg-card border-b border-border px-7 py-2 flex items-center justify-end">
         <Link
           href="/finanzas/dashboard"
-          className="inline-flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground hover:text-primary transition-colors"
+          className="inline-flex items-center gap-1.5 text-[0.75rem] font-medium text-muted-foreground hover:text-primary transition-colors"
         >
           <BarChart2 size={13} />
           Dashboard KPI

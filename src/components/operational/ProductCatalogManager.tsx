@@ -404,22 +404,22 @@ export function ProductCatalogManager({ initialProducts }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-background">
-                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground w-24">
+                <th className="px-3 py-2 text-left text-[0.625rem] font-semibold uppercase tracking-[0.07em] text-muted-foreground w-24">
                   Código
                 </th>
-                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
+                <th className="px-3 py-2 text-left text-[0.625rem] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
                   Nombre
                 </th>
-                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground w-44">
+                <th className="px-3 py-2 text-left text-[0.625rem] font-semibold uppercase tracking-[0.07em] text-muted-foreground w-44">
                   Categoría
                 </th>
-                <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground w-32">
+                <th className="px-3 py-2 text-right text-[0.625rem] font-semibold uppercase tracking-[0.07em] text-muted-foreground w-32">
                   Precio base
                 </th>
-                <th className="px-3 py-2 text-center text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground w-20">
+                <th className="px-3 py-2 text-center text-[0.625rem] font-semibold uppercase tracking-[0.07em] text-muted-foreground w-20">
                   Estado
                 </th>
-                <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground w-40">
+                <th className="px-3 py-2 text-right text-[0.625rem] font-semibold uppercase tracking-[0.07em] text-muted-foreground w-40">
                   Acciones
                 </th>
               </tr>

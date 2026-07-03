@@ -100,6 +100,82 @@ export type Database = {
         }
         Relationships: []
       }
+      cash_close: {
+        Row: {
+          closed_at: string
+          closed_by: string
+          created_at: string
+          id: string
+          notes: string | null
+          operational_day_id: string
+          updated_at: string
+        }
+        Insert: {
+          closed_at: string
+          closed_by: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          operational_day_id: string
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string
+          closed_by?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          operational_day_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_close_operational_day_id_fkey"
+            columns: ["operational_day_id"]
+            isOneToOne: true
+            referencedRelation: "operational_days"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cash_close_lines: {
+        Row: {
+          cash_close_id: string
+          counted: number
+          created_at: string
+          expected: number
+          id: string
+          method: Database["public"]["Enums"]["payment_method"]
+          updated_at: string
+        }
+        Insert: {
+          cash_close_id: string
+          counted: number
+          created_at?: string
+          expected: number
+          id?: string
+          method: Database["public"]["Enums"]["payment_method"]
+          updated_at?: string
+        }
+        Update: {
+          cash_close_id?: string
+          counted?: number
+          created_at?: string
+          expected?: number
+          id?: string
+          method?: Database["public"]["Enums"]["payment_method"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_close_lines_cash_close_id_fkey"
+            columns: ["cash_close_id"]
+            isOneToOne: false
+            referencedRelation: "cash_close"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channel_product_prices: {
         Row: {
           active: boolean

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useSortable } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Repeat, Trash2 } from 'lucide-react'
+import { Ban, GripVertical, Repeat, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateFlight, deleteFlight as deleteFlightAction } from '@/lib/actions/flight'
 import { ParticipantRow } from './ParticipantRow'
@@ -68,9 +68,10 @@ interface FlightCardProps {
   instructors: Instructor[]
   onAddParticipant: () => void
   onDelete: () => void
+  onCancel: () => void
 }
 
-export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: FlightCardProps) {
+export function FlightCard({ flight, instructors, onAddParticipant, onDelete, onCancel }: FlightCardProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [editingTime, setEditingTime] = useState(false)
@@ -249,6 +250,15 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: 
               {flight.isBackToBack ? 'Quitar back-to-back' : 'Marcar back-to-back'}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            {flight.status !== 'CANCELLED' && (
+              <DropdownMenuItem
+                onClick={onCancel}
+                className="cursor-pointer text-xs"
+              >
+                <Ban size={12} className="mr-2" />
+                Cancelar vuelo
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               onClick={onDelete}
               className="text-destructive focus:text-destructive cursor-pointer text-xs"

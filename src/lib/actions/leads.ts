@@ -165,6 +165,54 @@ export async function rescheduleLead(leadId: string, newDate: string): Promise<C
   return confirmLead(leadId, newDate)
 }
 
+export type LeadRescheduleAssignment = { leadId: string; date: string }
+export type LeadRescheduleOutcome = { leadId: string; classification?: DateClass; error?: string }
+
+/**
+ * Sprint 3 E3 — bulk reschedule for a group of leads that shared a weather-cancelled
+ * day (handleWeatherCancellation left them lead_status='RESCHEDULE_NEEDED' with
+ * preferredDate = the cancelled day). Staff picks a (possibly different) date per
+ * lead in GroupRescheduleModal; this applies all of them in one action.
+ *
+ * Sequential for...of (NOT Promise.all): several leads commonly land on the same
+ * new date, and flight-seat assignment must fill deterministically one at a time —
+ * concurrent confirmLead calls for the same day would race on seat availability.
+ *
+ * rescheduleLead sets lead_status='NEW' before attempting to confirm. If the
+ * outcome is not a success (error, or classification UNAVAILABLE/NOT_OPERATING),
+ * the lead would be left in lead_status='NEW' with no flight — losing its
+ * RESCHEDULE_NEEDED badge and silently disappearing from the pending group. So
+ * after every non-successful outcome we restore lead_status='RESCHEDULE_NEEDED'
+ * for that lead. Success = classification CONFIRMABLE or TENTATIVE_ONLY with no error.
+ */
+export async function rescheduleLeadsBatch(
+  assignments: LeadRescheduleAssignment[]
+): Promise<{ results: LeadRescheduleOutcome[] }> {
+  const supabase = await createClient()
+  const results: LeadRescheduleOutcome[] = []
+
+  for (const { leadId, date } of assignments) {
+    try {
+      const outcome = await rescheduleLead(leadId, date)
+      const success =
+        !outcome.error &&
+        (outcome.classification === 'CONFIRMABLE' || outcome.classification === 'TENTATIVE_ONLY')
+
+      if (!success) {
+        await supabase.from('participants').update({ lead_status: 'RESCHEDULE_NEEDED' }).eq('id', leadId)
+      }
+
+      results.push({ leadId, classification: outcome.classification, error: outcome.error })
+    } catch (err) {
+      await supabase.from('participants').update({ lead_status: 'RESCHEDULE_NEEDED' }).eq('id', leadId)
+      results.push({ leadId, error: err instanceof Error ? err.message : 'Unknown error' })
+    }
+  }
+
+  revalidatePath('/', 'layout')
+  return { results }
+}
+
 /**
  * Called when an operational day's weather_status is set to CANCELLED.
  * Releases every confirmed participant's seat for that day and marks them

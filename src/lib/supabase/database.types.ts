@@ -848,6 +848,10 @@ export type Database = {
           flight_id: string
         }[]
       }
+      reservations_move_participants: {
+        Args: { p_participant_ids: string[]; p_to_flight_id: string }
+        Returns: number
+      }
     }
     Enums: {
       expense_type: "FUEL_OVERRIDE" | "HANGAR_OVERRIDE" | "CUSTOM"

@@ -1,8 +1,12 @@
 # Plan integrado: Administración/Tesorería + Reservas-CRM (iJump)
 
-> ## ⚠️ ESTADO DE EJECUCIÓN (actualizado 2026-07-02, sesión Sprint 2)
+> ## ⚠️ ESTADO DE EJECUCIÓN (actualizado 2026-07-02, sesión Sprints 2+3)
 >
-> **Sprints 1 y 2 ejecutados. Sprint 3 pendiente (sesión nueva) con diseño ya verificado — ver handoff abajo.**
+> **Sprints 1, 2 y 3 ejecutados. Orden de merge para Alejandro: PR #44 (cash close, base main) →
+> PR del Sprint 3 (base `feature/treasury-cash-close`, apilado). Migraciones a aplicar A MANO en
+> Supabase (`ojngrplnuhcenulfnfps`) tras los merges, EN ORDEN: `20260702000000_treasury_cash_close.sql`
+> → `20260703000000_reservations_move_participants.sql`; después regenerar `database.types.ts`
+> (los tipos ya van añadidos a mano en ambos PRs, regenerar es para consolidar).**
 >
 > - ✅ **Sprint 1 — MERGEADO (PR #42)**. Tras el merge: aplicar a mano
 >   `supabase/migrations/20260701000000_treasury_itemization_ar.sql` en Supabase (`ojngrplnuhcenulfnfps`)
@@ -21,26 +25,36 @@
 > - ✅ **Decisión keying cerrada (Ricardo, 2026-07-02)**: `channel_product_prices` se queda keyed por el
 >   enum `reservation_source`. Pendiente documentado en **issue #43** (ampliar enum + filas de precio en la
 >   misma migración cuando llegue Wonderbox/Jumping/Freedom).
-> - ⏳ **Sprint 3 — PENDIENTE (sesión nueva). HANDOFF con diseño verificado contra main (2026-07-02):**
->   - Rama `feature/reservations-crm` desde `main` (tras merge del Sprint 2 no hay solape de superficies).
->   - **E1 — Edición inline en `/reservas` + preferredTime**: extraer `InlineField` de `ParticipantRow.tsx`
->     a componente compartido y usarlo en `ReservationRow` (fullName, phone, email, preferredTime type=time);
->     extender `updateParticipant` (`participant.ts:69-117`) con `preferredTime` → `preferred_time`.
->     NO crear `updateLead`.
->   - **E2 — cancelFlight + moveParticipants**: extraer helper DRY `releaseParticipantsFromFlights(flightIds)`
->     de `handleWeatherCancellation` (`leads.ts:195-229`: captura ids → libera flight_id → leads a
->     RESCHEDULE_NEEDED → limpia items auto en bloque) y reutilizarlo. `cancelFlight(flightId)` en `flight.ts`
->     (marca `flights.status='CANCELLED'`, enum ya existe sin usar). `moveParticipants(toFlightId, ids)` vía
->     nueva RPC `reservations_move_participants` (patrón `20260623000000_reservations_assign_seat.sql`:
->     FOR UPDATE sobre vuelo destino, cuenta activos vs `max_clients_per_flight`, o excepción
->     NO_SEATS_AVAILABLE). OJO: el `moveParticipant` singular existente (`participant.ts:119-128`) NO valida
->     capacidad — considerar migrarlo a la RPC también. Items no dependen de vuelo/fecha → sin resync.
->   - **E3 — Reubicación GRUPAL de día cancelado (caso real de Raúl)**: action
->     `rescheduleLeadsBatch(assignments: {leadId, newDate}[])` (itera `rescheduleLead`, resumen por lead) +
->     `GroupRescheduleModal` que lista los RESCHEDULE_NEEDED del día y permite repartirlos entre DISTINTOS
->     días con hueco (`getMonthAvailability`/`listNextAvailableSlots` + `WeekendAvailabilityCalendar`).
->     Entradas: banner en `/reservas` cuando hay N leads RESCHEDULE_NEEDED del mismo día + toast tras cancelar.
->   - Al terminar E3: avisar a Ricardo para trasladar la operativa al proyecto del chatbot.
+> - ✅ **Sprint 3 — HECHO (misma sesión 2026-07-02, Ricardo)**: rama `feature/reservations-crm`
+>   (apilada sobre `feature/treasury-cash-close`), PR abierto. Verificación en verde (4 checks jiti,
+>   `tsc`, `build`). **Decisión de negocio que corrigió el handoff original (Ricardo):** cancelar un
+>   vuelo individual ≠ cancelar el día — la operativa real es desplazar a sus ocupantes más adelante
+>   EN EL MISMO DÍA (el manifiesto es orden de vuelo, no exactitud horaria), así que `cancelFlight`
+>   NO envía leads a RESCHEDULE_NEEDED (eso queda solo para el día entero vía `handleWeatherCancellation`).
+>   Entregado:
+>   - **E2**: RPC `reservations_move_participants` (FOR UPDATE solo sobre el vuelo destino — sin deadlock
+>     contra assign_seat, razonado en la cabecera de la migración; todo-o-nada; solo los activos consumen
+>     plaza; realinea `confirmed_time` de leads CONFIRMED — el drag&drop lo dejaba stale, cambio intencional
+>     que afecta a lo que devuelve la API del bot). `moveParticipants` + `moveParticipant` reimplementado
+>     encima (el DnD del manifiesto ahora valida capacidad: fix de overbooking). `cancelFlight(flightId,
+>     destination)` = flujo guiado con `CancelFlightDialog` (vuelo destino existente con plazas libres o
+>     vuelo nuevo con `flight_number = MAX+1`); guard en `deleteFlight` si tiene participantes (cierra el
+>     trap de huérfanos invisibles).
+>   - **E1**: `InlineField` extraído a componente compartido; edición inline en `/reservas` de
+>     fullName/phone/email y preferredTime (solo tab pending); `updateParticipant` + `preferredTime`.
+>     NO se creó `updateLead` (innecesario, como marcaba el handoff).
+>   - **E3**: `rescheduleLeadsBatch` secuencial con restore de `RESCHEDULE_NEEDED` en fallos (sin él, los
+>     leads fallidos quedarían en NEW y desaparecerían del grupo — trap de `rescheduleLead` documentado en
+>     el código); banner por día cancelado en `/reservas` (grupos ≥2 por `preferredDate`, que se conserva);
+>     `GroupRescheduleModal` con fecha por lead sobre un calendario compartido + resumen por lead.
+>   - ⚠️ QA visual autenticada pendiente (checklist en el PR); nota del handoff no ejecutada a propósito:
+>     el helper DRY `releaseParticipantsFromFlights` dejó de tener sentido al cambiar la semántica de
+>     cancelFlight (ya no libera a nadie: mueve). `handleWeatherCancellation` quedó intacto.
+>   - 🔁 **Pendiente lado Ricardo**: trasladar la operativa de reubicación grupal al proyecto del chatbot.
+> - 💡 **Sugerencias futuras (Ricardo, 2026-07-02 — "darle una vuelta", NO implementar aún):** el manifiesto
+>   registra orden de vuelo, no exactitud horaria — evaluar si conviene algo más al recolocar vuelos
+>   cancelados a mitad de día (hoy: mover ocupantes + notas del cliente para el contexto); posible mejora
+>   del flujo de recolocación intra-día apoyada en back-to-back y huecos de media hora.
 > - ⛔ Sprints 4-5 siguen bloqueados por datos de Raúl; Sprint 6 futuro (decisión 5.3).
 
 ## Contexto

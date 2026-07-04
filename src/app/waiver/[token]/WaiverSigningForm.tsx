@@ -2,7 +2,6 @@
 
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { submitWaiver } from '@/lib/actions/waiver'
-import { generateWaiverPdf } from '@/lib/generate-waiver-pdf'
 import { WAIVER_FIELDS, HEALTH_ITEMS, WAIVER_LEGAL_TEXT, WAIVER_TITLE } from '@/lib/waiver-templates/waiver'
 import { RGPD_FIELDS, CONSENT_ITEMS, RGPD_LEGAL_TEXT, RGPD_TITLE } from '@/lib/waiver-templates/rgpd'
 import type { Waiver, WaiverDocumentType, WaiverFormData } from '@/types/domain'
@@ -177,14 +176,7 @@ export default function WaiverSigningForm({ waiver, participantName }: Props) {
 
       const signatureDataUrl = canvasRef.current!.toDataURL('image/png')
 
-      const pdfBase64 = await generateWaiverPdf(
-        documentType,
-        formData,
-        signatureDataUrl,
-        participantName
-      )
-
-      const result = await submitWaiver(waiver.token, formData, pdfBase64, signatureDataUrl)
+      const result = await submitWaiver(waiver.token, formData, signatureDataUrl)
 
       if (result.error) {
         setSubmitError('Ha ocurrido un error al enviar el documento. Por favor, inténtalo de nuevo.')

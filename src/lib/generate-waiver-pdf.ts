@@ -1,11 +1,12 @@
-import type { WaiverDocumentType, WaiverFormData } from '@/types/domain'
-import { WAIVER_TITLE, WAIVER_LEGAL_TEXT, HEALTH_ITEMS, WAIVER_FIELDS } from '@/lib/waiver-templates/waiver'
-import { RGPD_TITLE, RGPD_LEGAL_TEXT, CONSENT_ITEMS, RGPD_FIELDS } from '@/lib/waiver-templates/rgpd'
+import type { WaiverDocumentType, WaiverFormData } from '../types/domain'
+import { WAIVER_TITLE, WAIVER_LEGAL_TEXT, HEALTH_ITEMS, WAIVER_FIELDS } from './waiver-templates/waiver'
+import { RGPD_TITLE, RGPD_LEGAL_TEXT, CONSENT_ITEMS, RGPD_FIELDS } from './waiver-templates/rgpd'
 
 /**
  * Generates a PDF for a signed waiver or RGPD document.
  * Returns the raw base64 string (no data URI prefix).
- * Must run client-side (jsPDF is a browser library).
+ * Runs server-side (jsPDF v4 has no DOM dependency and works in Node) so the
+ * legal document's content cannot be tampered with by the client.
  */
 export async function generateWaiverPdf(
   documentType: WaiverDocumentType,

@@ -219,7 +219,8 @@ export function AddParticipantDrawer({
                 onValueChange={(v) => form.setValue('source', v as FormValues['source'])}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  {/* Base UI renders the raw value by default; show the label */}
+                  <SelectValue>{RESERVATION_SOURCE_LABELS[form.watch('source')]}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {RESERVATION_SOURCES.map((val) => (

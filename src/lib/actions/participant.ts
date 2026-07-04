@@ -91,6 +91,9 @@ export async function createParticipant(
       assigned_instructor_id: data.assignedInstructorId ?? null,
       notes: data.notes ?? null,
       ...(data.leadStatus !== undefined && { lead_status: data.leadStatus }),
+      // CRM P0 — a lead is born "just touched": intake IS the first contact.
+      // Walk-ins (no leadStatus) don't need aging, so no timestamp for them.
+      ...(data.leadStatus !== undefined && { last_contact_at: new Date().toISOString() }),
       ...(data.preferredDate !== undefined && { preferred_date: data.preferredDate }),
       ...(data.preferredTime !== undefined && { preferred_time: data.preferredTime }),
       ...(data.channel !== undefined && { channel: data.channel }),
@@ -154,6 +157,19 @@ export async function updateParticipant(
   if (data.gearedUp !== undefined) update.geared_up = data.gearedUp
   if (data.operationalStatus !== undefined) update.operational_status = data.operationalStatus
   if (data.preferredTime !== undefined) update.preferred_time = data.preferredTime || null
+
+  // CRM P0 — editing contact data (name, phone, email, notes, preferred
+  // time) means the staff just talked to this person: bump last_contact_at
+  // so the lead-aging queue in /reservas resets. Purely operational edits
+  // (status, instructor, weight, package...) are NOT contact and must not
+  // hide a cold lead from the queue.
+  const touchesContact =
+    data.fullName !== undefined ||
+    data.phone !== undefined ||
+    data.email !== undefined ||
+    data.notes !== undefined ||
+    data.preferredTime !== undefined
+  if (touchesContact) update.last_contact_at = new Date().toISOString()
 
   const { error } = await supabase.from('participants').update(update).eq('id', id)
   if (error) return { error: error.message }

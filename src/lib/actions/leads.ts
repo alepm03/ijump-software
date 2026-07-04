@@ -74,7 +74,8 @@ export async function setPreferredDate(
   const supabase = await createClient()
   const { error } = await supabase
     .from('participants')
-    .update({ preferred_date: date, preferred_time: time ?? null })
+    // CRM P0 — completing the date happens while talking to the client: contact.
+    .update({ preferred_date: date, preferred_time: time ?? null, last_contact_at: new Date().toISOString() })
     .eq('id', leadId)
   if (error) return { error: error.message }
   revalidatePath('/', 'layout')
@@ -116,7 +117,8 @@ export async function confirmLead(
   if (classification === 'TENTATIVE_ONLY') {
     const { error } = await supabase
       .from('participants')
-      .update({ lead_status: 'TENTATIVE', preferred_date: date })
+      // CRM P0 — confirming (even as tentative) is a staff-client contact.
+      .update({ lead_status: 'TENTATIVE', preferred_date: date, last_contact_at: new Date().toISOString() })
       .eq('id', leadId)
     if (error) return { error: error.message }
     revalidatePath('/', 'layout')
@@ -141,6 +143,14 @@ export async function confirmLead(
   // syncAutoParticipantItems header) so a retried confirm never duplicates
   // items. Best-effort: a pricing/catalog error must not fail the
   // confirmation itself — the seat is already assigned.
+  // CRM P0 — seat assigned means the client was just contacted/confirmed:
+  // bump last_contact_at (the RPC itself doesn't know about aging).
+  // Best-effort like the itemization below — must not fail the confirmation.
+  await supabase
+    .from('participants')
+    .update({ last_contact_at: new Date().toISOString() })
+    .eq('id', leadId)
+
   const { data: leadRow } = await supabase
     .from('participants')
     .select('package_type')
@@ -161,7 +171,12 @@ export async function confirmLead(
 export async function rescheduleLead(leadId: string, newDate: string): Promise<ConfirmLeadResult> {
   await freeSeat(leadId)
   const supabase = await createClient()
-  await supabase.from('participants').update({ lead_status: 'NEW' }).eq('id', leadId)
+  // CRM P0 — a reschedule attempt is a contact even if the new date ends up
+  // unavailable (confirmLead bumps it again on the successful paths).
+  await supabase
+    .from('participants')
+    .update({ lead_status: 'NEW', last_contact_at: new Date().toISOString() })
+    .eq('id', leadId)
   return confirmLead(leadId, newDate)
 }
 
@@ -436,6 +451,7 @@ export async function listLeads(filter: LeadFilter): Promise<{ leads: LeadWithDe
     notes: p.notes,
     createdAt: p.created_at,
     updatedAt: p.updated_at,
+    lastContactAt: p.last_contact_at,
     leadStatus: p.lead_status as LeadStatus | null,
     preferredDate: p.preferred_date,
     preferredTime: p.preferred_time,

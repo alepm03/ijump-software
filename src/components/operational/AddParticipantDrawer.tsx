@@ -1,15 +1,18 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
+import { AlertTriangle } from 'lucide-react'
 import { createParticipant } from '@/lib/actions/participant'
 import { createLead } from '@/lib/actions/leads'
+import { getDayOccupancy, type DayOccupancySlot } from '@/lib/actions/availability'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
 import {
   Dialog,
   DialogContent,
@@ -23,13 +26,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { Instructor } from '@/types/domain'
+import type { Instructor, ReservationSource } from '@/types/domain'
+import { RESERVATION_SOURCES, RESERVATION_SOURCE_LABELS } from '@/types/domain'
 
 const schema = z.object({
   fullName: z.string().min(1, 'Nombre requerido'),
   phone: z.string().optional(),
   email: z.string().optional(),
-  source: z.enum(['DIRECT', 'GROUPON', 'BONO', 'PROMO', 'SMARTBOX']),
+  source: z.enum(RESERVATION_SOURCES as [ReservationSource, ...ReservationSource[]]),
   packageType: z.enum(['SOLO', 'HANDYCAM', 'VIDEO_EXTERNO', 'FOTOS', 'HANDYCAM_FOTOS']),
   weight: z.string().optional(),
   assignedInstructorId: z.string().optional(),
@@ -39,14 +43,6 @@ const schema = z.object({
 })
 
 type FormValues = z.infer<typeof schema>
-
-const SOURCE_LABELS = {
-  DIRECT: 'Directo',
-  GROUPON: 'Groupon',
-  BONO: 'Bono',
-  PROMO: 'Promo',
-  SMARTBOX: 'Smartbox',
-}
 
 const PACKAGE_LABELS = {
   SOLO: 'Solo (sin video)',
@@ -87,6 +83,34 @@ export function AddParticipantDrawer({
   })
 
   const source = form.watch('source')
+  const preferredDate = isLead ? form.watch('preferredDate') : undefined
+  const preferredTime = isLead ? form.watch('preferredTime') : undefined
+
+  const [occupancy, setOccupancy] = useState<DayOccupancySlot[] | null>(null)
+
+  useEffect(() => {
+    if (!isLead || !preferredDate) {
+      setOccupancy(null)
+      return
+    }
+    let cancelled = false
+    setOccupancy(null)
+    getDayOccupancy(preferredDate)
+      .then((slots) => {
+        if (!cancelled) setOccupancy(slots)
+      })
+      .catch(() => {
+        if (!cancelled) setOccupancy([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isLead, preferredDate])
+
+  const fullSlotAtPreferredTime =
+    preferredTime && occupancy
+      ? occupancy.find((s) => s.time === preferredTime && s.active >= s.max)
+      : undefined
 
   function handleClose() {
     form.reset()
@@ -198,9 +222,9 @@ export function AddParticipantDrawer({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(SOURCE_LABELS).map(([val, label]) => (
+                  {RESERVATION_SOURCES.map((val) => (
                     <SelectItem key={val} value={val}>
-                      {label}
+                      {RESERVATION_SOURCE_LABELS[val]}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -278,15 +302,51 @@ export function AddParticipantDrawer({
 
           {/* Preferred date/time (lead only) */}
           {isLead && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-sm">Fecha preferida *</Label>
-                <Input {...form.register('preferredDate')} type="date" />
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Fecha preferida *</Label>
+                  <Input {...form.register('preferredDate')} type="date" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Hora preferida</Label>
+                  <Input {...form.register('preferredTime')} type="time" placeholder="Opcional" />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm">Hora preferida</Label>
-                <Input {...form.register('preferredTime')} type="time" placeholder="Opcional" />
-              </div>
+
+              {/* Occupancy hint — informative only, does not block submit */}
+              {occupancy && occupancy.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 overflow-x-auto">
+                  {occupancy.map((slot) => {
+                    const full = slot.active >= slot.max
+                    return (
+                      <button
+                        key={slot.time}
+                        type="button"
+                        onClick={() => form.setValue('preferredTime', slot.time)}
+                        className={cn(
+                          'text-2xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap',
+                          full
+                            ? 'bg-secondary border-border text-muted-foreground'
+                            : 'bg-weather-ok-bg border-state-success text-weather-ok'
+                        )}
+                      >
+                        {slot.time} · {slot.active}/{slot.max}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              {fullSlotAtPreferredTime && (
+                <div className="flex items-start gap-1.5 text-2xs text-state-warning">
+                  <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                  <span>
+                    Esa hora está completa ({fullSlotAtPreferredTime.active}/{fullSlotAtPreferredTime.max}): se
+                    creará un vuelo nuevo a esa hora, o elige un hueco libre.
+                  </span>
+                </div>
+              )}
             </div>
           )}
 

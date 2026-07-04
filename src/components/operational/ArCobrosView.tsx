@@ -1,4 +1,5 @@
 import type { ArSummary, ArReceivableRow } from '@/types/domain'
+import { RESERVATION_SOURCE_LABELS } from '@/types/domain'
 
 /**
  * Cobros (AR) view — Sprint 1 treasury. Lists participants/groups with a
@@ -8,14 +9,6 @@ import type { ArSummary, ArReceivableRow } from '@/types/domain'
  *     client on-site only pays supplements. See getArSummary in finance.ts
  *     and the 2026-07-01 pricing decision.
  */
-
-const SOURCE_LABELS: Record<string, string> = {
-  DIRECT: 'Directo',
-  GROUPON: 'Groupon',
-  BONO: 'Bono',
-  PROMO: 'Promo',
-  SMARTBOX: 'Smartbox',
-}
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—'
@@ -33,7 +26,7 @@ function ReceivableRow({ row }: { row: ArReceivableRow }) {
         {row.fullName}
       </span>
       <span className="text-2xs font-medium px-2 py-0.5 rounded-full border border-border-strong bg-card text-muted-foreground whitespace-nowrap">
-        {SOURCE_LABELS[row.source] ?? row.source}
+        {RESERVATION_SOURCE_LABELS[row.source] ?? row.source}
       </span>
       <span className="text-sm font-bold text-destructive whitespace-nowrap w-16 text-right">
         {row.balance.toFixed(0)}€
@@ -114,7 +107,7 @@ export function ArCobrosView({ ar }: { ar: ArSummary }) {
           <div className="flex flex-col gap-1.5">
             {Object.entries(ar.byPlatform).map(([source, amount]) => (
               <div key={source} className="flex items-center justify-between text-sm">
-                <span className="text-foreground">{SOURCE_LABELS[source] ?? source}</span>
+                <span className="text-foreground">{RESERVATION_SOURCE_LABELS[source as keyof typeof RESERVATION_SOURCE_LABELS] ?? source}</span>
                 <span className="font-semibold text-foreground">{amount.toFixed(0)}€</span>
               </div>
             ))}

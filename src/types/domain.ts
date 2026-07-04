@@ -7,7 +7,43 @@ export type PackageType =
   | 'FOTOS'
   | 'HANDYCAM_FOTOS'
 
-export type ReservationSource = 'DIRECT' | 'GROUPON' | 'BONO' | 'PROMO' | 'SMARTBOX'
+export type ReservationSource =
+  | 'DIRECT'
+  | 'BONO'
+  | 'PROMO'
+  | 'GROUPON'
+  | 'SMARTBOX'
+  | 'WONDERBOX'
+  | 'JUMPING'
+  | 'FREEDOM'
+
+/**
+ * All reservation sources, in the order sale_channels.sort_order defines
+ * (see 20260622000000_finance_expense_model.sql) — DIRECT-kind channels
+ * first (no commission), then PLATFORM-kind channels grouped together.
+ * This is the order the "Fuente" dropdown renders in.
+ */
+export const RESERVATION_SOURCES: ReservationSource[] = [
+  'DIRECT',
+  'BONO',
+  'PROMO',
+  'GROUPON',
+  'SMARTBOX',
+  'WONDERBOX',
+  'JUMPING',
+  'FREEDOM',
+]
+
+export const RESERVATION_SOURCE_LABELS: Record<ReservationSource, string> = {
+  DIRECT: 'Directo',
+  BONO: 'Bono',
+  PROMO: 'Promo',
+  GROUPON: 'Groupon',
+  SMARTBOX: 'Smartbox',
+  WONDERBOX: 'Wonder Box',
+  JUMPING: 'Jumping',
+  FREEDOM: 'Freedom',
+}
 
 export type PaymentMethod = 'EFECTIVO' | 'TARJETA' | 'BIZUM' | 'TRANSFERENCIA' | 'GROUPON'
 

@@ -59,7 +59,16 @@ function emptyDailySummary(): DailySummary {
   return {
     totalFlights: 0,
     totalJumps: 0,
-    jumpsBySource: { DIRECT: 0, GROUPON: 0, BONO: 0, PROMO: 0, SMARTBOX: 0 },
+    jumpsBySource: {
+      DIRECT: 0,
+      GROUPON: 0,
+      BONO: 0,
+      PROMO: 0,
+      SMARTBOX: 0,
+      WONDERBOX: 0,
+      JUMPING: 0,
+      FREEDOM: 0,
+    },
     handycamCount: 0,
     externalCameraCount: 0,
     overweightCount: 0,

@@ -6,6 +6,7 @@ import { createParticipant, freeSeat } from '@/lib/actions/participant'
 import { getDayAvailability, type DbClient } from '@/lib/actions/availability'
 import { classifyDate } from '@/lib/availability/availability-engine'
 import { syncAutoParticipantItems, clearAutoParticipantItems } from '@/lib/actions/finance'
+import { normalizePhone } from '@/lib/phone'
 import type {
   Channel,
   DateClass,
@@ -477,4 +478,78 @@ export async function listLeads(filter: LeadFilter): Promise<{ leads: LeadWithDe
   }))
 
   return { leads }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// CRM P0 — phone dedupe (docs/reservas/CRM_REVIEW_2026-07.md §3).
+// ────────────────────────────────────────────────────────────────────────────
+
+export type ActiveLeadMatch = {
+  id: string
+  token: string | null
+  fullName: string
+  leadStatus: LeadStatus
+  preferredDate: string | null
+  preferredTime: string | null
+  confirmedDate: string | null
+  confirmedTime: string | null
+}
+
+const ACTIVE_LEAD_STATUSES: LeadStatus[] = ['NEW', 'TENTATIVE', 'CONFIRMED', 'RESCHEDULE_NEEDED']
+
+/**
+ * Finds an ACTIVE lead with the same canonical phone number, for duplicate
+ * detection: the "possible duplicate" hint in the staff intake form and the
+ * idempotency guard in POST /api/bot/v1/reservations (same client calls AND
+ * writes to the bot → must not become two leads).
+ *
+ * "Active" = status NEW/TENTATIVE/CONFIRMED/RESCHEDULE_NEEDED whose relevant
+ * date (confirmed, else preferred) is today or later — or with no date at
+ * all (a bare phone inquiry is still an active lead). Past-dated leads don't
+ * match: a returning customer next season is a new reservation, not a dupe.
+ *
+ * Accepts an optional client so the bot API can pass its service client
+ * (same pattern as syncAutoParticipantItems). Returns the match with the
+ * nearest relevant date when there are several.
+ */
+export async function findActiveLeadByPhone(
+  phone: string,
+  client?: DbClient
+): Promise<{ lead: ActiveLeadMatch | null; error?: string }> {
+  const normalized = normalizePhone(phone)
+  // Only match plausible canonical numbers — garbage/short inputs would
+  // otherwise "match" other rows that stored the same garbage.
+  if (!normalized || !/^\+\d{9,15}$/.test(normalized)) return { lead: null }
+
+  const supabase = client ?? (await createClient())
+  const today = todayIso()
+
+  const { data, error } = await supabase
+    .from('participants')
+    .select('id, token, full_name, lead_status, preferred_date, preferred_time, confirmed_date, confirmed_time')
+    .eq('phone', normalized)
+    .in('lead_status', ACTIVE_LEAD_STATUSES)
+    .or(
+      `confirmed_date.gte.${today},preferred_date.gte.${today},and(confirmed_date.is.null,preferred_date.is.null)`
+    )
+
+  if (error) return { lead: null, error: error.message }
+  if (!data || data.length === 0) return { lead: null }
+
+  // Nearest upcoming relevant date first; dateless inquiries sort last.
+  const relevantDate = (r: (typeof data)[number]) => r.confirmed_date ?? r.preferred_date ?? '9999-12-31'
+  const [match] = [...data].sort((a, b) => relevantDate(a).localeCompare(relevantDate(b)))
+
+  return {
+    lead: {
+      id: match.id,
+      token: match.token,
+      fullName: match.full_name,
+      leadStatus: match.lead_status as LeadStatus,
+      preferredDate: match.preferred_date,
+      preferredTime: match.preferred_time,
+      confirmedDate: match.confirmed_date,
+      confirmedTime: match.confirmed_time,
+    },
+  }
 }

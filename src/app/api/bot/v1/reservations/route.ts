@@ -17,7 +17,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { authenticateBotRequest, apiErrorResponse } from '@/lib/api/auth'
 import { enforceRateLimit } from '@/lib/api/rate-limit'
-import { createLead, confirmLead, getLeadByIdOrToken } from '@/lib/actions/leads'
+import { createLead, confirmLead, findActiveLeadByPhone, getLeadByIdOrToken } from '@/lib/actions/leads'
 import { listNextAvailableSlots } from '@/lib/actions/availability'
 import { normalizePhone } from '@/lib/phone'
 
@@ -59,6 +59,30 @@ export async function POST(request: Request) {
   }
   const input = parsed.data
   const { client } = auth.context
+
+  // CRM P0 — idempotency by phone (contract v1.1, CRM_REVIEW §4 guardrail 1):
+  // if this phone already has an ACTIVE lead with an upcoming (or no) date,
+  // return that lead with duplicate:true instead of creating a second one.
+  // The same customer calling Raúl AND messaging the bot must be ONE lead.
+  // Best-effort on lookup error: creating a potential duplicate is better
+  // than refusing a real reservation.
+  if (input.phone) {
+    const { lead: existing } = await findActiveLeadByPhone(input.phone, client)
+    if (existing) {
+      return NextResponse.json(
+        {
+          reservationId: existing.id,
+          token: existing.token,
+          status: existing.leadStatus,
+          confirmedDate: existing.confirmedDate,
+          confirmedTime: existing.confirmedTime,
+          statusUrl: `/reserva/${existing.token}`,
+          duplicate: true,
+        },
+        { status: 200 }
+      )
+    }
+  }
 
   const created = await createLead(
     {

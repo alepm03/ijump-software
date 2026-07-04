@@ -1,12 +1,28 @@
 # Plan integrado: Administración/Tesorería + Reservas-CRM (iJump)
 
-> ## ⚠️ ESTADO DE EJECUCIÓN (actualizado 2026-07-02, sesión Sprints 2+3)
+> ## ⚠️ ESTADO DE EJECUCIÓN (actualizado 2026-07-04, sesión retoques operativos)
 >
-> **Sprints 1, 2 y 3 ejecutados. Orden de merge para Alejandro: PR #44 (cash close, base main) →
-> PR del Sprint 3 (base `feature/treasury-cash-close`, apilado). Migraciones a aplicar A MANO en
-> Supabase (`ojngrplnuhcenulfnfps`) tras los merges, EN ORDEN: `20260702000000_treasury_cash_close.sql`
-> → `20260703000000_reservations_move_participants.sql`; después regenerar `database.types.ts`
-> (los tipos ya van añadidos a mano en ambos PRs, regenerar es para consolidar).**
+> **Sprints 1-3 MERGEADOS (PRs #42/#44/#45-#46, más #47 de Alejandro). Nuevo PR de retoques
+> operativos abierto (`feature/operational-tweaks`). Migraciones pendientes de aplicar A MANO en
+> Supabase (`ojngrplnuhcenulfnfps`), EN ORDEN (las de sprints anteriores si no están ya):
+> `20260702000000_treasury_cash_close.sql` → `20260703000000_reservations_move_participants.sql` →
+> `20260704000000_flight_interval_and_extraordinary.sql` →
+> `20260704000001_reservation_source_platforms.sql` (⚠️ esta última NO reversible: ALTER TYPE,
+> excepción prevista en el issue #43). Después regenerar `database.types.ts`.**
+>
+> - ✅ **Retoques operativos — HECHO (sesión 2026-07-04, Ricardo)**, rama `feature/operational-tweaks`:
+>   - Intervalo de vuelos configurable (`business_settings.flight_interval_minutes` = 45, verano) y
+>     primer vuelo a las 08:00; lo leen la RPC `assign_seat` (make_interval, fallback 60) y
+>     `handleAddFlight` vía policy. Cambiar de temporada = cambiar el setting, sin tocar código.
+>   - Fuente completa: enum `reservation_source` + WONDERBOX/JUMPING/FREEDOM (ejecuta el issue #43);
+>     labels unificados en `RESERVATION_SOURCE_LABELS` (domain.ts) — 4 copias duplicadas eliminadas.
+>     Las 3 plataformas nuevas clasifican como owedBy PLATFORM en AR. SIN filas de precio neto aún
+>     (pendiente Raúl S21; fallback a products.base_price funciona mientras tanto).
+>   - Categoría de gasto "Gasto extraordinario" (GENERALES, manual, motivo en description).
+>   - Chips de ocupación por hora al crear reserva (getDayOccupancy) + aviso no bloqueante si la
+>     hora elegida está llena. Verificado en preview autenticado.
+>   - `docs/reservas/CRM_REVIEW_2026-07.md`: revisión CRM experta con roadmap priorizado. **Los dos
+>     P0 (aging de leads y dedupe por teléfono) deben ejecutarse ANTES de conectar el chatbot.**
 >
 > - ✅ **Sprint 1 — MERGEADO (PR #42)**. Tras el merge: aplicar a mano
 >   `supabase/migrations/20260701000000_treasury_itemization_ar.sql` en Supabase (`ojngrplnuhcenulfnfps`)

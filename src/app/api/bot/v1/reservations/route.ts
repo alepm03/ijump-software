@@ -19,13 +19,19 @@ import { authenticateBotRequest, apiErrorResponse } from '@/lib/api/auth'
 import { enforceRateLimit } from '@/lib/api/rate-limit'
 import { createLead, confirmLead, getLeadByIdOrToken } from '@/lib/actions/leads'
 import { listNextAvailableSlots } from '@/lib/actions/availability'
+import { normalizePhone } from '@/lib/phone'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 const ReservationSchema = z.object({
   fullName: z.string().min(1, 'fullName is required'),
-  phone: z.string().min(1).optional(),
+  // CRM P0 — normalize at the API boundary so downstream code (createLead ->
+  // createParticipant) always sees canonical form. createParticipant also
+  // normalizes on write (single point of truth for internal callers); this
+  // is idempotent so the two never conflict, it just makes the schema's
+  // output type reflect what actually gets stored.
+  phone: z.string().min(1).transform(normalizePhone).optional(),
   email: z.string().email().optional(),
   packageType: z.enum(['SOLO', 'HANDYCAM', 'VIDEO_EXTERNO', 'FOTOS', 'HANDYCAM_FOTOS']).optional(),
   weight: z.number().positive().max(200).optional(),

@@ -6,6 +6,7 @@ import type { TablesUpdate } from '@/lib/supabase/database.types'
 import type { Channel, LeadStatus, OperationalStatus, PackageType, ReservationSource } from '@/types/domain'
 import type { DbClient } from '@/lib/actions/availability'
 import { syncAutoParticipantItems, clearAutoParticipantItems } from '@/lib/actions/finance'
+import { normalizePhone } from '@/lib/phone'
 
 /** operational_status values that mean "not actually flying" — see finance.ts clearAutoParticipantItems header. */
 const NON_FLYING_STATUSES: ReadonlySet<OperationalStatus> = new Set([
@@ -74,7 +75,10 @@ export async function createParticipant(
     .insert({
       flight_id: flightId,
       full_name: data.fullName,
-      phone: data.phone ?? null,
+      // CRM P0 — normalize on write so all phone data lands in canonical
+      // +<countrycode><number> form (single point of normalization for
+      // this write path; see phone.ts header).
+      phone: normalizePhone(data.phone),
       email: data.email ?? null,
       // Treasury Sprint 1: this default now also drives auto-itemization
       // (see below) — a caller that omits packageType (e.g. the bot API,
@@ -136,7 +140,8 @@ export async function updateParticipant(
 
   const update: TablesUpdate<'participants'> = {}
   if (data.fullName !== undefined) update.full_name = data.fullName
-  if (data.phone !== undefined) update.phone = data.phone
+  // CRM P0 — normalize on write (see createParticipant above).
+  if (data.phone !== undefined) update.phone = normalizePhone(data.phone)
   if (data.email !== undefined) update.email = data.email
   if (data.packageType !== undefined) update.package_type = data.packageType
   if (data.weight !== undefined) update.weight = data.weight

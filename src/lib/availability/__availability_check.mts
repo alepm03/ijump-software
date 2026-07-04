@@ -47,6 +47,7 @@ const POLICY: AvailabilityPolicy = {
   maxClientsPerFlight: 2,
   maxFlightsPerDay: 10,
   operatingWeekdays: [6, 0], // Saturday, Sunday
+  flightIntervalMinutes: 60,
 }
 
 console.log('\n=== Availability Engine Validation ===\n')

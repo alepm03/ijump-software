@@ -23,6 +23,7 @@ const DEFAULT_POLICY: AvailabilityPolicy = {
   maxClientsPerFlight: 2,
   maxFlightsPerDay: 10,
   operatingWeekdays: [6, 0],
+  flightIntervalMinutes: 60,
 }
 
 /** Today as YYYY-MM-DD in the center's timezone (Europe/Madrid). */
@@ -44,8 +45,11 @@ export async function getPolicy(client?: DbClient): Promise<AvailabilityPolicy> 
   const operatingWeekdays = operatingWeekdaysRaw
     ? operatingWeekdaysRaw.split(',').map((s) => Number(s.trim()))
     : DEFAULT_POLICY.operatingWeekdays
+  const flightIntervalMinutes = Number(
+    settings.get('flight_interval_minutes') ?? DEFAULT_POLICY.flightIntervalMinutes
+  )
 
-  return { maxClientsPerFlight, maxFlightsPerDay, operatingWeekdays }
+  return { maxClientsPerFlight, maxFlightsPerDay, operatingWeekdays, flightIntervalMinutes }
 }
 
 type RawDayRow = {

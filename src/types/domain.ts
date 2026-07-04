@@ -452,6 +452,7 @@ export interface AvailabilityPolicy {
   maxClientsPerFlight: number
   maxFlightsPerDay: number
   operatingWeekdays: number[] // e.g. [6, 0] = Saturday and Sunday
+  flightIntervalMinutes: number // minutes between auto-scheduled flights — configurable per season
 }
 
 export interface DayLoad {

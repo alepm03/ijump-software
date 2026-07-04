@@ -7,8 +7,28 @@
 > Supabase (`ojngrplnuhcenulfnfps`), EN ORDEN (las de sprints anteriores si no están ya):
 > `20260702000000_treasury_cash_close.sql` → `20260703000000_reservations_move_participants.sql` →
 > `20260704000000_flight_interval_and_extraordinary.sql` →
-> `20260704000001_reservation_source_platforms.sql` (⚠️ esta última NO reversible: ALTER TYPE,
-> excepción prevista en el issue #43). Después regenerar `database.types.ts`.**
+> `20260704000001_reservation_source_platforms.sql` (⚠️ NO reversible: ALTER TYPE,
+> excepción prevista en el issue #43) → `20260704000002_leads_aging_phone_dedupe.sql` (⚠️ incluye UPDATE
+> de normalización de teléfonos, excepción aprobada). Después regenerar `database.types.ts`.**
+>
+> - ✅ **Mini-sprint CRM P0 — HECHO (2ª sesión 2026-07-04, Ricardo)**, rama `feature/crm-p0-aging-dedupe`
+>   (apilada sobre `feature/operational-tweaks` / PR #48 — mergear #48 primero). Ejecuta los dos P0 de
+>   `docs/reservas/CRM_REVIEW_2026-07.md` (prerequisito para conectar el chatbot):
+>   - **Aging de leads**: columna `participants.last_contact_at` (migración `20260704000002`, backfill desde
+>     `updated_at`), bump en cada contacto real (alta, edición de datos de contacto, fijar fecha, confirmar,
+>     reagendar — NO en ediciones operativas); en `/reservas` tab Pendientes: banner ámbar "N leads sin
+>     contacto >48h", badge por fila (ámbar 48-96h, rojo >96h) y toggle de ordenación por antigüedad.
+>     TENTATIVE excluida a propósito (espera a su mes, no a un humano).
+>   - **Dedupe por teléfono**: `normalizePhone` (`src/lib/phone.ts`, espejo EXACTO del SQL de la migración,
+>     check `__phone_check.mts`) aplicado en todos los puntos de escritura; la migración normaliza los
+>     teléfonos existentes (⚠️ UPDATE de datos, excepción aprobada por Ricardo a la regla aditivo/reversible,
+>     como el enum de #43); `findActiveLeadByPhone` (lead activo + fecha futura o sin fecha); aviso de posible
+>     duplicado en el alta manual (no bloqueante); **API bot: POST /reservations con teléfono ya activo →
+>     200 + `duplicate: true`** con el lead existente (contrato v1.1 en `BOT_API_CONTRACT.md`).
+>   - Verificación: `tsc`, `build`, 5 checks jiti en verde. Migración `20260704000002` pendiente de aplicar
+>     A MANO tras el merge (después de las 4 anteriores, ver lista abajo).
+>   - 🔁 **Pendiente lado Ricardo**: trasladar la semántica `duplicate: true` al proyecto del chatbot
+>     (el bot debe pedir SIEMPRE el teléfono antes de crear reserva y manejar la respuesta 200).
 >
 > - ✅ **Retoques operativos — HECHO (sesión 2026-07-04, Ricardo)**, rama `feature/operational-tweaks`:
 >   - Intervalo de vuelos configurable (`business_settings.flight_interval_minutes` = 45, verano) y

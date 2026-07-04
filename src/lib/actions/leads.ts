@@ -147,10 +147,13 @@ export async function confirmLead(
   // CRM P0 — seat assigned means the client was just contacted/confirmed:
   // bump last_contact_at (the RPC itself doesn't know about aging).
   // Best-effort like the itemization below — must not fail the confirmation.
-  await supabase
+  const { error: contactError } = await supabase
     .from('participants')
     .update({ last_contact_at: new Date().toISOString() })
     .eq('id', leadId)
+  if (contactError) {
+    console.error('confirmLead: last_contact_at bump failed', contactError.message)
+  }
 
   const { data: leadRow } = await supabase
     .from('participants')

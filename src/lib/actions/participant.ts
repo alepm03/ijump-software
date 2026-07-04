@@ -163,6 +163,11 @@ export async function updateParticipant(
   // so the lead-aging queue in /reservas resets. Purely operational edits
   // (status, instructor, weight, package...) are NOT contact and must not
   // hide a cold lead from the queue.
+  //
+  // `notes` is deliberately included: CRM_REVIEW_2026-07.md §4 guardrail 3
+  // defines bot->human escalation as "note on the lead + last_contact_at",
+  // and a staff note like "called twice, no answer" IS a contact attempt —
+  // the queue tracks staff attention, not successful conversations.
   const touchesContact =
     data.fullName !== undefined ||
     data.phone !== undefined ||

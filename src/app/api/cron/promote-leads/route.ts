@@ -12,6 +12,11 @@
  * Uses the service client (bypasses RLS): there is no user session/cookies
  * in a cron invocation, so the normal cookie-based client would be running
  * as an unauthenticated anon role and get blocked by RLS.
+ *
+ * Fails closed: if CRON_SECRET is not configured on the project, every
+ * request is rejected with 401 rather than matching against the literal
+ * string "Bearer undefined". A daily 401 in the Vercel logs for this route
+ * means CRON_SECRET is missing, not that the cron is broken.
  */
 
 import { NextResponse } from 'next/server'
@@ -21,8 +26,8 @@ import { promoteTentativeLeads } from '@/lib/actions/leads'
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret || request.headers.get('authorization') !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

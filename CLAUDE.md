@@ -351,6 +351,7 @@ docs/
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=        # ⚠ SIN prefijo NEXT_PUBLIC_ — nunca exponer al browser
+CRON_SECRET=                      # Vercel Cron: Vercel la adjunta como Authorization: Bearer a /api/cron/*. Sin ella el cron responde 401 (fail-closed).
 ```
 
 > La service role key salta RLS. Si se filtra al cliente (prefijo `NEXT_PUBLIC_`), cualquiera puede leer/escribir toda la base de datos. Verificar que en `.env.local` y en las variables de Vercel el nombre sea `SUPABASE_SERVICE_ROLE_KEY` (sin prefijo).

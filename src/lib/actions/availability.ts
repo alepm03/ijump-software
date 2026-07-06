@@ -23,6 +23,7 @@ const DEFAULT_POLICY: AvailabilityPolicy = {
   maxClientsPerFlight: 2,
   maxFlightsPerDay: 10,
   operatingWeekdays: [6, 0],
+  flightIntervalMinutes: 60,
 }
 
 /** Today as YYYY-MM-DD in the center's timezone (Europe/Madrid). */
@@ -44,8 +45,11 @@ export async function getPolicy(client?: DbClient): Promise<AvailabilityPolicy> 
   const operatingWeekdays = operatingWeekdaysRaw
     ? operatingWeekdaysRaw.split(',').map((s) => Number(s.trim()))
     : DEFAULT_POLICY.operatingWeekdays
+  const flightIntervalMinutes = Number(
+    settings.get('flight_interval_minutes') ?? DEFAULT_POLICY.flightIntervalMinutes
+  )
 
-  return { maxClientsPerFlight, maxFlightsPerDay, operatingWeekdays }
+  return { maxClientsPerFlight, maxFlightsPerDay, operatingWeekdays, flightIntervalMinutes }
 }
 
 type RawDayRow = {
@@ -155,4 +159,53 @@ export async function listNextAvailableSlots(
   }
 
   return results
+}
+
+/** One flight's occupancy for the day-occupancy hint shown when picking a lead's preferred time. */
+export interface DayOccupancySlot {
+  time: string
+  active: number
+  max: number
+  flightStatus: string
+}
+
+/**
+ * Flights already scheduled for a given day, with active participant counts —
+ * used to render an informative (non-blocking) occupancy hint in
+ * AddParticipantDrawer's lead mode. The backend already prevents overbooking
+ * at confirmation time; this is purely a UI aid to help staff pick a free slot.
+ */
+export async function getDayOccupancy(date: string, client?: DbClient): Promise<DayOccupancySlot[]> {
+  const supabase = client ?? (await createClient())
+  const policy = await getPolicy(client)
+
+  const { data, error } = await supabase
+    .from('operational_days')
+    .select(
+      'flights ( estimated_departure_time, status, participants ( id, operational_status ) )'
+    )
+    .eq('date', date)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  if (!data) return []
+
+  type Row = {
+    flights: {
+      estimated_departure_time: string | null
+      status: string
+      participants: { id: string; operational_status: string }[]
+    }[]
+  }
+  const row = data as Row
+
+  return row.flights
+    .filter((f) => f.status !== 'CANCELLED' && f.estimated_departure_time !== null)
+    .map((f) => ({
+      time: (f.estimated_departure_time as string).slice(0, 5),
+      active: f.participants.filter((p) => !NON_COMPLETED_STATUSES.has(p.operational_status)).length,
+      max: policy.maxClientsPerFlight,
+      flightStatus: f.status,
+    }))
+    .sort((a, b) => a.time.localeCompare(b.time))
 }

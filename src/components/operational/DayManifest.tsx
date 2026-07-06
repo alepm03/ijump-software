@@ -166,8 +166,14 @@ export function DayManifest({ day, instructors, policy }: DayManifestProps) {
       let estimatedDepartureTime: string | null = null
       if (latest) {
         const [h, m] = latest.split(':').map(Number)
-        const next = h + 1
-        if (next < 24) estimatedDepartureTime = `${String(next).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+        // Minute-based arithmetic driven by the configurable interval
+        // (e.g. 08:00 -> 08:45 -> 09:30), instead of a hardcoded +1 hour.
+        const totalMinutes = h * 60 + m + policy.flightIntervalMinutes
+        if (totalMinutes < 24 * 60) {
+          const nextH = Math.floor(totalMinutes / 60)
+          const nextM = totalMinutes % 60
+          estimatedDepartureTime = `${String(nextH).padStart(2, '0')}:${String(nextM).padStart(2, '0')}`
+        }
       }
       const result = await createFlight(day.id, { estimatedDepartureTime })
       if (result.error) toast.error(result.error)

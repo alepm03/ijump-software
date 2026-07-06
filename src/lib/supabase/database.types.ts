@@ -895,7 +895,15 @@ export type Database = {
         | "GROUND_REPORT"
         | "OTHER"
       rate_basis: "PER_FLIGHT" | "PER_JUMP" | "FIXED_PER_DAY" | "FIXED_PER_MONTH"
-      reservation_source: "DIRECT" | "GROUPON" | "BONO" | "PROMO" | "SMARTBOX"
+      reservation_source:
+        | "DIRECT"
+        | "GROUPON"
+        | "BONO"
+        | "PROMO"
+        | "SMARTBOX"
+        | "WONDERBOX"
+        | "JUMPING"
+        | "FREEDOM"
       weather_status: "OK" | "MARGINAL" | "CANCELLED"
     }
     CompositeTypes: {
@@ -1070,7 +1078,16 @@ export const Constants = {
         "OTHER",
       ],
       rate_basis: ["PER_FLIGHT", "PER_JUMP", "FIXED_PER_DAY", "FIXED_PER_MONTH"],
-      reservation_source: ["DIRECT", "GROUPON", "BONO", "PROMO", "SMARTBOX"],
+      reservation_source: [
+        "DIRECT",
+        "GROUPON",
+        "BONO",
+        "PROMO",
+        "SMARTBOX",
+        "WONDERBOX",
+        "JUMPING",
+        "FREEDOM",
+      ],
       weather_status: ["OK", "MARGINAL", "CANCELLED"],
     },
   },

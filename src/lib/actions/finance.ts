@@ -48,6 +48,7 @@ import type {
   ArReceivableRow,
   ArSummary,
 } from '@/types/domain'
+import { RESERVATION_SOURCE_LABELS } from '@/types/domain'
 import type { DbClient } from '@/lib/actions/availability'
 
 // ─── Settings ───────────────────────────────────────────────
@@ -1176,7 +1177,16 @@ export async function clearAutoParticipantItems(
 // to a rolling window (e.g. join operational_days and filter by date) the
 // same way getDayPnl/getMonthPnl already do.
 
-const PLATFORM_SOURCES: ReadonlySet<ReservationSource> = new Set(['GROUPON', 'SMARTBOX'])
+// Mirrors sale_channels.channel_kind = 'PLATFORM': the pending balance for
+// these sources is owed by the platform (client already paid them), never by
+// the client at the dropzone.
+const PLATFORM_SOURCES: ReadonlySet<ReservationSource> = new Set([
+  'GROUPON',
+  'SMARTBOX',
+  'WONDERBOX',
+  'JUMPING',
+  'FREEDOM',
+])
 
 export async function getArSummary(): Promise<ArSummary> {
   const supabase = await createClient()
@@ -1752,14 +1762,6 @@ interface KpiDayRow {
   flights: KpiFlightRow[]
 }
 
-const SOURCE_LABELS: Record<string, string> = {
-  DIRECT:   'Directo',
-  GROUPON:  'Groupon',
-  BONO:     'Bono',
-  PROMO:    'Promo',
-  SMARTBOX: 'Smartbox',
-}
-
 const CATEGORY_KPI_LABELS: Record<string, string> = {
   TANDEM_BASE:     'Tándem base',
   CAMERA_HANDYCAM: 'Handycam',
@@ -1832,7 +1834,7 @@ function computeKpis(
   const mixBySource: MixEntry[] = Array.from(sourceCount.entries())
     .sort((a, b) => b[1] - a[1])
     .map(([source, count]) => ({
-      label: SOURCE_LABELS[source] ?? source,
+      label: RESERVATION_SOURCE_LABELS[source as ReservationSource] ?? source,
       count,
       share: totalCompletedJumps > 0 ? (count / totalCompletedJumps) * 100 : 0,
     }))

@@ -52,6 +52,7 @@ import type {
   Waiver,
   WaiverDocumentType,
 } from '@/types/domain'
+import { RESERVATION_SOURCE_LABELS } from '@/types/domain'
 
 // ─── Status / Package config — tokens only, no hex ───────────────────────────
 
@@ -558,14 +559,6 @@ function WaiverSection({ participantId }: { participantId: string }) {
 
 // ─── Participant info sheet ───────────────────────────────────────────────────
 
-const SOURCE_LABELS: Record<string, string> = {
-  DIRECT: 'Directo',
-  GROUPON: 'Groupon',
-  BONO: 'Bono',
-  PROMO: 'Promo',
-  SMARTBOX: 'Smartbox',
-}
-
 function EditableRow({
   label,
   value,
@@ -725,7 +718,7 @@ function ParticipantInfoSheet({
                   <div className="flex flex-col gap-1">
                     <span className="text-xs text-muted-foreground">Canal</span>
                     <span className="text-sm font-medium text-foreground px-2 py-1.5">
-                      {SOURCE_LABELS[p.reservationGroup.source] ?? p.reservationGroup.source}
+                      {RESERVATION_SOURCE_LABELS[p.reservationGroup.source] ?? p.reservationGroup.source}
                     </span>
                   </div>
                   {p.reservationGroup.payerName && (

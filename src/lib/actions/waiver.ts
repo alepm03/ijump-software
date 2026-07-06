@@ -1,9 +1,53 @@
 'use server'
 
+import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { generateWaiverPdf } from '@/lib/generate-waiver-pdf'
 import type { WaiverDocumentType, WaiverFormData, WaiverStatus, Waiver } from '@/types/domain'
+
+// Runtime validation for the public waiver submission endpoint. formData
+// arrives from an unauthenticated browser client, so every field must be
+// bounded and typed before it reaches the PDF generator or Storage.
+const waiverFormDataSchema = z.object({
+  fullName: z.string().trim().min(1).max(120),
+  email: z.union([z.literal(''), z.string().max(254).email()]),
+  phone: z.string().max(60).optional(),
+  dni: z.string().max(60).optional(),
+  dateOfBirth: z.string().max(20).optional(),
+  address: z.string().max(200).optional(),
+  province: z.string().max(60).optional(),
+  emergencyContactName: z.string().max(60).optional(),
+  emergencyContactPhone: z.string().max(60).optional(),
+  emergencyContactRelationship: z.string().max(60).optional(),
+  sportsLicenseNumber: z.string().max(60).optional(),
+  healthDeclaration: z.record(z.string().max(100), z.boolean()).optional(),
+  consents: z.record(z.string().max(100), z.boolean()).optional(),
+})
+
+const PNG_MAGIC_BYTES = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+const MAX_SIGNATURE_BYTES = 500 * 1024
+
+function decodeAndValidateSignature(signatureBase64: string): Buffer | null {
+  const prefix = 'data:image/png;base64,'
+  if (!signatureBase64.startsWith(prefix)) return null
+
+  let buffer: Buffer
+  try {
+    buffer = Buffer.from(signatureBase64.slice(prefix.length), 'base64')
+  } catch {
+    return null
+  }
+
+  if (buffer.length === 0 || buffer.length > MAX_SIGNATURE_BYTES) return null
+
+  for (let i = 0; i < PNG_MAGIC_BYTES.length; i++) {
+    if (buffer[i] !== PNG_MAGIC_BYTES[i]) return null
+  }
+
+  return buffer
+}
 
 // ─── Staff actions (require auth) ────────────────────────────────────────────
 
@@ -112,22 +156,23 @@ export async function getWaiverByToken(token: string): Promise<{
 
 /**
  * Submits a completed waiver.
- * Accepts the PDF and signature as base64 strings, uploads them to Storage,
- * updates the waiver record to COMPLETED, and marks the participant as signed.
+ * Validates formData and the signature at runtime, generates the legal PDF
+ * server-side (never trusting a client-supplied document), uploads both to
+ * Storage, updates the waiver record to COMPLETED, and marks the participant
+ * as signed.
  *
  * Only processes waivers in PENDING status — idempotent on re-submission.
  */
 export async function submitWaiver(
   token: string,
   formData: WaiverFormData,
-  pdfBase64: string,
   signatureBase64: string
 ): Promise<{ error?: string }> {
   const supabase = createServiceClient()
 
   const { data: existing, error: fetchError } = await supabase
     .from('waivers')
-    .select('id, status, participant_id, document_type')
+    .select('id, status, participant_id, document_type, participants!waivers_participant_id_fkey(full_name)')
     .eq('token', token)
     .maybeSingle()
 
@@ -136,8 +181,18 @@ export async function submitWaiver(
   if (existing.status === 'COMPLETED') return {}
   if (existing.status === 'EXPIRED') return { error: 'expired' }
 
+  const parsed = waiverFormDataSchema.safeParse(formData)
+  if (!parsed.success) return { error: 'validation_error' }
+  const parsedFormData = parsed.data as WaiverFormData
+
+  const sigBuffer = decodeAndValidateSignature(signatureBase64)
+  if (!sigBuffer) return { error: 'invalid_signature' }
+
+  const participantRow = existing.participants as { full_name: string } | null
+  const participantName = participantRow?.full_name ?? 'Participante'
+
   // Build paths: NombreCliente/WAIVER/NombreCliente-YYYY-MM-DD-WAIVER.pdf
-  const safeName = (formData.fullName || 'participante')
+  const safeName = (parsedFormData.fullName || 'participante')
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')  // strip accents
     .replace(/[^a-zA-Z0-9 ]/g, '')   // remove special chars
@@ -147,6 +202,13 @@ export async function submitWaiver(
   const dateStr = new Date().toISOString().split('T')[0]
   const docLabel = existing.document_type  // 'WAIVER' | 'RGPD'
   const baseName = `${safeName}-${dateStr}-${docLabel}`
+
+  const pdfBase64 = await generateWaiverPdf(
+    existing.document_type as WaiverDocumentType,
+    parsedFormData,
+    signatureBase64,
+    participantName
+  )
 
   // Upload PDF — NombreCliente/WAIVER/NombreCliente-Fecha-WAIVER.pdf
   const pdfPath = `${safeName}/${docLabel}/${baseName}.pdf`
@@ -159,7 +221,6 @@ export async function submitWaiver(
 
   // Upload signature image — NombreCliente/WAIVER/NombreCliente-Fecha-WAIVER-firma.png
   const sigPath = `${safeName}/${docLabel}/${baseName}-firma.png`
-  const sigBuffer = Buffer.from(signatureBase64.replace(/^data:image\/png;base64,/, ''), 'base64')
   const { error: sigError } = await supabase.storage
     .from('waiver-documents')
     .upload(sigPath, sigBuffer, { contentType: 'image/png', upsert: true })
@@ -179,7 +240,7 @@ export async function submitWaiver(
   const { error: updateError } = await supabase
     .from('waivers')
     .update({
-      form_data: formData as unknown as import('@/lib/supabase/database.types').Json,
+      form_data: parsedFormData as unknown as import('@/lib/supabase/database.types').Json,
       pdf_url: pdfSigned?.signedUrl ?? pdfPath,
       signature_url: sigSigned?.signedUrl ?? sigPath,
       status: 'COMPLETED',

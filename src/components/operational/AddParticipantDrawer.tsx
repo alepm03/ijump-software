@@ -6,8 +6,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { AlertTriangle } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
+import { es } from 'date-fns/locale'
 import { createParticipant } from '@/lib/actions/participant'
-import { createLead } from '@/lib/actions/leads'
+import { createLead, findActiveLeadByPhone, type ActiveLeadMatch } from '@/lib/actions/leads'
 import { getDayOccupancy, type DayOccupancySlot } from '@/lib/actions/availability'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -43,6 +45,15 @@ const schema = z.object({
 })
 
 type FormValues = z.infer<typeof schema>
+
+const DUPLICATE_STATUS_LABELS: Record<ActiveLeadMatch['leadStatus'], string> = {
+  NEW: 'pendiente',
+  TENTATIVE: 'tentativa',
+  CONFIRMED: 'confirmada',
+  RESCHEDULE_NEEDED: 'por reagendar',
+  CANCELLED: 'cancelada',
+  NO_SHOW: 'no-show',
+}
 
 const PACKAGE_LABELS = {
   SOLO: 'Solo (sin video)',
@@ -87,6 +98,33 @@ export function AddParticipantDrawer({
   const preferredTime = isLead ? form.watch('preferredTime') : undefined
 
   const [occupancy, setOccupancy] = useState<DayOccupancySlot[] | null>(null)
+
+  // CRM P0 — possible-duplicate hint: debounced lookup of an active lead
+  // with the same (normalized) phone. Informative only, never blocks submit
+  // — the staff decides (e.g. a parent booking for two kids from one phone).
+  const phoneValue = isLead ? form.watch('phone') : undefined
+  const [possibleDuplicate, setPossibleDuplicate] = useState<ActiveLeadMatch | null>(null)
+
+  useEffect(() => {
+    if (!isLead || !phoneValue || phoneValue.trim().length < 9) {
+      setPossibleDuplicate(null)
+      return
+    }
+    let cancelled = false
+    const timer = setTimeout(() => {
+      findActiveLeadByPhone(phoneValue)
+        .then(({ lead }) => {
+          if (!cancelled) setPossibleDuplicate(lead)
+        })
+        .catch(() => {
+          if (!cancelled) setPossibleDuplicate(null)
+        })
+    }, 500)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [isLead, phoneValue])
 
   useEffect(() => {
     if (!isLead || !preferredDate) {
@@ -199,6 +237,19 @@ export function AddParticipantDrawer({
                 {...form.register('phone')}
                 placeholder="600 000 000"
               />
+              {possibleDuplicate && (
+                <div className="flex items-start gap-1.5 text-2xs text-state-warning">
+                  <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                  <span>
+                    Posible duplicado: <span className="font-semibold">{possibleDuplicate.fullName}</span>
+                    {(() => {
+                      const date = possibleDuplicate.confirmedDate ?? possibleDuplicate.preferredDate
+                      return date ? ` — ${format(parseISO(date), 'EEE d MMM', { locale: es })}` : ''
+                    })()}{' '}
+                    ({DUPLICATE_STATUS_LABELS[possibleDuplicate.leadStatus]})
+                  </span>
+                </div>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-sm">Email</Label>

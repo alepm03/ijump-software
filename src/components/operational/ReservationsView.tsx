@@ -13,7 +13,7 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { cn } from '@/lib/utils'
+import { cn, isLeadCold } from '@/lib/utils'
 import { ReservationRow } from '@/components/operational/ReservationRow'
 import { AddParticipantDrawer } from '@/components/operational/AddParticipantDrawer'
 import { GroupRescheduleModal } from '@/components/operational/GroupRescheduleModal'
@@ -37,6 +37,31 @@ export function ReservationsView({ tab, leads, counts, classifications }: Reserv
   const router = useRouter()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [groupDate, setGroupDate] = useState<string | null>(null)
+  const [sortByAging, setSortByAging] = useState(false)
+
+  // CRM P0 — lead-aging queue: leads awaiting staff action (NEW /
+  // RESCHEDULE_NEEDED) whose last contact is unknown or older than 48h.
+  // TENTATIVE is excluded on purpose: those are parked waiting for their
+  // month to arrive, not waiting for a human.
+  const coldCount = useMemo(() => {
+    if (tab !== 'pending') return 0
+    return leads.filter(
+      (l) =>
+        (l.leadStatus === 'NEW' || l.leadStatus === 'RESCHEDULE_NEEDED') &&
+        isLeadCold(l.lastContactAt)
+    ).length
+  }, [tab, leads])
+
+  // Default order (jump date, from the server) vs. contact-age order
+  // (coldest first). In-memory sort: the pending list is small.
+  const displayLeads = useMemo(() => {
+    if (tab !== 'pending' || !sortByAging) return leads
+    return [...leads].sort((a, b) => {
+      const ta = a.lastContactAt ? new Date(a.lastContactAt).getTime() : 0
+      const tb = b.lastContactAt ? new Date(b.lastContactAt).getTime() : 0
+      return ta - tb
+    })
+  }, [tab, leads, sortByAging])
 
   function handleTabChange(next: LeadFilter) {
     router.push(`/reservas?tab=${next}`)
@@ -99,6 +124,26 @@ export function ReservationsView({ tab, leads, counts, classifications }: Reserv
           ))}
         </div>
 
+        {tab === 'pending' && coldCount > 0 && (
+          <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+            <p className="text-sm text-amber-700">
+              <span className="font-semibold">{coldCount}</span>{' '}
+              {coldCount === 1 ? 'lead sin contacto' : 'leads sin contacto'} hace más de 48h
+            </p>
+            <button
+              onClick={() => setSortByAging((v) => !v)}
+              className={cn(
+                'text-xs font-semibold px-3 py-1.5 rounded-md transition-colors shrink-0',
+                sortByAging
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-amber-700 hover:bg-amber-100'
+              )}
+            >
+              {sortByAging ? 'Ordenar por fecha de salto' : 'Ordenar por antigüedad'}
+            </button>
+          </div>
+        )}
+
         {rescheduleGroups.map(([date, group]) => (
           <div
             key={date}
@@ -121,12 +166,12 @@ export function ReservationsView({ tab, leads, counts, classifications }: Reserv
         ))}
 
         <div className="flex flex-col gap-2">
-          {leads.length === 0 ? (
+          {displayLeads.length === 0 ? (
             <div className="text-sm text-muted-foreground text-center py-12 border border-dashed border-border rounded-lg">
               No hay reservas en esta categoría.
             </div>
           ) : (
-            leads.map((lead) => (
+            displayLeads.map((lead) => (
               <ReservationRow
                 key={lead.id}
                 lead={lead}

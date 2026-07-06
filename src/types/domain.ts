@@ -122,6 +122,10 @@ export interface Participant {
   channel: Channel
   createdBy: string | null
   token: string | null
+  // CRM P0 — lead aging: last time staff touched this lead (call, WhatsApp,
+  // note...). Populated by E2 UI actions; backfilled from updated_at for
+  // pre-existing leads by the migration that added the column.
+  lastContactAt?: string | null
 }
 
 export interface ReservationGroup {

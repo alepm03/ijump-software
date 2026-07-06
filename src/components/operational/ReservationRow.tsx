@@ -13,7 +13,11 @@ import { ConfirmReservationModal } from '@/components/operational/ConfirmReserva
 import { RescheduleReservationModal } from '@/components/operational/RescheduleReservationModal'
 import { CompleteLeadModal } from '@/components/operational/CompleteLeadModal'
 import { InlineField } from '@/components/operational/InlineField'
+import { formatAging, isLeadCold } from '@/lib/utils'
 import type { DateClass, LeadWithDetails } from '@/types/domain'
+
+/** 96h with no contact escalates the aging badge from amber to red. */
+const AGING_CRITICAL_MS = 96 * 60 * 60 * 1000
 
 function formatDate(date: string | null): string {
   if (!date) return '(sin fecha)'
@@ -39,6 +43,15 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
   const [completeOpen, setCompleteOpen] = useState(false)
 
   const hasGroup = !!lead.reservationGroupId
+  // CRM P0 — aging badge: only for leads awaiting staff action on the
+  // pending tab (TENTATIVE waits for its month, not for a human).
+  const showAging =
+    tab === 'pending' &&
+    (lead.leadStatus === 'NEW' || lead.leadStatus === 'RESCHEDULE_NEEDED') &&
+    isLeadCold(lead.lastContactAt)
+  const agingCritical =
+    !lead.lastContactAt ||
+    Date.now() - new Date(lead.lastContactAt).getTime() > AGING_CRITICAL_MS
   const canConfirmDirectly =
     tab === 'pending' &&
     !!lead.preferredDate &&
@@ -83,6 +96,16 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
               title="Viene en grupo"
             >
               <Users size={12} /> Grupo
+            </span>
+          )}
+          {showAging && (
+            <span
+              className={`text-2xs font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap ${
+                agingCritical ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
+              }`}
+              title="Tiempo desde el último contacto con el cliente"
+            >
+              {formatAging(lead.lastContactAt)} sin contacto
             </span>
           )}
         </div>

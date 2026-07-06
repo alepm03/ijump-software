@@ -533,6 +533,7 @@ export type Database = {
           full_name: string
           geared_up: boolean
           id: string
+          last_contact_at: string | null
           lead_status: string | null
           notes: string | null
           operational_status: Database["public"]["Enums"]["operational_status"]
@@ -561,6 +562,7 @@ export type Database = {
           full_name: string
           geared_up?: boolean
           id?: string
+          last_contact_at?: string | null
           lead_status?: string | null
           notes?: string | null
           operational_status?: Database["public"]["Enums"]["operational_status"]
@@ -589,6 +591,7 @@ export type Database = {
           full_name?: string
           geared_up?: boolean
           id?: string
+          last_contact_at?: string | null
           lead_status?: string | null
           notes?: string | null
           operational_status?: Database["public"]["Enums"]["operational_status"]

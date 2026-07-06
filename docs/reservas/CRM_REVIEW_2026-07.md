@@ -38,7 +38,7 @@ CRMs verticales comerciales. Lo que falta no es fontanería: es **gestión del e
 
 ## 3. Gaps priorizados
 
-### P0 — El embudo de leads no tiene dueño visible
+### P0 — El embudo de leads no tiene dueño visible ✅ EJECUTADO (mini-sprint CRM P0, rama `feature/crm-p0-aging-dedupe`)
 
 - **Síntoma:** un lead `NEW` sin fecha, o con fecha pero sin confirmar, no aparece en
   ninguna bandeja de trabajo con urgencia. Nadie lo "persigue"; depende de la memoria
@@ -49,7 +49,7 @@ CRMs verticales comerciales. Lo que falta no es fontanería: es **gestión del e
   mensajes todavía: primero que el humano VEA la cola.
 - **Esfuerzo:** bajo (1 columna + 1 vista). **Impacto:** directo en ventas.
 
-### P0 — Deduplicación por teléfono antes de que llegue el bot
+### P0 — Deduplicación por teléfono antes de que llegue el bot ✅ EJECUTADO (mini-sprint CRM P0, misma rama; contrato bot v1.1)
 
 - **Síntoma:** no hay entidad cliente ni matching. Hoy el duplicado lo evita Raúl de
   memoria. Cuando el chatbot cree reservas solo, **creará duplicados garantizado**
@@ -130,8 +130,8 @@ entidad).
 
 | # | Ítem | Prioridad | Esfuerzo | Cuándo |
 |---|---|---|---|---|
-| 1 | Aging de leads + `last_contact_at` | P0 | Bajo | Próximo sprint de reservas |
-| 2 | Dedupe por teléfono (UI + API bot) | P0 | Medio-bajo | ANTES de conectar chatbot |
+| 1 | Aging de leads + `last_contact_at` | P0 | Bajo | ✅ Ejecutado (mini-sprint CRM P0, 2026-07-04) |
+| 2 | Dedupe por teléfono (UI + API bot) | P0 | Medio-bajo | ✅ Ejecutado (mini-sprint CRM P0, 2026-07-04) — pendiente trasladar al chatbot |
 | 3 | `channel` teléfono/WhatsApp | P1 | Bajo | Junto a #2 (misma migración de enum) |
 | 4 | Reactivar NO_SHOW/CANCELLED | P1 | Bajo | Con #1 |
 | 5 | Recordatorios T-48/T-24 | P1 | Medio | Sesión de conexión del chatbot |

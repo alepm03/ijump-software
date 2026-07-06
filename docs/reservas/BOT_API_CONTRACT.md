@@ -2,6 +2,10 @@
 
 > Para Ricardo (rewire del chatbot, R5). Esta API permite que el bot consulte disponibilidad y cree/consulte reservas sin tocar la base de datos directamente.
 
+**Historial de versiones:**
+- **v1.1 (2026-07-04)** — CRM P0: normalización canónica de `phone` e idempotencia por teléfono en `POST /reservations` (respuesta `200` + `duplicate: true`).
+- v1.0 (2026-06-24) — contrato inicial (PR #37).
+
 ## Base URL y autenticación
 
 ```
@@ -103,6 +107,7 @@ Crea una reserva. **No hay pago online en este módulo** (Stripe está fuera de 
 - `fullName` (requerido)
 - `preferredDate` (requerido, `YYYY-MM-DD`)
 - `phone`, `email`, `weight`, `source` — opcionales
+- `phone` — se acepta cualquier formato razonable ("600 00 00 00", "+34 600-000-000", "0034600000000"...); el sistema lo **normaliza y almacena en forma canónica** `+<código país><número>` (p. ej. `+34600000000`). El bot no necesita normalizar por su cuenta, pero SÍ debe enviar el teléfono siempre que lo tenga: es la clave de la deduplicación (ver respuesta 200 abajo).
 - `packageType` — opcional, uno de `SOLO | HANDYCAM | VIDEO_EXTERNO | FOTOS | HANDYCAM_FOTOS` (por defecto `SOLO`)
 - `source` — opcional, uno de `DIRECT | GROUPON | BONO | PROMO | SMARTBOX`
 
@@ -124,6 +129,26 @@ Crea una reserva. **No hay pago online en este módulo** (Stripe está fuera de 
 `status` puede ser:
 - **`CONFIRMED`** — fecha dentro de la ventana de confirmación inmediata (30 días desde hoy) y con plazas. Ya tiene vuelo real asignado (`confirmedDate`/`confirmedTime`).
 - **`TENTATIVE`** — fecha más allá de la ventana de 30 días. Queda parqueada; el sistema la confirma automáticamente (cron diario) en cuanto la fecha entra en la ventana, o el staff la reagenda si para entonces ya no hay sitio. En este caso `confirmedDate`/`confirmedTime` van `null`.
+
+**200 (ya existía — idempotencia por teléfono, v1.1):**
+
+Si el `phone` enviado (una vez normalizado) coincide con un lead **activo** (`NEW`, `TENTATIVE`, `CONFIRMED` o `RESCHEDULE_NEEDED`) con fecha de hoy en adelante — o sin fecha aún —, **no se crea una reserva nueva**: se devuelve la existente con `duplicate: true`.
+
+```json
+{
+  "reservationId": "uuid",
+  "token": "uuid",
+  "status": "CONFIRMED",
+  "confirmedDate": "2026-07-12",
+  "confirmedTime": "09:00:00",
+  "statusUrl": "/reserva/uuid",
+  "duplicate": true
+}
+```
+
+Semántica para el bot: **si `duplicate: true`, el cliente ya tiene una reserva activa.** El bot debe informarle de su reserva existente (fecha y estado, usando `status`/`confirmedDate` o consultando `GET /reservations/{token}`) y NO tratarla como una reserva nueva. Si el cliente realmente quiere una segunda reserva (p. ej. reserva para un acompañante desde el mismo teléfono), debe escalarse al staff — el alta manual en `/reservas` muestra el aviso de posible duplicado pero permite crearla.
+
+Diferencias con el 201: código `200`, campo `duplicate: true`, y no incluye `dateClassification` (la clasificación aplica al alta, no a una reserva ya existente; `status` ya refleja su situación real). Reintentos del bot (timeouts, reenvíos de WhatsApp) son seguros: el mismo POST repetido devuelve el mismo lead en vez de duplicarlo.
 
 **409 (no disponible):**
 ```json

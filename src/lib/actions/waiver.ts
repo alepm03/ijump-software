@@ -29,6 +29,18 @@ const waiverFormDataSchema = z.object({
 const PNG_MAGIC_BYTES = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
 const MAX_SIGNATURE_BYTES = 500 * 1024
 
+// With upsert:false, a concurrent double-submit of the same waiver (both
+// requests passing the PENDING check before either finishes uploading) makes
+// the second upload fail because the object already exists. That specific
+// case is safe to swallow — the file is already there with identical
+// content — so we detect it instead of surfacing it as a real error.
+function isDuplicateUploadError(error: { message?: string; statusCode?: string } | null): boolean {
+  if (!error) return false
+  if (error.statusCode === '409') return true
+  const message = error.message ?? ''
+  return message.includes('already exists') || message.includes('Duplicate')
+}
+
 function decodeAndValidateSignature(signatureBase64: string): Buffer | null {
   const prefix = 'data:image/png;base64,'
   if (!signatureBase64.startsWith(prefix)) return null
@@ -191,7 +203,12 @@ export async function submitWaiver(
   const participantRow = existing.participants as { full_name: string } | null
   const participantName = participantRow?.full_name ?? 'Participante'
 
-  // Build paths: NombreCliente/WAIVER/NombreCliente-YYYY-MM-DD-WAIVER.pdf
+  // Build paths: {participantId}/WAIVER/NombreCliente-YYYY-MM-DD-WAIVER-{waiverIdShort}.pdf
+  // The participant id (folder) and waiver id (filename suffix) make the path
+  // unique per record, so two people with the same name signing the same day
+  // never collide, and a completed waiver can't be clobbered by a re-submit
+  // of a different (e.g. attacker-controlled) pending token. safeName+date
+  // stay in the filename purely so the bucket is still human-browsable.
   const safeName = (parsedFormData.fullName || 'participante')
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')  // strip accents
@@ -202,6 +219,7 @@ export async function submitWaiver(
   const dateStr = new Date().toISOString().split('T')[0]
   const docLabel = existing.document_type  // 'WAIVER' | 'RGPD'
   const baseName = `${safeName}-${dateStr}-${docLabel}`
+  const waiverIdShort = existing.id.slice(0, 8)
 
   const pdfBase64 = await generateWaiverPdf(
     existing.document_type as WaiverDocumentType,
@@ -210,22 +228,26 @@ export async function submitWaiver(
     participantName
   )
 
-  // Upload PDF — NombreCliente/WAIVER/NombreCliente-Fecha-WAIVER.pdf
-  const pdfPath = `${safeName}/${docLabel}/${baseName}.pdf`
+  // Upload PDF — {participantId}/WAIVER/NombreCliente-Fecha-WAIVER-{waiverIdShort}.pdf
+  const pdfPath = `${existing.participant_id}/${docLabel}/${baseName}-${waiverIdShort}.pdf`
   const pdfBuffer = Buffer.from(pdfBase64, 'base64')
   const { error: pdfError } = await supabase.storage
     .from('waiver-documents')
-    .upload(pdfPath, pdfBuffer, { contentType: 'application/pdf', upsert: true })
+    .upload(pdfPath, pdfBuffer, { contentType: 'application/pdf', upsert: false })
 
-  if (pdfError) return { error: `PDF upload failed: ${pdfError.message}` }
+  if (pdfError && !isDuplicateUploadError(pdfError)) {
+    return { error: `PDF upload failed: ${pdfError.message}` }
+  }
 
-  // Upload signature image — NombreCliente/WAIVER/NombreCliente-Fecha-WAIVER-firma.png
-  const sigPath = `${safeName}/${docLabel}/${baseName}-firma.png`
+  // Upload signature image — {participantId}/WAIVER/NombreCliente-Fecha-WAIVER-{waiverIdShort}-firma.png
+  const sigPath = `${existing.participant_id}/${docLabel}/${baseName}-${waiverIdShort}-firma.png`
   const { error: sigError } = await supabase.storage
     .from('waiver-documents')
-    .upload(sigPath, sigBuffer, { contentType: 'image/png', upsert: true })
+    .upload(sigPath, sigBuffer, { contentType: 'image/png', upsert: false })
 
-  if (sigError) return { error: `Signature upload failed: ${sigError.message}` }
+  if (sigError && !isDuplicateUploadError(sigError)) {
+    return { error: `Signature upload failed: ${sigError.message}` }
+  }
 
   // Build signed URLs for permanent reference (10-year expiry)
   const { data: pdfSigned } = await supabase.storage

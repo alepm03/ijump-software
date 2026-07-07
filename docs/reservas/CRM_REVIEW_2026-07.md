@@ -61,7 +61,7 @@ CRMs verticales comerciales. Lo que falta no es fontanería: es **gestión del e
   por teléfono+fecha). La entidad `customer` completa sigue siendo Sprint 6.
 - **Esfuerzo:** medio-bajo. **Impacto:** imprescindible ANTES de conectar el chatbot.
 
-### P1 — Canal de contacto ≠ fuente de venta
+### P1 — Canal de contacto ≠ fuente de venta ✅ EJECUTADO (rama `feature/crm-reactivacion-no-show`)
 
 - **Síntoma:** `channel` (WEB_BOT | WHATSAPP_BOT | STAFF) mezcla poco y
   `reservation_source` (DIRECT/GROUPON/...) es la plataforma de venta. Falta el matiz
@@ -73,6 +73,11 @@ CRMs verticales comerciales. Lo que falta no es fontanería: es **gestión del e
   el dato; default = STAFF como hoy.
 - **Esfuerzo:** bajo. Nota: es un enum → misma excepción de reversibilidad que
   `reservation_source` (issue #43); agrupar con la próxima migración de enums.
+- **As-built:** `channel` resultó ser `TEXT` + `CHECK`, no un enum nativo de Postgres
+  (a diferencia de `reservation_source`) — la migración
+  `20260705000000_channel_staff_detail.sql` es un `DROP/ADD CONSTRAINT` normal y
+  reversible, sin la excepción de #43. Selector añadido en `AddParticipantDrawer.tsx`
+  (solo altas manuales de leads), default `STAFF`.
 
 ### P1 — Recordatorios pre-salto (donde el chatbot brilla)
 
@@ -85,7 +90,7 @@ CRMs verticales comerciales. Lo que falta no es fontanería: es **gestión del e
   existente con filtro).
 - **Esfuerzo:** bajo en el software (dato ya existe), medio en el chatbot.
 
-### P1 — NO_SHOW y CANCELLED son agujeros negros
+### P1 — NO_SHOW y CANCELLED son agujeros negros ✅ EJECUTADO (rama `feature/crm-reactivacion-no-show`)
 
 - **Síntoma:** son estados terminales. Un no-show con bono de plataforma ya pagado es
   dinero de iJump sin coste — recuperarlo es margen puro. Nadie los re-contacta.
@@ -93,6 +98,11 @@ CRMs verticales comerciales. Lo que falta no es fontanería: es **gestión del e
   contador de no-shows recuperables del mes. Más adelante, campaña de reactivación vía
   chatbot.
 - **Esfuerzo:** bajo.
+- **As-built:** `reactivateLead()` en `leads.ts` pone `lead_status = 'NEW'` +
+  nota automática + `last_contact_at`. Botón "Reactivar" en el tab Canceladas de
+  `/reservas` (`ReservationRow.tsx`) y contador de no-shows recuperables del mes
+  (`ReservationsView.tsx`). Campaña de reactivación vía chatbot sigue pendiente,
+  fuera de alcance de este cambio.
 
 ### P2 — Métricas de embudo
 
@@ -132,8 +142,8 @@ entidad).
 |---|---|---|---|---|
 | 1 | Aging de leads + `last_contact_at` | P0 | Bajo | ✅ Ejecutado (mini-sprint CRM P0, 2026-07-04) |
 | 2 | Dedupe por teléfono (UI + API bot) | P0 | Medio-bajo | ✅ Ejecutado (mini-sprint CRM P0, 2026-07-04) — pendiente trasladar al chatbot |
-| 3 | `channel` teléfono/WhatsApp | P1 | Bajo | Junto a #2 (misma migración de enum) |
-| 4 | Reactivar NO_SHOW/CANCELLED | P1 | Bajo | Con #1 |
+| 3 | `channel` teléfono/WhatsApp | P1 | Bajo | ✅ Ejecutado (`feature/crm-reactivacion-no-show`, 2026-07-07) |
+| 4 | Reactivar NO_SHOW/CANCELLED | P1 | Bajo | ✅ Ejecutado (`feature/crm-reactivacion-no-show`, 2026-07-07) |
 | 5 | Recordatorios T-48/T-24 | P1 | Medio | Sesión de conexión del chatbot |
 | 6 | Métricas de embudo | P2 | Medio | Tras 4-6 semanas de datos con #3 |
 | 7 | Waitlist | P2 | Medio | Antes del pico de verano 2027 |

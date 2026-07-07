@@ -483,7 +483,7 @@ export type LeadStatus =
   | 'CANCELLED'
   | 'NO_SHOW'
 
-export type Channel = 'WEB_BOT' | 'WHATSAPP_BOT' | 'STAFF'
+export type Channel = 'WEB_BOT' | 'WHATSAPP_BOT' | 'STAFF' | 'STAFF_PHONE' | 'STAFF_WHATSAPP'
 
 // Availability engine — see src/lib/availability/availability-engine.ts (R2)
 export type DateClass = 'CONFIRMABLE' | 'TENTATIVE_ONLY' | 'UNAVAILABLE' | 'NOT_OPERATING'

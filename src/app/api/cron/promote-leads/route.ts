@@ -21,7 +21,7 @@
 
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import { promoteTentativeLeads } from '@/lib/actions/leads'
+import { promoteTentativeLeads, sweepOverdueNoShows } from '@/lib/actions/leads'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,5 +38,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: result.error }, { status: 500 })
   }
 
-  return NextResponse.json(result)
+  // CRM no-show circuit — sweep runs after promotion so a lead promoted
+  // today is never immediately swept (promotion only confirms future
+  // dates; the sweep only looks at past ones). A sweep error is reported
+  // in the payload but does not fail the whole cron: the promotion above
+  // already succeeded and must not be retried blindly.
+  const sweep = await sweepOverdueNoShows(supabase)
+
+  return NextResponse.json({ ...result, noShowsMarked: sweep.marked, noShowSweepError: sweep.error })
 }

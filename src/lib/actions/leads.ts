@@ -341,6 +341,60 @@ export async function promoteTentativeLeads(
   return { promoted, rescheduleNeeded }
 }
 
+/**
+ * Daily cron target (runs after promoteTentativeLeads in
+ * /api/cron/promote-leads): marks as NO_SHOW every CONFIRMED lead whose
+ * jump date has passed with the manifest untouched (operational_status
+ * still PENDING — no check-in, no waiver, nothing). Complements the
+ * immediate sync in updateOperationalStatus/updateParticipant: that one
+ * covers the staff marking a no-show by hand in the manifest; this sweep
+ * catches the ones nobody remembered to mark, so they surface in the
+ * Canceladas tab for the Reactivar flow instead of staying "Confirmada"
+ * forever.
+ *
+ * Sets BOTH statuses (operational + lead) and clears auto-generated
+ * participant_items, exactly like the manual manifest path does
+ * (NON_FLYING_STATUSES rule) — a no-show must not carry phantom revenue.
+ * Batched, same pattern as handleWeatherCancellation. If the staff later
+ * discovers the person DID show, reverting the status in the manifest (or
+ * Reactivar in /reservas) restores them.
+ */
+export async function sweepOverdueNoShows(
+  client?: DbClient,
+  today: string = todayIso()
+): Promise<{ marked: number; error?: string }> {
+  const supabase = client ?? (await createClient())
+
+  const { data: overdue, error: findError } = await supabase
+    .from('participants')
+    .select('id')
+    .eq('lead_status', 'CONFIRMED')
+    .eq('operational_status', 'PENDING')
+    .lt('confirmed_date', today)
+  if (findError) return { marked: 0, error: findError.message }
+
+  const ids = (overdue ?? []).map((p) => p.id)
+  if (ids.length === 0) return { marked: 0 }
+
+  const { error: updateError } = await supabase
+    .from('participants')
+    .update({ operational_status: 'NO_SHOW', lead_status: 'NO_SHOW' })
+    .in('id', ids)
+  if (updateError) return { marked: 0, error: updateError.message }
+
+  const { error: clearError } = await supabase
+    .from('participant_items')
+    .delete()
+    .in('participant_id', ids)
+    .eq('auto_generated', true)
+  if (clearError) {
+    console.error('sweepOverdueNoShows: clearing auto-generated items failed', clearError.message)
+  }
+
+  revalidatePath('/', 'layout')
+  return { marked: ids.length }
+}
+
 export async function cancelLead(leadId: string, client?: DbClient): Promise<{ error?: string }> {
   const supabase = client ?? (await createClient())
   const { error } = await supabase
@@ -364,11 +418,18 @@ export async function cancelLead(leadId: string, client?: DbClient): Promise<{ e
 /**
  * Reverses cancelLead / a NO_SHOW: puts a terminal lead (CANCELLED or
  * NO_SHOW) back into the pending queue as NEW, with an automatic note
- * recording what it was reactivated from. flight_id is left untouched —
- * cancelLead already nulls it, and a NO_SHOW lead is a lead (lead_status
- * not null) by the same flight_id IS NULL invariant, so there is nothing
- * to release here. Counts as a staff-client contact (CRM P0 pattern, same
- * as confirmLead/rescheduleLead/setPreferredDate).
+ * recording what it was reactivated from. Counts as a staff-client contact
+ * (CRM P0 pattern, same as confirmLead/rescheduleLead/setPreferredDate).
+ *
+ * Releases the seat and resets the operational trail: a no-show marked in
+ * the manifest (or by sweepOverdueNoShows) still carries the flight_id of
+ * the missed flight and operational_status NO_SHOW — a reactivated lead
+ * must satisfy the "lead = flight_id IS NULL" invariant and start clean.
+ * The stale confirmed_date/time are cleared too (that confirmation no
+ * longer holds); preferred_date is kept as a reference for the re-contact
+ * conversation. No participant_items handling needed: they were already
+ * cleared when the lead went CANCELLED/NO_SHOW, and confirmLead re-itemizes
+ * when a new seat is assigned.
  */
 export async function reactivateLead(leadId: string, note?: string | null): Promise<{ error?: string }> {
   const supabase = await createClient()
@@ -386,7 +447,15 @@ export async function reactivateLead(leadId: string, note?: string | null): Prom
 
   const { error } = await supabase
     .from('participants')
-    .update({ lead_status: 'NEW', notes: newNotes, last_contact_at: new Date().toISOString() })
+    .update({
+      lead_status: 'NEW',
+      flight_id: null,
+      operational_status: 'PENDING',
+      confirmed_date: null,
+      confirmed_time: null,
+      notes: newNotes,
+      last_contact_at: new Date().toISOString(),
+    })
     .eq('id', leadId)
   if (error) return { error: error.message }
 

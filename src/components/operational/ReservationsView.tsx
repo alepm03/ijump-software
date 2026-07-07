@@ -52,6 +52,19 @@ export function ReservationsView({ tab, leads, counts, classifications }: Reserv
     ).length
   }, [tab, leads])
 
+  // Roadmap item 4 — recoverable no-shows: a NO_SHOW lead whose confirmed
+  // jump was this month still has its platform bono/payment collected;
+  // reactivating them is pure margin. Disappears from this count once
+  // reactivated (lead_status leaves NO_SHOW, so it drops out of the
+  // 'cancelled' tab filter — see STATUSES_BY_FILTER in leads.ts).
+  const recoverableNoShowCount = useMemo(() => {
+    if (tab !== 'cancelled') return 0
+    const currentYearMonth = format(new Date(), 'yyyy-MM')
+    return leads.filter(
+      (l) => l.leadStatus === 'NO_SHOW' && l.confirmedDate?.startsWith(currentYearMonth)
+    ).length
+  }, [tab, leads])
+
   // Default order (jump date, from the server) vs. contact-age order
   // (coldest first). In-memory sort: the pending list is small.
   const displayLeads = useMemo(() => {
@@ -141,6 +154,15 @@ export function ReservationsView({ tab, leads, counts, classifications }: Reserv
             >
               {sortByAging ? 'Ordenar por fecha de salto' : 'Ordenar por antigüedad'}
             </button>
+          </div>
+        )}
+
+        {tab === 'cancelled' && recoverableNoShowCount > 0 && (
+          <div className="flex items-center gap-3 bg-secondary border border-border rounded-lg px-4 py-3">
+            <p className="text-sm text-foreground">
+              <span className="font-semibold">{recoverableNoShowCount}</span>{' '}
+              {recoverableNoShowCount === 1 ? 'no-show recuperable' : 'no-shows recuperables'} este mes
+            </p>
           </div>
         )}
 

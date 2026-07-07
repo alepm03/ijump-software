@@ -28,14 +28,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { Instructor, ReservationSource } from '@/types/domain'
+import type { Channel, Instructor, ReservationSource } from '@/types/domain'
 import { RESERVATION_SOURCES, RESERVATION_SOURCE_LABELS } from '@/types/domain'
+
+// Staff-entered leads only — WEB_BOT/WHATSAPP_BOT come exclusively from the
+// bot API (route.ts), never from this manual-intake form.
+const STAFF_CHANNELS: Channel[] = ['STAFF', 'STAFF_PHONE', 'STAFF_WHATSAPP']
+const STAFF_CHANNEL_LABELS: Record<'STAFF' | 'STAFF_PHONE' | 'STAFF_WHATSAPP', string> = {
+  STAFF: 'Presencial / sin detalle',
+  STAFF_PHONE: 'Teléfono',
+  STAFF_WHATSAPP: 'WhatsApp',
+}
 
 const schema = z.object({
   fullName: z.string().min(1, 'Nombre requerido'),
   phone: z.string().optional(),
   email: z.string().optional(),
   source: z.enum(RESERVATION_SOURCES as [ReservationSource, ...ReservationSource[]]),
+  channel: z.enum(STAFF_CHANNELS as [Channel, ...Channel[]]),
   packageType: z.enum(['SOLO', 'HANDYCAM', 'VIDEO_EXTERNO', 'FOTOS', 'HANDYCAM_FOTOS']),
   weight: z.string().optional(),
   assignedInstructorId: z.string().optional(),
@@ -89,6 +99,7 @@ export function AddParticipantDrawer({
     resolver: zodResolver(schema),
     defaultValues: {
       source: 'DIRECT',
+      channel: 'STAFF',
       packageType: 'SOLO',
     },
   })
@@ -176,7 +187,7 @@ export function AddParticipantDrawer({
           payerName: values.payerName || null,
           preferredDate: values.preferredDate,
           preferredTime: values.preferredTime || null,
-          channel: 'STAFF',
+          channel: values.channel,
         })
         if (result.error) {
           toast.error(result.error)
@@ -301,6 +312,30 @@ export function AddParticipantDrawer({
               </Select>
             </div>
           </div>
+
+          {/* Contact channel (staff-entered leads only) */}
+          {isLead && (
+            <div className="space-y-1.5">
+              <Label className="text-sm">Canal de contacto</Label>
+              <Select
+                value={form.watch('channel')}
+                onValueChange={(v) => form.setValue('channel', v as FormValues['channel'])}
+              >
+                <SelectTrigger>
+                  <SelectValue>
+                    {STAFF_CHANNEL_LABELS[form.watch('channel') as keyof typeof STAFF_CHANNEL_LABELS]}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {STAFF_CHANNELS.map((val) => (
+                    <SelectItem key={val} value={val}>
+                      {STAFF_CHANNEL_LABELS[val as keyof typeof STAFF_CHANNEL_LABELS]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Payer name (if grouped source) */}
           {source !== 'DIRECT' && (

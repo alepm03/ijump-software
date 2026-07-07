@@ -6,7 +6,7 @@ import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Users } from 'lucide-react'
 import { toast } from 'sonner'
-import { cancelLead, type LeadFilter } from '@/lib/actions/leads'
+import { cancelLead, reactivateLead, type LeadFilter } from '@/lib/actions/leads'
 import { updateParticipant, type UpdateParticipantData } from '@/lib/actions/participant'
 import { AvailabilityBadge, LeadStatusBadge } from '@/components/operational/ReservationStatusBadge'
 import { ConfirmReservationModal } from '@/components/operational/ConfirmReservationModal'
@@ -66,6 +66,17 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
       const result = await cancelLead(lead.id)
       if (result.error) toast.error(result.error)
       else toast.success(`Reserva de ${lead.fullName} cancelada`)
+    })
+  }
+
+  function handleReactivate() {
+    startTransition(async () => {
+      const result = await reactivateLead(lead.id)
+      if (result.error) toast.error(result.error)
+      else {
+        toast.success(`Reserva de ${lead.fullName} reactivada`)
+        router.refresh()
+      }
     })
   }
 
@@ -192,6 +203,15 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
               Cancelar
             </button>
           </>
+        )}
+        {tab === 'cancelled' && (
+          <button
+            onClick={handleReactivate}
+            disabled={isPending}
+            className="text-xs font-semibold px-3 py-1.5 rounded-md bg-secondary text-foreground hover:bg-secondary/70 transition-colors disabled:opacity-50"
+          >
+            Reactivar
+          </button>
         )}
       </div>
 

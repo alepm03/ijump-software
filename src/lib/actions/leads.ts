@@ -341,8 +341,8 @@ export async function promoteTentativeLeads(
   return { promoted, rescheduleNeeded }
 }
 
-export async function cancelLead(leadId: string): Promise<{ error?: string }> {
-  const supabase = await createClient()
+export async function cancelLead(leadId: string, client?: DbClient): Promise<{ error?: string }> {
+  const supabase = client ?? (await createClient())
   const { error } = await supabase
     .from('participants')
     .update({ flight_id: null, lead_status: 'CANCELLED' })

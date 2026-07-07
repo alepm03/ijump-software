@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Users } from 'lucide-react'
+import { Users, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 import { cancelLead, reactivateLead, type LeadFilter } from '@/lib/actions/leads'
 import { updateParticipant, type UpdateParticipantData } from '@/lib/actions/participant'
@@ -19,6 +20,34 @@ import type { DateClass, LeadWithDetails } from '@/types/domain'
 /** 96h with no contact escalates the aging badge from amber to red. */
 const AGING_CRITICAL_MS = 96 * 60 * 60 * 1000
 
+/**
+ * Column widths shared by the header row and every data row — colocated so
+ * they can't drift apart. The actions column is fixed-width on purpose:
+ * with a flex-1 client column, a variable-width trailing column would shift
+ * every fixed column per-row and break the table alignment.
+ */
+const COL = {
+  jump: 'w-20 flex-shrink-0',
+  status: 'w-28 flex-shrink-0',
+  payment: 'w-24 flex-shrink-0',
+  contact: 'w-20 flex-shrink-0',
+  actions: 'w-40 flex-shrink-0 flex items-center justify-end gap-2',
+} as const
+
+/** Column header — rendered once by ReservationsView above the row list. */
+export function ReservationListHeader({ tab }: { tab: LeadFilter }) {
+  return (
+    <div className="flex items-center gap-2 px-4 pb-1 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="flex-1 min-w-0">Cliente</div>
+      <div className={COL.jump}>Salto</div>
+      <div className={COL.status}>{tab === 'pending' ? 'Disponibilidad' : 'Estado'}</div>
+      <div className={COL.payment}>Pago</div>
+      <div className={COL.contact}>Contacto</div>
+      <div className={COL.actions} aria-hidden />
+    </div>
+  )
+}
+
 function formatDate(date: string | null): string {
   if (!date) return '(sin fecha)'
   return format(parseISO(date), 'd MMM', { locale: es })
@@ -29,26 +58,47 @@ function formatTime(time: string | null): string {
   return time.slice(0, 5)
 }
 
+/**
+ * Payment badge derived from the lead's registered payments (never stored):
+ * a LIQUIDACION-stage payment means settled; any money in (or the manual
+ * deposit_paid flag) means a deposit is secured; otherwise nothing paid.
+ */
+function paymentBadge(lead: LeadWithDetails): { label: string; className: string } {
+  const settled = lead.payments.some((p) => p.stage === 'LIQUIDACION')
+  if (lead.paidTotal > 0 && settled) {
+    return { label: `Pagado ${lead.paidTotal}€`, className: 'bg-emerald-50 text-emerald-600' }
+  }
+  if (lead.paidTotal > 0) {
+    return { label: `Depósito ${lead.paidTotal}€`, className: 'bg-amber-50 text-amber-600' }
+  }
+  if (lead.depositPaid) {
+    return { label: 'Depósito ✓', className: 'bg-amber-50 text-amber-600' }
+  }
+  return { label: 'Sin pago', className: 'bg-secondary text-muted-foreground' }
+}
+
 interface ReservationRowProps {
   lead: LeadWithDetails
   tab: LeadFilter
   classification: DateClass | null
+  /** Opens the lead detail sheet (LeadSheet) for this row. */
+  onOpenDetail?: () => void
 }
 
-export function ReservationRow({ lead, tab, classification }: ReservationRowProps) {
+export function ReservationRow({ lead, tab, classification, onOpenDetail }: ReservationRowProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [rescheduleOpen, setRescheduleOpen] = useState(false)
   const [completeOpen, setCompleteOpen] = useState(false)
 
-  const hasGroup = !!lead.reservationGroupId
-  // CRM P0 — aging badge: only for leads awaiting staff action on the
-  // pending tab (TENTATIVE waits for its month, not for a human).
-  const showAging =
-    tab === 'pending' &&
-    (lead.leadStatus === 'NEW' || lead.leadStatus === 'RESCHEDULE_NEEDED') &&
-    isLeadCold(lead.lastContactAt)
+  // A group-of-1 is structural (it carries `source`); only 2+ real members
+  // or an explicit payer mean this person actually comes in a group.
+  const hasGroup = lead.groupSize >= 2 || !!lead.reservationGroup?.payerName
+  // CRM P0 — aging: only leads awaiting staff action go cold (TENTATIVE
+  // waits for its month, not for a human; CONFIRMED aging is informational).
+  const awaitingStaff = lead.leadStatus === 'NEW' || lead.leadStatus === 'RESCHEDULE_NEEDED'
+  const isCold = awaitingStaff && isLeadCold(lead.lastContactAt)
   const agingCritical =
     !lead.lastContactAt ||
     Date.now() - new Date(lead.lastContactAt).getTime() > AGING_CRITICAL_MS
@@ -60,6 +110,10 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
     tab === 'pending' &&
     !!lead.preferredDate &&
     (classification === 'UNAVAILABLE' || classification === 'NOT_OPERATING' || lead.leadStatus === 'RESCHEDULE_NEEDED')
+
+  const jumpDate = tab === 'pending' ? lead.preferredDate : lead.confirmedDate ?? lead.preferredDate
+  const jumpTime = tab === 'pending' ? lead.preferredTime : lead.confirmedTime ?? lead.preferredTime
+  const payment = paymentBadge(lead)
 
   function handleCancel() {
     startTransition(async () => {
@@ -92,8 +146,14 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
   }
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 bg-card border border-border rounded-lg">
-      <div className="flex-1 min-w-0">
+    <div
+      className={`flex items-center gap-2 px-4 py-3 bg-card border border-border rounded-lg transition-colors ${
+        onOpenDetail ? 'cursor-pointer hover:border-primary/40' : ''
+      }`}
+      onClick={onOpenDetail}
+    >
+      {/* Cliente */}
+      <div className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2">
           <InlineField
             value={lead.fullName}
@@ -104,19 +164,13 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
           {hasGroup && (
             <span
               className="inline-flex items-center gap-1 text-2xs text-muted-foreground"
-              title="Viene en grupo"
+              title={
+                lead.groupSize >= 2
+                  ? `Grupo de ${lead.groupSize}`
+                  : `Grupo · pagador: ${lead.reservationGroup?.payerName}`
+              }
             >
-              <Users size={12} /> Grupo
-            </span>
-          )}
-          {showAging && (
-            <span
-              className={`text-2xs font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap ${
-                agingCritical ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
-              }`}
-              title="Tiempo desde el último contacto con el cliente"
-            >
-              {formatAging(lead.lastContactAt)} sin contacto
+              <Users size={12} /> {lead.groupSize >= 2 ? `Grupo · ${lead.groupSize}` : 'Grupo'}
             </span>
           )}
         </div>
@@ -137,23 +191,25 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
         </div>
       </div>
 
-      <div className="w-20 text-sm text-foreground flex-shrink-0">
-        {formatDate(tab === 'pending' ? lead.preferredDate : lead.confirmedDate ?? lead.preferredDate)}
-      </div>
-      <div className="w-14 text-sm text-muted-foreground flex-shrink-0">
-        {tab === 'pending' ? (
-          <InlineField
-            value={lead.preferredTime?.slice(0, 5) ?? ''}
-            placeholder="–"
-            onSave={(v) => saveField({ preferredTime: v || null })}
-            inputType="time"
-          />
-        ) : (
-          formatTime(lead.confirmedTime ?? lead.preferredTime)
-        )}
+      {/* Salto — date + time stacked */}
+      <div className={COL.jump}>
+        <div className="text-sm text-foreground">{formatDate(jumpDate)}</div>
+        <div className="text-xs text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+          {tab === 'pending' ? (
+            <InlineField
+              value={lead.preferredTime?.slice(0, 5) ?? ''}
+              placeholder="–"
+              onSave={(v) => saveField({ preferredTime: v || null })}
+              inputType="time"
+            />
+          ) : (
+            formatTime(jumpTime)
+          )}
+        </div>
       </div>
 
-      <div className="w-32 flex-shrink-0">
+      {/* Estado / disponibilidad */}
+      <div className={COL.status}>
         {tab === 'pending' ? (
           lead.leadStatus === 'RESCHEDULE_NEEDED' ? (
             <LeadStatusBadge status="RESCHEDULE_NEEDED" />
@@ -165,14 +221,39 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
         )}
       </div>
 
-      <div className="flex-shrink-0 flex items-center gap-2">
+      {/* Pago */}
+      <div className={COL.payment}>
+        <span
+          className={`text-2xs font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap ${payment.className}`}
+        >
+          {payment.label}
+        </span>
+      </div>
+
+      {/* Último contacto */}
+      <div className={COL.contact} title="Tiempo desde el último contacto con el cliente">
+        {isCold ? (
+          <span
+            className={`text-2xs font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap ${
+              agingCritical ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
+            }`}
+          >
+            {formatAging(lead.lastContactAt)}
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">{formatAging(lead.lastContactAt)}</span>
+        )}
+      </div>
+
+      {/* Acciones */}
+      <div className={COL.actions} onClick={(e) => e.stopPropagation()}>
         {tab === 'pending' && (
           <>
             {canConfirmDirectly && (
               <button
                 onClick={() => setConfirmOpen(true)}
                 disabled={isPending}
-                className="text-xs font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                className="text-xs font-semibold px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
                 Confirmar
               </button>
@@ -181,7 +262,7 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
               <button
                 onClick={() => setRescheduleOpen(true)}
                 disabled={isPending}
-                className="text-xs font-semibold px-3 py-1.5 rounded-md bg-secondary text-foreground hover:bg-secondary/70 transition-colors disabled:opacity-50"
+                className="text-xs font-semibold px-2.5 py-1.5 rounded-md bg-secondary text-foreground hover:bg-secondary/70 transition-colors disabled:opacity-50"
               >
                 Reagendar
               </button>
@@ -190,7 +271,7 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
               <button
                 onClick={() => setCompleteOpen(true)}
                 disabled={isPending}
-                className="text-xs font-semibold px-3 py-1.5 rounded-md bg-secondary text-foreground hover:bg-secondary/70 transition-colors disabled:opacity-50"
+                className="text-xs font-semibold px-2.5 py-1.5 rounded-md bg-secondary text-foreground hover:bg-secondary/70 transition-colors disabled:opacity-50"
               >
                 Completar
               </button>
@@ -204,11 +285,20 @@ export function ReservationRow({ lead, tab, classification }: ReservationRowProp
             </button>
           </>
         )}
+        {tab === 'confirmed' && lead.confirmedDate && (
+          <Link
+            href={`/${lead.confirmedDate}?highlight=${lead.id}`}
+            className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-md bg-secondary text-foreground hover:bg-secondary/70 transition-colors"
+            title="Ver este participante en el manifest del día"
+          >
+            <ExternalLink size={12} /> Manifest
+          </Link>
+        )}
         {tab === 'cancelled' && (
           <button
             onClick={handleReactivate}
             disabled={isPending}
-            className="text-xs font-semibold px-3 py-1.5 rounded-md bg-secondary text-foreground hover:bg-secondary/70 transition-colors disabled:opacity-50"
+            className="text-xs font-semibold px-2.5 py-1.5 rounded-md bg-secondary text-foreground hover:bg-secondary/70 transition-colors disabled:opacity-50"
           >
             Reactivar
           </button>

@@ -13,6 +13,7 @@ import { listLeads, type LeadFilter } from '@/lib/actions/leads'
 import { getDayAvailability } from '@/lib/actions/availability'
 import { classifyDate } from '@/lib/availability/availability-engine'
 import { ReservationsView } from '@/components/operational/ReservationsView'
+import { isLeadCold } from '@/lib/utils'
 import type { DateClass } from '@/types/domain'
 
 const VALID_TABS: LeadFilter[] = ['pending', 'confirmed', 'cancelled']
@@ -50,6 +51,13 @@ export default async function ReservasPage({
 
   const activeLeads = resultByTab[tab].leads
 
+  // Cold-leads alert (CRM P0): always computed over the pending set so it
+  // stays visible from any tab. Same rule as countLeadAttention (sidebar).
+  const coldCount = pendingResult.leads.filter(
+    (l) =>
+      (l.leadStatus === 'NEW' || l.leadStatus === 'RESCHEDULE_NEEDED') && isLeadCold(l.lastContactAt)
+  ).length
+
   // Only the "pending" tab needs live availability — dedupe by date to avoid N queries.
   const classifications: Record<string, DateClass> = {}
   if (tab === 'pending') {
@@ -64,6 +72,12 @@ export default async function ReservasPage({
   }
 
   return (
-    <ReservationsView tab={tab} leads={activeLeads} counts={counts} classifications={classifications} />
+    <ReservationsView
+      tab={tab}
+      leads={activeLeads}
+      counts={counts}
+      classifications={classifications}
+      coldCount={coldCount}
+    />
   )
 }

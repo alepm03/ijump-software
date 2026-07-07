@@ -7,12 +7,15 @@ import { getDayAvailability, type DbClient } from '@/lib/actions/availability'
 import { classifyDate } from '@/lib/availability/availability-engine'
 import { syncAutoParticipantItems, clearAutoParticipantItems } from '@/lib/actions/finance'
 import { normalizePhone } from '@/lib/phone'
+import { isLeadCold } from '@/lib/utils'
 import type {
   Channel,
   DateClass,
   LeadStatus,
   LeadWithDetails,
   PackageType,
+  PaymentMethod,
+  PaymentStage,
   ReservationSource,
 } from '@/types/domain'
 
@@ -464,14 +467,29 @@ export async function reactivateLead(leadId: string, note?: string | null): Prom
 }
 
 /** Count of leads awaiting staff action (NEW + RESCHEDULE_NEEDED) — used for the sidebar badge. */
-export async function countPendingLeads(): Promise<number> {
+export type LeadAttentionCounts = {
+  /** Leads awaiting staff action (NEW + RESCHEDULE_NEEDED) — sidebar badge. */
+  pending: number
+  /** Of those, how many are cold (>48h without contact) — turns the badge red. */
+  cold: number
+}
+
+/**
+ * Replaces the old countPendingLeads head-count: one small SELECT (the
+ * pending set is tiny) computes both the sidebar badge count and the cold
+ * subset that escalates it to the alert style.
+ */
+export async function countLeadAttention(): Promise<LeadAttentionCounts> {
   const supabase = await createClient()
-  const { count, error } = await supabase
+  const { data, error } = await supabase
     .from('participants')
-    .select('id', { count: 'exact', head: true })
+    .select('last_contact_at')
     .in('lead_status', ['NEW', 'RESCHEDULE_NEEDED'])
-  if (error) return 0
-  return count ?? 0
+  if (error || !data) return { pending: 0, cold: 0 }
+  return {
+    pending: data.length,
+    cold: data.filter((r) => isLeadCold(r.last_contact_at)).length,
+  }
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -529,10 +547,17 @@ const STATUSES_BY_FILTER: Record<LeadFilter, LeadStatus[]> = {
 
 export async function listLeads(filter: LeadFilter): Promise<{ leads: LeadWithDetails[]; error?: string }> {
   const supabase = await createClient()
+  // payments: drives the per-row payment badge and the LeadSheet payment
+  // manager. participants(count) inside the group embed: a group-of-1 is
+  // structural (it carries `source` — see createParticipant), so the UI
+  // must not read "has a group id" as "comes in a group"; only >= 2 real
+  // members (or an explicit payer) mean that.
   const { data, error } = await supabase
     .from('participants')
     .select(
-      `*, reservation_group:reservation_groups!participants_reservation_group_id_fkey (*)`
+      `*,
+       reservation_group:reservation_groups!participants_reservation_group_id_fkey (*, participants(count)),
+       payments (id, participant_id, amount, method, stage, notes, created_at)`
     )
     .in('lead_status', STATUSES_BY_FILTER[filter])
     .order('preferred_date', { ascending: true, nullsFirst: false })
@@ -580,6 +605,17 @@ export async function listLeads(filter: LeadFilter): Promise<{ leads: LeadWithDe
           createdBy: p.reservation_group.created_by,
         }
       : null,
+    groupSize: p.reservation_group?.participants?.[0]?.count ?? 0,
+    payments: (p.payments ?? []).map((pay: Record<string, unknown>) => ({
+      id: pay.id as string,
+      participantId: pay.participant_id as string,
+      amount: pay.amount as number,
+      method: pay.method as PaymentMethod,
+      stage: pay.stage as PaymentStage,
+      notes: pay.notes as string | null,
+      createdAt: pay.created_at as string,
+    })),
+    paidTotal: (p.payments ?? []).reduce((sum: number, pay: { amount: number }) => sum + pay.amount, 0),
   }))
 
   return { leads }

@@ -9,7 +9,7 @@
  * navigation and passes the result down as props.
  */
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -35,6 +35,7 @@ interface ReservationsViewProps {
 
 export function ReservationsView({ tab, leads, counts, classifications }: ReservationsViewProps) {
   const router = useRouter()
+  const [isPending, startTransition] = useTransition()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [groupDate, setGroupDate] = useState<string | null>(null)
   const [sortByAging, setSortByAging] = useState(false)
@@ -77,7 +78,9 @@ export function ReservationsView({ tab, leads, counts, classifications }: Reserv
   }, [tab, leads, sortByAging])
 
   function handleTabChange(next: LeadFilter) {
-    router.push(`/reservas?tab=${next}`)
+    // Transition so the current list stays visible (dimmed) while the server
+    // re-renders — same-segment searchParams changes never trigger loading.tsx.
+    startTransition(() => router.push(`/reservas?tab=${next}`))
   }
 
   // Sprint 3 E3 — group RESCHEDULE_NEEDED leads by preferredDate so the staff
@@ -103,7 +106,12 @@ export function ReservationsView({ tab, leads, counts, classifications }: Reserv
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="flex flex-col gap-4 max-w-4xl mx-auto p-6 w-full">
+      <div
+        className={cn(
+          'flex flex-col gap-4 max-w-4xl mx-auto p-6 w-full transition-opacity',
+          isPending && 'opacity-50 pointer-events-none'
+        )}
+      >
         <div className="flex items-center justify-between">
           <h1 className="text-title font-bold text-foreground">Reservas</h1>
           <button

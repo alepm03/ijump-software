@@ -361,6 +361,39 @@ export async function cancelLead(leadId: string): Promise<{ error?: string }> {
   return {}
 }
 
+/**
+ * Reverses cancelLead / a NO_SHOW: puts a terminal lead (CANCELLED or
+ * NO_SHOW) back into the pending queue as NEW, with an automatic note
+ * recording what it was reactivated from. flight_id is left untouched —
+ * cancelLead already nulls it, and a NO_SHOW lead is a lead (lead_status
+ * not null) by the same flight_id IS NULL invariant, so there is nothing
+ * to release here. Counts as a staff-client contact (CRM P0 pattern, same
+ * as confirmLead/rescheduleLead/setPreferredDate).
+ */
+export async function reactivateLead(leadId: string, note?: string | null): Promise<{ error?: string }> {
+  const supabase = await createClient()
+
+  const { data: current, error: fetchError } = await supabase
+    .from('participants')
+    .select('lead_status, notes')
+    .eq('id', leadId)
+    .single()
+  if (fetchError) return { error: fetchError.message }
+
+  const today = todayIso()
+  const autoNote = `Reactivado desde ${current.lead_status ?? 'estado desconocido'} el ${today}.`
+  const newNotes = [autoNote, note?.trim() || null, current.notes || null].filter(Boolean).join('\n')
+
+  const { error } = await supabase
+    .from('participants')
+    .update({ lead_status: 'NEW', notes: newNotes, last_contact_at: new Date().toISOString() })
+    .eq('id', leadId)
+  if (error) return { error: error.message }
+
+  revalidatePath('/', 'layout')
+  return {}
+}
+
 /** Count of leads awaiting staff action (NEW + RESCHEDULE_NEEDED) — used for the sidebar badge. */
 export async function countPendingLeads(): Promise<number> {
   const supabase = await createClient()

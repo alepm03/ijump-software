@@ -575,9 +575,11 @@ interface ParticipantRowProps {
   participant: ParticipantWithDetails
   flightId: string
   instructors: Instructor[]
+  /** Deep-link target from /reservas: scroll into view and flash a ring. */
+  highlighted?: boolean
 }
 
-export function ParticipantRow({ participant: p, flightId, instructors }: ParticipantRowProps) {
+export function ParticipantRow({ participant: p, flightId, instructors, highlighted = false }: ParticipantRowProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -586,6 +588,18 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
     id: p.id,
     data: { type: 'participant', flightId },
   })
+
+  // Deep-link highlight (from the /reservas "Manifest" button): scroll the
+  // row into view once and flash a primary ring that fades after 2.5s. The
+  // ring rides on the row's own transition-colors class.
+  const rowRef = useRef<HTMLDivElement | null>(null)
+  const [flash, setFlash] = useState(highlighted)
+  useEffect(() => {
+    if (!highlighted) return
+    rowRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    const timer = setTimeout(() => setFlash(false), 2500)
+    return () => clearTimeout(timer)
+  }, [highlighted])
 
   function save(data: Parameters<typeof updateParticipant>[1]) {
     startTransition(async () => {
@@ -609,9 +623,14 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
 
   return (
     <div
-      ref={setNodeRef}
+      ref={(el) => {
+        setNodeRef(el)
+        rowRef.current = el
+      }}
       style={{ opacity: isDragging ? 0.4 : 1 }}
-      className="border-b border-border bg-card hover:bg-secondary/20 transition-colors last:border-b-0"
+      className={`border-b border-border bg-card hover:bg-secondary/20 transition-all duration-700 last:border-b-0 ${
+        flash ? 'ring-2 ring-primary ring-inset' : ''
+      }`}
     >
       {/* ── lg+: single-row grid aligned with ManifestColHead ── */}
       <div className="hidden lg:flex items-center px-3.5 py-2">

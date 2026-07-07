@@ -48,9 +48,11 @@ interface DayManifestProps {
   day: OperationalDayWithDetails
   instructors: Instructor[]
   policy: AvailabilityPolicy
+  /** Participant to scroll to and briefly highlight (deep-link from /reservas). */
+  highlightId?: string | null
 }
 
-export function DayManifest({ day, instructors, policy }: DayManifestProps) {
+export function DayManifest({ day, instructors, policy, highlightId = null }: DayManifestProps) {
   const router = useRouter()
   const dndId = useId()
   const [isPending, startTransition] = useTransition()
@@ -251,6 +253,7 @@ export function DayManifest({ day, instructors, policy }: DayManifestProps) {
                       onAddParticipant={() => setAddToFlightId(flight.id)}
                       onDelete={() => handleDeleteFlight(flight.id)}
                       onCancel={() => setCancelFlightId(flight.id)}
+                      highlightId={highlightId}
                     />
                   ))}
 

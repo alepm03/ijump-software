@@ -25,14 +25,16 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 const ReservationSchema = z.object({
-  fullName: z.string().min(1, 'fullName is required'),
+  // H9 (AUDITORIA.md) — bound every free-text field the bot can write: an
+  // unbounded string here lands straight in the staff manifest.
+  fullName: z.string().min(1, 'fullName is required').max(120).trim(),
   // CRM P0 — normalize at the API boundary so downstream code (createLead ->
   // createParticipant) always sees canonical form. createParticipant also
   // normalizes on write (single point of truth for internal callers); this
   // is idempotent so the two never conflict, it just makes the schema's
   // output type reflect what actually gets stored.
-  phone: z.string().min(1).transform(normalizePhone).optional(),
-  email: z.string().email().optional(),
+  phone: z.string().min(1).max(30).transform(normalizePhone).optional(),
+  email: z.string().email().max(254).optional(),
   packageType: z.enum(['SOLO', 'HANDYCAM', 'VIDEO_EXTERNO', 'FOTOS', 'HANDYCAM_FOTOS']).optional(),
   weight: z.number().positive().max(200).optional(),
   preferredDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'preferredDate must be YYYY-MM-DD'),

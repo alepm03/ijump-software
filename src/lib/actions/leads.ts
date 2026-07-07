@@ -467,6 +467,83 @@ export async function reactivateLead(leadId: string, note?: string | null): Prom
 }
 
 /** Count of leads awaiting staff action (NEW + RESCHEDULE_NEEDED) — used for the sidebar badge. */
+/**
+ * Manual "deposit received" toggle (LeadSheet). Kept separate from
+ * updateParticipant on purpose: deposit_paid is lead-lifecycle state, not
+ * manifest data, and toggling it is NOT a client contact (no
+ * last_contact_at bump — confirming money arrived is bookkeeping).
+ * createPayment also sets it automatically for RESERVA-stage payments;
+ * this toggle covers money that arrives without a registered payment yet
+ * (e.g. a platform bono the staff verifies by hand).
+ */
+export async function setDepositPaid(leadId: string, value: boolean): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('participants')
+    .update({ deposit_paid: value })
+    .eq('id', leadId)
+  if (error) return { error: error.message }
+  revalidatePath('/', 'layout')
+  return {}
+}
+
+/** "Contactado ahora" (LeadSheet) — explicit contact bump for calls/WhatsApps that change no other field. */
+export async function markLeadContacted(leadId: string): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('participants')
+    .update({ last_contact_at: new Date().toISOString() })
+    .eq('id', leadId)
+  if (error) return { error: error.message }
+  revalidatePath('/', 'layout')
+  return {}
+}
+
+/**
+ * Edits the sale source of a lead. `source` lives on reservation_groups
+ * (the group-of-1 created at intake is its carrier — see
+ * createParticipant); bot-created leads may have no group at all (source
+ * is optional in the bot contract), so one is created and linked here on
+ * first edit. Only the value is ever edited — the group row is never
+ * deleted (mixBySource/AR depend on it).
+ */
+export async function updateLeadSource(
+  leadId: string,
+  source: ReservationSource
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+
+  const { data: lead, error: fetchError } = await supabase
+    .from('participants')
+    .select('reservation_group_id')
+    .eq('id', leadId)
+    .single()
+  if (fetchError) return { error: fetchError.message }
+
+  if (lead.reservation_group_id) {
+    const { error } = await supabase
+      .from('reservation_groups')
+      .update({ source })
+      .eq('id', lead.reservation_group_id)
+    if (error) return { error: error.message }
+  } else {
+    const { data: group, error: groupError } = await supabase
+      .from('reservation_groups')
+      .insert({ source, payer_name: null })
+      .select('id')
+      .single()
+    if (groupError) return { error: groupError.message }
+    const { error: linkError } = await supabase
+      .from('participants')
+      .update({ reservation_group_id: group.id })
+      .eq('id', leadId)
+    if (linkError) return { error: linkError.message }
+  }
+
+  revalidatePath('/', 'layout')
+  return {}
+}
+
 export type LeadAttentionCounts = {
   /** Leads awaiting staff action (NEW + RESCHEDULE_NEEDED) — sidebar badge. */
   pending: number

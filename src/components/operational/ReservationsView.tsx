@@ -15,6 +15,7 @@ import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import { ReservationRow, ReservationListHeader } from '@/components/operational/ReservationRow'
+import { LeadSheet } from '@/components/operational/LeadSheet'
 import { AddParticipantDrawer } from '@/components/operational/AddParticipantDrawer'
 import { GroupRescheduleModal } from '@/components/operational/GroupRescheduleModal'
 import type { LeadFilter } from '@/lib/actions/leads'
@@ -45,6 +46,10 @@ export function ReservationsView({ tab, leads, counts, classifications, coldCoun
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [groupDate, setGroupDate] = useState<string | null>(null)
   const [sortByAging, setSortByAging] = useState(false)
+  // Lead detail sheet — track the id (not the object) so router.refresh()
+  // always re-renders the sheet with the fresh server-fetched lead.
+  const [detailLeadId, setDetailLeadId] = useState<string | null>(null)
+  const detailLead = detailLeadId ? leads.find((l) => l.id === detailLeadId) ?? null : null
 
   // Roadmap item 4 — recoverable no-shows: a NO_SHOW lead whose confirmed
   // jump was this month still has its platform bono/payment collected;
@@ -204,6 +209,7 @@ export function ReservationsView({ tab, leads, counts, classifications, coldCoun
                   lead={lead}
                   tab={tab}
                   classification={lead.preferredDate ? classifications[lead.preferredDate] ?? null : null}
+                  onOpenDetail={() => setDetailLeadId(lead.id)}
                 />
               ))}
             </>
@@ -227,6 +233,13 @@ export function ReservationsView({ tab, leads, counts, classifications, coldCoun
           open={groupDate !== null}
           onOpenChange={(open) => {
             if (!open) setGroupDate(null)
+          }}
+        />
+
+        <LeadSheet
+          lead={detailLead}
+          onOpenChange={(open) => {
+            if (!open) setDetailLeadId(null)
           }}
         />
       </div>

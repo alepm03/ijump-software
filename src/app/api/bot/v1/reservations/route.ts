@@ -17,7 +17,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { authenticateBotRequest, apiErrorResponse } from '@/lib/api/auth'
 import { enforceRateLimit } from '@/lib/api/rate-limit'
-import { createLead, confirmLead, findActiveLeadByPhone, getLeadByIdOrToken } from '@/lib/actions/leads'
+import { createLead, confirmLead, cancelLead, findActiveLeadByPhone, getLeadByIdOrToken } from '@/lib/actions/leads'
 import { listNextAvailableSlots } from '@/lib/actions/availability'
 import { normalizePhone } from '@/lib/phone'
 
@@ -108,6 +108,15 @@ export async function POST(request: Request) {
   }
 
   if (result.classification === 'UNAVAILABLE' || result.classification === 'NOT_OPERATING') {
+    // Bug fix (2026-07): confirmLead couldn't assign this date, so the lead
+    // created above is a dead end with a NEW status and the unavailable date
+    // baked in. Left as-is, it stays ACTIVE_LEAD_STATUSES-active and the
+    // client's inevitable retry (accepting one of the suggestedDates below)
+    // trips findActiveLeadByPhone's dedupe guard, coming back as
+    // duplicate:true with THIS lead's bad date instead of creating a fresh
+    // one with the date the customer actually wants. Cancel it so it drops
+    // out of the active set and the retry can create a clean lead.
+    await cancelLead(created.leadId, client)
     const suggestions = await listNextAvailableSlots({ fromDate: input.preferredDate, limit: 3 }, client)
     return NextResponse.json(
       {

@@ -4,13 +4,14 @@
  * URL params:
  *   tab = 'pending' | 'confirmed' | 'cancelled'  (default: 'pending')
  *
- * Fetches all three tab counts in parallel (for the segmented control badges),
- * and for the active tab's leads attaches a live availability classification
- * per distinct preferred_date (deduped — several leads often share a date).
+ * Downloads only the active tab's rows; the other two badges come from
+ * head-only count queries. The pending tab additionally attaches a live
+ * availability classification per distinct preferred_date (deduped — several
+ * leads often share a date), reusing a single policy fetch.
  */
 
-import { listLeads, type LeadFilter } from '@/lib/actions/leads'
-import { getDayAvailability } from '@/lib/actions/availability'
+import { countLeads, listLeads, type LeadFilter } from '@/lib/actions/leads'
+import { getDayAvailability, getPolicy } from '@/lib/actions/availability'
 import { classifyDate } from '@/lib/availability/availability-engine'
 import { ReservationsView } from '@/components/operational/ReservationsView'
 import type { DateClass } from '@/types/domain'
@@ -30,34 +31,34 @@ export default async function ReservasPage({
   const tab: LeadFilter =
     sp.tab && VALID_TABS.includes(sp.tab as LeadFilter) ? (sp.tab as LeadFilter) : 'pending'
 
-  const [pendingResult, confirmedResult, cancelledResult] = await Promise.all([
-    listLeads('pending'),
-    listLeads('confirmed'),
-    listLeads('cancelled'),
+  // Only the active tab downloads rows; the other two badges are head-only counts.
+  const inactiveTabs = VALID_TABS.filter((t) => t !== tab)
+  const [activeResult, countA, countB, policy] = await Promise.all([
+    listLeads(tab),
+    countLeads(inactiveTabs[0]),
+    countLeads(inactiveTabs[1]),
+    tab === 'pending' ? getPolicy() : Promise.resolve(null),
   ])
 
-  const resultByTab = {
-    pending: pendingResult,
-    confirmed: confirmedResult,
-    cancelled: cancelledResult,
-  }
-
+  const activeLeads = activeResult.leads
   const counts: Record<LeadFilter, number> = {
-    pending: pendingResult.leads.length,
-    confirmed: confirmedResult.leads.length,
-    cancelled: cancelledResult.leads.length,
+    pending: 0,
+    confirmed: 0,
+    cancelled: 0,
+    [tab]: activeLeads.length,
+    [inactiveTabs[0]]: countA,
+    [inactiveTabs[1]]: countB,
   }
 
-  const activeLeads = resultByTab[tab].leads
-
-  // Only the "pending" tab needs live availability — dedupe by date to avoid N queries.
+  // Only the "pending" tab needs live availability — dedupe by date to avoid N
+  // queries, and reuse the already-fetched policy instead of one fetch per date.
   const classifications: Record<string, DateClass> = {}
-  if (tab === 'pending') {
+  if (tab === 'pending' && policy) {
     const today = todayIso()
     const distinctDates = [...new Set(activeLeads.map((l) => l.preferredDate).filter((d): d is string => !!d))]
     await Promise.all(
       distinctDates.map(async (date) => {
-        const slots = await getDayAvailability(date)
+        const slots = await getDayAvailability(date, undefined, policy)
         classifications[date] = classifyDate(date, today, slots)
       })
     )

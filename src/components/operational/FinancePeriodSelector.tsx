@@ -16,6 +16,7 @@
  *   ?pt=day|week|month|year  &  pv=<value>
  */
 
+import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import {
@@ -141,9 +142,12 @@ interface Props {
 
 export function FinancePeriodSelector({ periodType, periodValue }: Props) {
   const router = useRouter()
+  const [isPending, startTransition] = useTransition()
 
   function pushPeriod(pt: PeriodType, pv: string) {
-    router.push(`/finanzas?pt=${pt}&pv=${encodeURIComponent(pv)}`)
+    // Transition: keeps the current P&L visible (dimmed via the header opacity
+    // cue) instead of blocking with no feedback while the server re-renders.
+    startTransition(() => router.push(`/finanzas?pt=${pt}&pv=${encodeURIComponent(pv)}`))
   }
 
   function handleTabChange(pt: PeriodType) {
@@ -185,7 +189,11 @@ export function FinancePeriodSelector({ periodType, periodValue }: Props) {
         <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
           {subLabel}
         </span>
-        <span className="text-[1.4375rem] font-bold tracking-tight text-foreground leading-[1.15] capitalize truncate">
+        <span
+          className={`text-[1.4375rem] font-bold tracking-tight text-foreground leading-[1.15] capitalize truncate transition-opacity ${
+            isPending ? 'opacity-50' : ''
+          }`}
+        >
           {label}
         </span>
       </div>

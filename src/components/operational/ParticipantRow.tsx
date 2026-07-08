@@ -7,7 +7,8 @@ import { GripVertical, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateParticipant, deleteParticipant } from '@/lib/actions/participant'
 import { InlineField } from '@/components/operational/InlineField'
-import { createPayment, updatePayment, deletePayment } from '@/lib/actions/payment'
+import { PaymentManager } from '@/components/operational/shared/PaymentManager'
+import { NotesField } from '@/components/operational/shared/NotesField'
 import { addOverweightSupplement } from '@/lib/actions/finance'
 import { AR_BALANCE_EPSILON } from '@/lib/finance/itemization-engine'
 import {
@@ -36,7 +37,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
-import { Button } from '@/components/ui/button'
 import { User } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { createWaiverToken, getParticipantWaivers } from '@/lib/actions/waiver'
@@ -45,8 +45,6 @@ import type {
   Instructor,
   OperationalStatus,
   PackageType,
-  PaymentMethod,
-  PaymentStage,
   Payment,
   ParticipantItem,
   Waiver,
@@ -76,27 +74,6 @@ const PACKAGE_CONFIG: Record<PackageType, { label: string }> = {
   VIDEO_EXTERNO:  { label: 'VE' },
   FOTOS:          { label: 'Fotos' },
   HANDYCAM_FOTOS: { label: 'HC+F' },
-}
-
-const METHOD_LABELS: Record<PaymentMethod, string> = {
-  EFECTIVO: 'Efectivo',
-  TARJETA: 'Tarjeta',
-  BIZUM: 'Bizum',
-  TRANSFERENCIA: 'Transfer.',
-  GROUPON: 'Groupon',
-}
-
-const STAGE_LABELS: Record<PaymentStage, string> = {
-  RESERVA: 'Reserva',
-  LIQUIDACION: 'Liquidación',
-  SUPLEMENTO: 'Suplemento',
-}
-
-// Maps PaymentStage to token class pairs
-const STAGE_CONFIG: Record<PaymentStage, { className: string }> = {
-  RESERVA:    { className: 'bg-pay-reserva-bg text-pay-reserva' },
-  LIQUIDACION:{ className: 'bg-pay-liquidacion-bg text-pay-liquidacion' },
-  SUPLEMENTO: { className: 'bg-pay-suplemento-bg text-pay-suplemento' },
 }
 
 // ─── StatusBadge — reusable pill ─────────────────────────────────────────────
@@ -186,172 +163,6 @@ function BalanceBadge({ balance }: { balance: number }) {
     >
       Debe {balance.toFixed(0)}€
     </span>
-  )
-}
-
-// ─── Payment manager (inside Dialog) ─────────────────────────────────────────
-
-function PaymentManager({
-  participantId,
-  payments,
-}: {
-  participantId: string
-  payments: Payment[]
-}) {
-  const router = useRouter()
-  const [amount, setAmount] = useState('')
-  const [method, setMethod] = useState<PaymentMethod>('EFECTIVO')
-  const [stage, setStage] = useState<PaymentStage>(() =>
-    payments.some((p) => p.stage === 'RESERVA') ? 'LIQUIDACION' : 'RESERVA'
-  )
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editAmount, setEditAmount] = useState('')
-  const [isPending, startTransition] = useTransition()
-
-  function handleAdd() {
-    const n = parseFloat(amount)
-    if (isNaN(n) || n <= 0) return
-    startTransition(async () => {
-      const result = await createPayment(participantId, { amount: n, method, stage })
-      if (result.error) toast.error(result.error)
-      else {
-        setAmount('')
-        router.refresh()
-      }
-    })
-  }
-
-  function handleUpdate(paymentId: string) {
-    const n = parseFloat(editAmount)
-    if (!isNaN(n) && n > 0) {
-      startTransition(async () => {
-        const result = await updatePayment(paymentId, { amount: n })
-        if (result.error) toast.error(result.error)
-        else { setEditingId(null); router.refresh() }
-      })
-    } else {
-      setEditingId(null)
-    }
-  }
-
-  function handleDelete(paymentId: string) {
-    startTransition(async () => {
-      const result = await deletePayment(paymentId)
-      if (result.error) toast.error(result.error)
-      else router.refresh()
-    })
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Existing payments */}
-      {payments.length > 0 && (
-        <div className="space-y-1.5">
-          {payments.map((pmt) => {
-            const cfg = STAGE_CONFIG[pmt.stage]
-            return (
-              <div key={pmt.id} className="flex items-center gap-2.5">
-                <span
-                  className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 min-w-[76px] text-center ${cfg.className}`}
-                >
-                  {STAGE_LABELS[pmt.stage]}
-                </span>
-
-                {editingId === pmt.id ? (
-                  <input
-                    type="number"
-                    value={editAmount}
-                    onChange={(e) => setEditAmount(e.target.value)}
-                    onBlur={() => handleUpdate(pmt.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleUpdate(pmt.id)
-                      if (e.key === 'Escape') setEditingId(null)
-                    }}
-                    className="w-20 text-sm bg-background border border-input rounded px-2 py-0.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 font-bold"
-                    autoFocus
-                  />
-                ) : (
-                  <button
-                    onClick={() => { setEditingId(pmt.id); setEditAmount(String(pmt.amount)) }}
-                    className="text-sm font-bold text-foreground hover:text-primary transition-colors"
-                    title="Click para editar"
-                  >
-                    {pmt.amount.toFixed(0)}€
-                  </button>
-                )}
-
-                <span className="text-xs text-muted-foreground">
-                  {METHOD_LABELS[pmt.method]}
-                </span>
-
-                <button
-                  onClick={() => handleDelete(pmt.id)}
-                  disabled={isPending}
-                  className="ml-auto text-muted-foreground/40 hover:text-destructive text-base leading-none transition-colors px-1"
-                >
-                  ×
-                </button>
-              </div>
-            )
-          })}
-
-          <div className="flex justify-end pt-0.5">
-            <span className="text-xs text-muted-foreground">
-              Total:{' '}
-              <strong className="text-foreground font-bold">
-                {payments.reduce((s, p) => s + p.amount, 0).toFixed(0)}€
-              </strong>
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Add payment form */}
-      <div className="space-y-2.5 pt-1 border-t border-border">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-          Añadir pago
-        </p>
-        <div className="flex gap-2">
-          <select
-            value={stage}
-            onChange={(e) => setStage(e.target.value as PaymentStage)}
-            className="text-sm bg-background border border-input rounded px-2 py-1.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 flex-1"
-          >
-            {(Object.entries(STAGE_LABELS) as [PaymentStage, string][]).map(([val, label]) => (
-              <option key={val} value={val}>{label}</option>
-            ))}
-          </select>
-          <select
-            value={method}
-            onChange={(e) => setMethod(e.target.value as PaymentMethod)}
-            className="text-sm bg-background border border-input rounded px-2 py-1.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 flex-1"
-          >
-            {(Object.entries(METHOD_LABELS) as [PaymentMethod, string][]).map(([val, label]) => (
-              <option key={val} value={val}>{label}</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex gap-2">
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
-            placeholder="Importe €"
-            className="flex-1 text-sm bg-background border border-input rounded px-2 py-1.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
-          />
-          <Button
-            onClick={handleAdd}
-            disabled={isPending || !amount}
-            variant="default"
-            size="sm"
-            className="flex-shrink-0"
-          >
-            Añadir
-          </Button>
-        </div>
-      </div>
-    </div>
   )
 }
 
@@ -756,21 +567,6 @@ function ParticipantInfoSheet({
   )
 }
 
-function NotesField({ value, onSave }: { value: string; onSave: (v: string) => void }) {
-  const [draft, setDraft] = useState(value)
-
-  return (
-    <textarea
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => { if (draft !== value) onSave(draft) }}
-      placeholder="Sin notas"
-      rows={3}
-      className="w-full text-sm bg-background border border-border rounded px-3 py-2 text-foreground outline-none resize-none focus-visible:border-input focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 transition-colors placeholder:text-muted-foreground/40"
-    />
-  )
-}
-
 // ─── ParticipantRow ───────────────────────────────────────────────────────────
 // v4: lg+ → grid layout aligned with ManifestColHead via --manifest-grid-cols
 // md/mobile → flex-wrap layout (preserved from Phase 5)
@@ -779,9 +575,11 @@ interface ParticipantRowProps {
   participant: ParticipantWithDetails
   flightId: string
   instructors: Instructor[]
+  /** Deep-link target from /reservas: scroll into view and flash a ring. */
+  highlighted?: boolean
 }
 
-export function ParticipantRow({ participant: p, flightId, instructors }: ParticipantRowProps) {
+export function ParticipantRow({ participant: p, flightId, instructors, highlighted = false }: ParticipantRowProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -790,6 +588,18 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
     id: p.id,
     data: { type: 'participant', flightId },
   })
+
+  // Deep-link highlight (from the /reservas "Manifest" button): scroll the
+  // row into view once and flash a primary ring that fades after 2.5s. The
+  // ring rides on the row's own transition-colors class.
+  const rowRef = useRef<HTMLDivElement | null>(null)
+  const [flash, setFlash] = useState(highlighted)
+  useEffect(() => {
+    if (!highlighted) return
+    rowRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    const timer = setTimeout(() => setFlash(false), 2500)
+    return () => clearTimeout(timer)
+  }, [highlighted])
 
   function save(data: Parameters<typeof updateParticipant>[1]) {
     startTransition(async () => {
@@ -813,9 +623,14 @@ export function ParticipantRow({ participant: p, flightId, instructors }: Partic
 
   return (
     <div
-      ref={setNodeRef}
+      ref={(el) => {
+        setNodeRef(el)
+        rowRef.current = el
+      }}
       style={{ opacity: isDragging ? 0.4 : 1 }}
-      className="border-b border-border bg-card hover:bg-secondary/20 transition-colors last:border-b-0"
+      className={`border-b border-border bg-card hover:bg-secondary/20 transition-all duration-700 last:border-b-0 ${
+        flash ? 'ring-2 ring-primary ring-inset' : ''
+      }`}
     >
       {/* ── lg+: single-row grid aligned with ManifestColHead ── */}
       <div className="hidden lg:flex items-center px-3.5 py-2">

@@ -69,9 +69,11 @@ interface FlightCardProps {
   onAddParticipant: () => void
   onDelete: () => void
   onCancel: () => void
+  /** Participant to scroll to and briefly highlight (deep-link from /reservas). */
+  highlightId?: string | null
 }
 
-export function FlightCard({ flight, instructors, onAddParticipant, onDelete, onCancel }: FlightCardProps) {
+export function FlightCard({ flight, instructors, onAddParticipant, onDelete, onCancel, highlightId = null }: FlightCardProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [editingTime, setEditingTime] = useState(false)
@@ -289,6 +291,7 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete, on
                 participant={participant}
                 flightId={flight.id}
                 instructors={instructors}
+                highlighted={participant.id === highlightId}
               />
             ))}
           </>

@@ -18,6 +18,8 @@ import {
 interface AppSidebarProps {
   email: string
   pendingLeadsCount?: number
+  /** Cold subset (>48h without contact) — escalates the badge to alert red. */
+  coldLeadsCount?: number
 }
 
 const NAV_GROUPS = (today: string, todayLabel: string) => [
@@ -45,6 +47,7 @@ function NavLink({
   isActive,
   collapsed,
   badgeCount,
+  badgeUrgent,
 }: {
   href: string
   label: string
@@ -52,8 +55,13 @@ function NavLink({
   isActive: boolean
   collapsed?: boolean
   badgeCount?: number
+  /** Alert style (cold leads waiting): destructive red instead of brand orange. */
+  badgeUrgent?: boolean
 }) {
   const showBadge = !!badgeCount && badgeCount > 0
+  const badgeColor = badgeUrgent
+    ? 'bg-destructive text-primary-foreground'
+    : 'bg-primary text-primary-foreground'
 
   return (
     <Link
@@ -70,14 +78,14 @@ function NavLink({
       <span className="relative flex-shrink-0">
         <Icon size={14} />
         {showBadge && collapsed && (
-          <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] px-[3px] rounded-full bg-primary text-primary-foreground text-[0.5625rem] font-bold flex items-center justify-center leading-none">
+          <span className={`absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] px-[3px] rounded-full ${badgeColor} text-[0.5625rem] font-bold flex items-center justify-center leading-none`}>
             {badgeCount}
           </span>
         )}
       </span>
       {!collapsed && <span className="flex-1">{label}</span>}
       {!collapsed && showBadge && (
-        <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[0.625rem] font-bold flex items-center justify-center leading-none flex-shrink-0">
+        <span className={`min-w-[18px] h-[18px] px-1 rounded-full ${badgeColor} text-[0.625rem] font-bold flex items-center justify-center leading-none flex-shrink-0`}>
           {badgeCount}
         </span>
       )}
@@ -94,6 +102,7 @@ function SidebarContent({
   email,
   collapsed = false,
   pendingLeadsCount = 0,
+  coldLeadsCount = 0,
 }: {
   pathname: string
   today: string
@@ -101,6 +110,7 @@ function SidebarContent({
   email: string
   collapsed?: boolean
   pendingLeadsCount?: number
+  coldLeadsCount?: number
 }) {
   const navGroups = NAV_GROUPS(today, todayLabel)
 
@@ -146,6 +156,7 @@ function SidebarContent({
                   isActive={item.matchFn(pathname)}
                   collapsed={collapsed}
                   badgeCount={item.href === '/reservas' ? pendingLeadsCount : undefined}
+                  badgeUrgent={item.href === '/reservas' && coldLeadsCount > 0}
                 />
               ))}
             </div>
@@ -188,7 +199,7 @@ function SidebarContent({
 
 // ─── AppSidebar — responsive: xl=full, md=icon rail, base=hamburger+Sheet ─────
 
-export function AppSidebar({ email, pendingLeadsCount = 0 }: AppSidebarProps) {
+export function AppSidebar({ email, pendingLeadsCount = 0, coldLeadsCount = 0 }: AppSidebarProps) {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -220,6 +231,7 @@ export function AppSidebar({ email, pendingLeadsCount = 0 }: AppSidebarProps) {
             email={email}
             collapsed={false}
             pendingLeadsCount={pendingLeadsCount}
+            coldLeadsCount={coldLeadsCount}
           />
         </SheetContent>
       </Sheet>
@@ -236,6 +248,7 @@ export function AppSidebar({ email, pendingLeadsCount = 0 }: AppSidebarProps) {
           email={email}
           collapsed={true}
           pendingLeadsCount={pendingLeadsCount}
+          coldLeadsCount={coldLeadsCount}
         />
       </aside>
 
@@ -251,6 +264,7 @@ export function AppSidebar({ email, pendingLeadsCount = 0 }: AppSidebarProps) {
           email={email}
           collapsed={false}
           pendingLeadsCount={pendingLeadsCount}
+          coldLeadsCount={coldLeadsCount}
         />
       </aside>
     </>

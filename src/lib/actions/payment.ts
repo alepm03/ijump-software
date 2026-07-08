@@ -25,6 +25,21 @@ export async function createPayment(
     notes: data.notes ?? null,
   })
   if (error) return { error: error.message }
+
+  // CRM — a registered RESERVA payment IS the deposit: keep deposit_paid
+  // (read by the bot API via getLeadByIdOrToken and by the /reservas
+  // payment badge) in sync automatically. Best-effort: the payment row is
+  // the primary record and is already inserted.
+  if (data.stage === 'RESERVA') {
+    const { error: depositError } = await supabase
+      .from('participants')
+      .update({ deposit_paid: true })
+      .eq('id', participantId)
+    if (depositError) {
+      console.error('createPayment: deposit_paid sync failed', depositError.message)
+    }
+  }
+
   revalidatePath('/', 'layout')
   return {}
 }

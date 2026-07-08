@@ -13,8 +13,9 @@ import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { cn, isLeadCold } from '@/lib/utils'
-import { ReservationRow } from '@/components/operational/ReservationRow'
+import { cn } from '@/lib/utils'
+import { ReservationRow, ReservationListHeader } from '@/components/operational/ReservationRow'
+import { LeadSheet } from '@/components/operational/LeadSheet'
 import { AddParticipantDrawer } from '@/components/operational/AddParticipantDrawer'
 import { GroupRescheduleModal } from '@/components/operational/GroupRescheduleModal'
 import type { LeadFilter } from '@/lib/actions/leads'
@@ -31,27 +32,25 @@ interface ReservationsViewProps {
   leads: LeadWithDetails[]
   counts: Record<LeadFilter, number>
   classifications: Record<string, DateClass>
+  /**
+   * CRM P0 — lead-aging queue, computed server-side over the PENDING set so
+   * the alert is visible from any tab (leads awaiting staff action — NEW /
+   * RESCHEDULE_NEEDED — without contact for >48h). TENTATIVE excluded on
+   * purpose: those wait for their month, not for a human.
+   */
+  coldCount: number
 }
 
-export function ReservationsView({ tab, leads, counts, classifications }: ReservationsViewProps) {
+export function ReservationsView({ tab, leads, counts, classifications, coldCount }: ReservationsViewProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [groupDate, setGroupDate] = useState<string | null>(null)
   const [sortByAging, setSortByAging] = useState(false)
-
-  // CRM P0 — lead-aging queue: leads awaiting staff action (NEW /
-  // RESCHEDULE_NEEDED) whose last contact is unknown or older than 48h.
-  // TENTATIVE is excluded on purpose: those are parked waiting for their
-  // month to arrive, not waiting for a human.
-  const coldCount = useMemo(() => {
-    if (tab !== 'pending') return 0
-    return leads.filter(
-      (l) =>
-        (l.leadStatus === 'NEW' || l.leadStatus === 'RESCHEDULE_NEEDED') &&
-        isLeadCold(l.lastContactAt)
-    ).length
-  }, [tab, leads])
+  // Lead detail sheet — track the id (not the object) so router.refresh()
+  // always re-renders the sheet with the fresh server-fetched lead.
+  const [detailLeadId, setDetailLeadId] = useState<string | null>(null)
+  const detailLead = detailLeadId ? leads.find((l) => l.id === detailLeadId) ?? null : null
 
   // Roadmap item 4 — recoverable no-shows: a NO_SHOW lead whose confirmed
   // jump was this month still has its platform bono/payment collected;
@@ -145,23 +144,32 @@ export function ReservationsView({ tab, leads, counts, classifications }: Reserv
           ))}
         </div>
 
-        {tab === 'pending' && coldCount > 0 && (
+        {coldCount > 0 && (
           <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
             <p className="text-sm text-amber-700">
               <span className="font-semibold">{coldCount}</span>{' '}
               {coldCount === 1 ? 'lead sin contacto' : 'leads sin contacto'} hace más de 48h
             </p>
-            <button
-              onClick={() => setSortByAging((v) => !v)}
-              className={cn(
-                'text-xs font-semibold px-3 py-1.5 rounded-md transition-colors shrink-0',
-                sortByAging
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-amber-700 hover:bg-amber-100'
-              )}
-            >
-              {sortByAging ? 'Ordenar por fecha de salto' : 'Ordenar por antigüedad'}
-            </button>
+            {tab === 'pending' ? (
+              <button
+                onClick={() => setSortByAging((v) => !v)}
+                className={cn(
+                  'text-xs font-semibold px-3 py-1.5 rounded-md transition-colors shrink-0',
+                  sortByAging
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-amber-700 hover:bg-amber-100'
+                )}
+              >
+                {sortByAging ? 'Ordenar por fecha de salto' : 'Ordenar por antigüedad'}
+              </button>
+            ) : (
+              <button
+                onClick={() => router.push('/reservas?tab=pending')}
+                className="text-xs font-semibold px-3 py-1.5 rounded-md text-amber-700 hover:bg-amber-100 transition-colors shrink-0"
+              >
+                Ver pendientes
+              </button>
+            )}
           </div>
         )}
 
@@ -201,14 +209,18 @@ export function ReservationsView({ tab, leads, counts, classifications }: Reserv
               No hay reservas en esta categoría.
             </div>
           ) : (
-            displayLeads.map((lead) => (
-              <ReservationRow
-                key={lead.id}
-                lead={lead}
-                tab={tab}
-                classification={lead.preferredDate ? classifications[lead.preferredDate] ?? null : null}
-              />
-            ))
+            <>
+              <ReservationListHeader tab={tab} />
+              {displayLeads.map((lead) => (
+                <ReservationRow
+                  key={lead.id}
+                  lead={lead}
+                  tab={tab}
+                  classification={lead.preferredDate ? classifications[lead.preferredDate] ?? null : null}
+                  onOpenDetail={() => setDetailLeadId(lead.id)}
+                />
+              ))}
+            </>
           )}
         </div>
 
@@ -229,6 +241,13 @@ export function ReservationsView({ tab, leads, counts, classifications }: Reserv
           open={groupDate !== null}
           onOpenChange={(open) => {
             if (!open) setGroupDate(null)
+          }}
+        />
+
+        <LeadSheet
+          lead={detailLead}
+          onOpenChange={(open) => {
+            if (!open) setDetailLeadId(null)
           }}
         />
       </div>

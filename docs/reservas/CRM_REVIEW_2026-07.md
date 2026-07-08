@@ -103,6 +103,41 @@ CRMs verticales comerciales. Lo que falta no es fontanería: es **gestión del e
   `/reservas` (`ReservationRow.tsx`) y contador de no-shows recuperables del mes
   (`ReservationsView.tsx`). Campaña de reactivación vía chatbot sigue pendiente,
   fuera de alcance de este cambio.
+- **As-built 2 (rama `feature/crm-lead-management`, 2026-07-07):** auditoría posterior
+  reveló que `lead_status = 'NO_SHOW'` era **inalcanzable** — nada lo escribía: marcar
+  no-show en el manifest solo tocaba `operational_status`, y el Reactivar de arriba no
+  tenía datos. Cerrado con doble mecanismo: sync inmediato manifest→lead
+  (`syncLeadStatusForOperationalChange` en `participant.ts`, con revert a CONFIRMED si
+  el staff se equivocó) + barrido diario `sweepOverdueNoShows` (cron `promote-leads`)
+  para confirmados de fecha pasada con manifest sin tocar. `reactivateLead` ahora
+  además libera el asiento (`flight_id NULL`) y limpia la confirmación caducada.
+
+### Hallazgos adicionales (auditoría 2026-07-07, rama `feature/crm-lead-management`) ✅ EJECUTADOS
+
+- **`deposit_paid` era una columna muerta:** ningún componente la leía ni escribía.
+  Resuelto: toggle manual en la ficha de lead (`LeadSheet.tsx`, action
+  `setDepositPaid`) + auto-activación al registrar un pago stage RESERVA
+  (`createPayment`). El bot ya la leía vía `getLeadByIdOrToken` — ahora tiene valor real.
+- **Badge "Grupo" siempre visible (bug de datos estructural):** `createParticipant`
+  crea un grupo-de-1 para TODO alta manual porque `source` (obligatorio en el form)
+  dispara la creación del grupo. El grupo-de-1 es el portador de `source` para
+  finanzas (mixBySource, AR `owedBy`) — NO se tocó la creación. Fix de UI: badge solo
+  con `groupSize >= 2` o `payer_name` (count real embebido en `listLeads`).
+- **Pagos invisibles desde `/reservas`:** `createPayment` funciona para leads sin
+  vuelo (verificado: la FK no depende de `flight_id`) pero la única UI estaba en el
+  manifest. Resuelto: `PaymentManager` extraído a `shared/` y reutilizado en la ficha
+  de lead. Decisión consciente: AR y cierre de caja NO se tocaron (sus joins excluyen
+  leads sin vuelo) — un depósito pre-vuelo entra en AR/caja al confirmarse el lead.
+  Riesgo residual documentado: depósito en efectivo pre-vuelo no aparece en el cierre
+  de caja de ese día.
+- **UI `/reservas` reestructurada como tabla CRM:** columnas Cliente / Salto / Estado /
+  Pago / Contacto con cabecera, ficha de lead al clic (`LeadSheet.tsx`), alerta de
+  leads fríos visible desde cualquier tab + badge rojo en el sidebar
+  (`countLeadAttention`), y deep-link "Manifest" desde reservas confirmadas al
+  participante en el manifest del día (`/[date]?highlight=<id>`).
+- **Pendiente futuro (sesión de conexión del chatbot):** notificación externa a Raúl
+  (WhatsApp vía n8n) cuando haya leads fríos — puede consultar los leads >48h
+  reutilizando la API del bot con un scope de lectura nuevo.
 
 ### P2 — Métricas de embudo
 

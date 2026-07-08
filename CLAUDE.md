@@ -131,8 +131,10 @@ gh pr create --title "..." --body "..."
 | Tesorería Sprint 1 (itemización automática de `participant_items` + AR/Cobros + `/administracion`) | ✅ Producción | #42 |
 | Tesorería Sprint 2 (cierre de caja diario: `cash_close`, esperado vs. contado por método, pestaña Caja) | ✅ Producción | #44 |
 | Reservas-CRM Sprint 3 (edición inline en `/reservas`, cancelar vuelo con reubicación guiada, DnD con validación de capacidad, reubicación grupal de día cancelado) | ✅ Producción | #45/#46 |
-| Retoques operativos jul-2026 (intervalo de vuelos configurable 45min/08:00, fuentes de plataforma completas, gasto extraordinario, chips de ocupación por hora, doc revisión CRM) | 🔄 En PR | `feature/operational-tweaks` |
-| CRM P0 (aging de leads `last_contact_at` + cola >48h en `/reservas`, dedupe por teléfono con normalización canónica, idempotencia por teléfono en la API del bot — contrato v1.1) | 🔄 En PR (apilado sobre `feature/operational-tweaks`) | `feature/crm-p0-aging-dedupe` |
+| Retoques operativos jul-2026 (intervalo de vuelos configurable 45min/08:00, fuentes de plataforma completas, gasto extraordinario, chips de ocupación por hora, doc revisión CRM) | ✅ Producción | #48 |
+| CRM P0 (aging de leads `last_contact_at` + cola >48h en `/reservas`, dedupe por teléfono con normalización canónica, idempotencia por teléfono en la API del bot — contrato v1.1) | ✅ Producción | #50 |
+| CRM P1 (reactivar leads NO_SHOW/CANCELLED, canal STAFF_PHONE/STAFF_WHATSAPP + migración CHECK, H9 límites Zod en API bot) | ✅ Producción | #55 |
+| CRM lead management (circuito no-show manifest↔leads + barrido cron, `/reservas` como tabla CRM con ficha de lead `LeadSheet`, pagos y `deposit_paid` desde reservas, alerta leads fríos + badge sidebar, fix badge Grupo, deep-link al manifest) | 🔄 En PR | `feature/crm-lead-management` |
 
 ### Lo que NO está en scope (aún)
 - CRM avanzado

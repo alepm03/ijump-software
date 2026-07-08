@@ -10,7 +10,7 @@
  * leads often share a date), reusing a single policy fetch.
  */
 
-import { countLeads, listLeads, type LeadFilter } from '@/lib/actions/leads'
+import { countLeadAttention, countLeads, listLeads, type LeadFilter } from '@/lib/actions/leads'
 import { getDayAvailability, getPolicy } from '@/lib/actions/availability'
 import { classifyDate } from '@/lib/availability/availability-engine'
 import { ReservationsView } from '@/components/operational/ReservationsView'
@@ -33,11 +33,12 @@ export default async function ReservasPage({
 
   // Only the active tab downloads rows; the other two badges are head-only counts.
   const inactiveTabs = VALID_TABS.filter((t) => t !== tab)
-  const [activeResult, countA, countB, policy] = await Promise.all([
+  const [activeResult, countA, countB, policy, attention] = await Promise.all([
     listLeads(tab),
     countLeads(inactiveTabs[0]),
     countLeads(inactiveTabs[1]),
     tab === 'pending' ? getPolicy() : Promise.resolve(null),
+    countLeadAttention(),
   ])
 
   const activeLeads = activeResult.leads
@@ -49,6 +50,10 @@ export default async function ReservasPage({
     [inactiveTabs[0]]: countA,
     [inactiveTabs[1]]: countB,
   }
+
+  // Cold-leads alert (CRM P0): always computed over the pending set so it
+  // stays visible from any tab. Same rule as the sidebar badge.
+  const coldCount = attention.cold
 
   // Only the "pending" tab needs live availability — dedupe by date to avoid N
   // queries, and reuse the already-fetched policy instead of one fetch per date.
@@ -65,6 +70,12 @@ export default async function ReservasPage({
   }
 
   return (
-    <ReservationsView tab={tab} leads={activeLeads} counts={counts} classifications={classifications} />
+    <ReservationsView
+      tab={tab}
+      leads={activeLeads}
+      counts={counts}
+      classifications={classifications}
+      coldCount={coldCount}
+    />
   )
 }

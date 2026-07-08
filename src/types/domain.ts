@@ -535,6 +535,16 @@ export interface ApiKey {
 export interface LeadWithDetails extends Participant {
   reservationGroup: ReservationGroup | null
   availability?: DateClass
+  /**
+   * Real member count of the reservation group. A group-of-1 is structural
+   * (it only carries `source` — see createParticipant); the UI must treat
+   * "comes in a group" as groupSize >= 2 (or an explicit payerName).
+   */
+  groupSize: number
+  /** Payments registered for this lead — drives the payment badge and the LeadSheet. */
+  payments: Payment[]
+  /** Σ payments.amount, precomputed for the row badge. */
+  paidTotal: number
 }
 
 // ─── End reservations module types ───────────────────────────

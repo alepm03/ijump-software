@@ -179,6 +179,12 @@ export async function updateParticipant(
   const { error } = await supabase.from('participants').update(update).eq('id', id)
   if (error) return { error: error.message }
 
+  // CRM no-show circuit — the manifest UI changes operational status through
+  // this action too (inline saves), not only updateOperationalStatus.
+  if (data.operationalStatus !== undefined) {
+    await syncLeadStatusForOperationalChange(supabase, id, data.operationalStatus)
+  }
+
   // Treasury Sprint 1 — keep auto-generated participant_items in sync after
   // any edit made inline from the manifest row (ParticipantRow) that can
   // affect them: packageType change, or operationalStatus crossing the
@@ -267,6 +273,46 @@ export async function moveParticipant(
   return moveParticipants(newFlightId, [id])
 }
 
+/**
+ * CRM no-show circuit (docs/reservas/CRM_REVIEW_2026-07.md, "NO_SHOW y
+ * CANCELLED son agujeros negros"): keeps lead_status in sync with an
+ * operational_status change so a no-show surfaces in the /reservas
+ * Canceladas tab, where the Reactivar flow and the recoverable-no-shows
+ * counter live. Only NO_SHOW syncs — operational CANCELLED and
+ * WEATHER_CANCELLED already have their own lead flows (cancelLead,
+ * handleWeatherCancellation). Reverting NO_SHOW to a flying status
+ * restores CONFIRMED (the participant did show after all); reverting to
+ * another non-flying status leaves lead_status alone.
+ *
+ * Best-effort by design (errors logged, never returned): callers invoke it
+ * after their primary operational_status update has already succeeded.
+ */
+async function syncLeadStatusForOperationalChange(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  id: string,
+  status: OperationalStatus
+): Promise<void> {
+  if (status === 'NO_SHOW') {
+    const { error } = await supabase
+      .from('participants')
+      .update({ lead_status: 'NO_SHOW' })
+      .eq('id', id)
+      .not('lead_status', 'is', null)
+    if (error) {
+      console.error('syncLeadStatusForOperationalChange: NO_SHOW sync failed', error.message)
+    }
+  } else if (!NON_FLYING_STATUSES.has(status)) {
+    const { error } = await supabase
+      .from('participants')
+      .update({ lead_status: 'CONFIRMED' })
+      .eq('id', id)
+      .eq('lead_status', 'NO_SHOW')
+    if (error) {
+      console.error('syncLeadStatusForOperationalChange: NO_SHOW revert failed', error.message)
+    }
+  }
+}
+
 export async function updateOperationalStatus(
   id: string,
   status: OperationalStatus
@@ -277,6 +323,8 @@ export async function updateOperationalStatus(
     .update({ operational_status: status })
     .eq('id', id)
   if (error) return { error: error.message }
+
+  await syncLeadStatusForOperationalChange(supabase, id, status)
 
   // Treasury Sprint 1 — see updateParticipant for the full rule (this
   // mirrors it: clear on non-flying, re-sync on reactivation to flying).

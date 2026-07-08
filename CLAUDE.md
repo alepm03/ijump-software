@@ -134,7 +134,7 @@ gh pr create --title "..." --body "..."
 | Retoques operativos jul-2026 (intervalo de vuelos configurable 45min/08:00, fuentes de plataforma completas, gasto extraordinario, chips de ocupación por hora, doc revisión CRM) | ✅ Producción | #48 |
 | CRM P0 (aging de leads `last_contact_at` + cola >48h en `/reservas`, dedupe por teléfono con normalización canónica, idempotencia por teléfono en la API del bot — contrato v1.1) | ✅ Producción | #50 |
 | CRM P1 (reactivar leads NO_SHOW/CANCELLED, canal STAFF_PHONE/STAFF_WHATSAPP + migración CHECK, H9 límites Zod en API bot) | ✅ Producción | #55 |
-| CRM lead management (circuito no-show manifest↔leads + barrido cron, `/reservas` como tabla CRM con ficha de lead `LeadSheet`, pagos y `deposit_paid` desde reservas, alerta leads fríos + badge sidebar, fix badge Grupo, deep-link al manifest) | 🔄 En PR | `feature/crm-lead-management` |
+| CRM lead management (circuito no-show manifest↔leads + barrido cron, `/reservas` como tabla CRM con ficha de lead `LeadSheet`, pagos y `deposit_paid` desde reservas, alerta leads fríos + badge sidebar, fix badge Grupo, deep-link al manifest) | ✅ Producción | #58 |
 
 ### Lo que NO está en scope (aún)
 - CRM avanzado

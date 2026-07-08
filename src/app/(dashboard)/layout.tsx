@@ -9,18 +9,16 @@ export default async function DashboardLayout({
   children: React.ReactNode
 }) {
   const supabase = await createClient()
-  // Parallel on purpose: countPendingLeads without a session just returns 0
-  // (RLS blocks anon), so it never leaks data when the redirect below fires.
+  // Parallel on purpose: countLeadAttention without a session just returns
+  // zeros (RLS blocks anon), so it never leaks data when the redirect fires.
   const [
     {
       data: { user },
     },
-    pendingLeadsCount,
-  ] = await Promise.all([supabase.auth.getUser(), countPendingLeads()])
+    leadAttention,
+  ] = await Promise.all([supabase.auth.getUser(), countLeadAttention()])
 
   if (!user) redirect('/login')
-
-  const leadAttention = await countLeadAttention()
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">

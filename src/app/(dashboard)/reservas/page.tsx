@@ -10,11 +10,10 @@
  * leads often share a date), reusing a single policy fetch.
  */
 
-import { countLeads, listLeads, type LeadFilter } from '@/lib/actions/leads'
+import { countLeadAttention, countLeads, listLeads, type LeadFilter } from '@/lib/actions/leads'
 import { getDayAvailability, getPolicy } from '@/lib/actions/availability'
 import { classifyDate } from '@/lib/availability/availability-engine'
 import { ReservationsView } from '@/components/operational/ReservationsView'
-import { isLeadCold } from '@/lib/utils'
 import type { DateClass } from '@/types/domain'
 
 const VALID_TABS: LeadFilter[] = ['pending', 'confirmed', 'cancelled']
@@ -34,11 +33,12 @@ export default async function ReservasPage({
 
   // Only the active tab downloads rows; the other two badges are head-only counts.
   const inactiveTabs = VALID_TABS.filter((t) => t !== tab)
-  const [activeResult, countA, countB, policy] = await Promise.all([
+  const [activeResult, countA, countB, policy, attention] = await Promise.all([
     listLeads(tab),
     countLeads(inactiveTabs[0]),
     countLeads(inactiveTabs[1]),
     tab === 'pending' ? getPolicy() : Promise.resolve(null),
+    countLeadAttention(),
   ])
 
   const activeLeads = activeResult.leads
@@ -51,16 +51,10 @@ export default async function ReservasPage({
     [inactiveTabs[1]]: countB,
   }
 
-  const activeLeads = resultByTab[tab].leads
-
   // Cold-leads alert (CRM P0): always computed over the pending set so it
-  // stays visible from any tab. Same rule as countLeadAttention (sidebar).
-  const coldCount = pendingResult.leads.filter(
-    (l) =>
-      (l.leadStatus === 'NEW' || l.leadStatus === 'RESCHEDULE_NEEDED') && isLeadCold(l.lastContactAt)
-  ).length
+  // stays visible from any tab. Same rule as the sidebar badge.
+  const coldCount = attention.cold
 
-  // Only the "pending" tab needs live availability — dedupe by date to avoid N queries.
   // Only the "pending" tab needs live availability — dedupe by date to avoid N
   // queries, and reuse the already-fetched policy instead of one fetch per date.
   const classifications: Record<string, DateClass> = {}

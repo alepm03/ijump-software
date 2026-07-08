@@ -65,7 +65,11 @@ export function DayManifest({ day, instructors, policy, highlightId = null }: Da
     setFlights(day.flights)
   }, [day])
 
-  useRealtimeManifest(day.id)
+  useRealtimeManifest(
+    day.id,
+    day.flights.map((f) => f.id),
+    day.flights.flatMap((f) => f.participants.map((p) => p.id))
+  )
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),

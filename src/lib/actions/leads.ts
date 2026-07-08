@@ -622,6 +622,17 @@ const STATUSES_BY_FILTER: Record<LeadFilter, LeadStatus[]> = {
   cancelled: ['CANCELLED', 'NO_SHOW'],
 }
 
+/** Row count for a tab badge — head:true avoids downloading the rows (the cancelled tab grows without bound). */
+export async function countLeads(filter: LeadFilter): Promise<number> {
+  const supabase = await createClient()
+  const { count, error } = await supabase
+    .from('participants')
+    .select('id', { count: 'exact', head: true })
+    .in('lead_status', STATUSES_BY_FILTER[filter])
+  if (error) return 0
+  return count ?? 0
+}
+
 export async function listLeads(filter: LeadFilter): Promise<{ leads: LeadWithDetails[]; error?: string }> {
   const supabase = await createClient()
   // payments: drives the per-row payment badge and the LeadSheet payment

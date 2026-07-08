@@ -74,10 +74,17 @@ function buildDayLoad(date: string, row: RawDayRow): DayLoad {
   }
 }
 
-/** Availability breakdown for a single day. A day without an operational_day row is treated as empty/open. */
-export async function getDayAvailability(date: string, client?: DbClient): Promise<DaySlots> {
+/**
+ * Availability breakdown for a single day. A day without an operational_day row is treated as empty/open.
+ * Pass `policy` when calling in a loop/fan-out — otherwise every call re-fetches business_settings.
+ */
+export async function getDayAvailability(
+  date: string,
+  client?: DbClient,
+  policy?: AvailabilityPolicy
+): Promise<DaySlots> {
   const supabase = client ?? (await createClient())
-  const policy = await getPolicy(client)
+  policy = policy ?? (await getPolicy(client))
 
   const { data, error } = await supabase
     .from('operational_days')
@@ -150,7 +157,7 @@ export async function listNextAvailableSlots(
   for (let i = 0; i < maxDaysToScan && results.length < limit; i++) {
     const date = cursor.toISOString().slice(0, 10)
     if (isOperatingDay(date, policy)) {
-      const slots = await getDayAvailability(date, client)
+      const slots = await getDayAvailability(date, client, policy)
       if (slots.bookable) {
         results.push({ date, slots, classification: classifyDate(date, today, slots) })
       }

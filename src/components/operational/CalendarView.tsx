@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   startOfMonth,
@@ -102,6 +102,7 @@ interface CalendarViewProps {
 
 export function CalendarView({ month, days }: CalendarViewProps) {
   const router = useRouter()
+  const [isPending, startTransition] = useTransition()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string | undefined>()
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -118,7 +119,13 @@ export function CalendarView({ month, days }: CalendarViewProps) {
 
   function navigate(direction: 'prev' | 'next') {
     const target = direction === 'prev' ? subMonths(currentMonth, 1) : addMonths(currentMonth, 1)
-    router.push(`/?month=${format(target, 'yyyy-MM')}`)
+    pushMonth(`/?month=${format(target, 'yyyy-MM')}`)
+  }
+
+  // Transition so the current grid stays visible (dimmed) while the server
+  // re-renders — same-segment searchParams changes never trigger loading.tsx.
+  function pushMonth(href: string) {
+    startTransition(() => router.push(href))
   }
 
   function openNewDay(date?: string) {
@@ -168,7 +175,7 @@ export function CalendarView({ month, days }: CalendarViewProps) {
               {pickerOpen && (
                 <MonthPicker
                   currentMonth={currentMonth}
-                  onSelect={(m) => router.push(`/?month=${m}`)}
+                  onSelect={(m) => pushMonth(`/?month=${m}`)}
                   onClose={() => setPickerOpen(false)}
                 />
               )}
@@ -177,7 +184,7 @@ export function CalendarView({ month, days }: CalendarViewProps) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => router.push('/')}
+              onClick={() => pushMonth('/')}
               className="ml-1"
             >
               Hoy
@@ -210,7 +217,11 @@ export function CalendarView({ month, days }: CalendarViewProps) {
         </div>
 
         {/* Grid */}
-        <div className="grid grid-cols-7 gap-1.5">
+        <div
+          className={`grid grid-cols-7 gap-1.5 transition-opacity ${
+            isPending ? 'opacity-50 pointer-events-none' : ''
+          }`}
+        >
           {Array.from({ length: startOffset }).map((_, i) => (
             <div key={`empty-start-${i}`} className="min-h-[96px]" />
           ))}

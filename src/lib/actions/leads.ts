@@ -174,8 +174,34 @@ export async function confirmLead(
   return { classification: 'CONFIRMABLE', flightId: data.flight_id }
 }
 
-/** Releases the lead's current slot (if any) and re-confirms it for a new date. */
+/**
+ * Releases the lead's current slot (if any) and re-confirms it for a new date.
+ *
+ * H7 fix (AUDITORIA.md) — classify the new date BEFORE touching the lead's
+ * current state. The previous version freed the seat and set
+ * lead_status='NEW' unconditionally, then asked confirmLead to classify
+ * newDate; if that came back UNAVAILABLE/NOT_OPERATING the lead had already
+ * lost its original seat and was left dangling as NEW with no flight. Now
+ * we classify first and only mutate anything once we know the new date can
+ * actually take the lead (CONFIRMABLE or TENTATIVE_ONLY) — an unavailable
+ * target date leaves the lead exactly as it was, matching the restoration
+ * behaviour rescheduleLeadsBatch already applies after a failed attempt.
+ *
+ * Known trade-off: rescheduling to the lead's own current date computes
+ * availability while that seat is still held, so it can under-report free
+ * capacity for that edge case. Out of scope here — reschedule-to-same-date
+ * isn't a real flow (see RescheduleReservationModal, which only offers
+ * dates from the calendar picker).
+ */
 export async function rescheduleLead(leadId: string, newDate: string): Promise<ConfirmLeadResult> {
+  const today = todayIso()
+  const slots = await getDayAvailability(newDate)
+  const classification = classifyDate(newDate, today, slots)
+
+  if (classification === 'NOT_OPERATING' || classification === 'UNAVAILABLE') {
+    return { classification }
+  }
+
   await freeSeat(leadId)
   const supabase = await createClient()
   // CRM P0 — a reschedule attempt is a contact even if the new date ends up

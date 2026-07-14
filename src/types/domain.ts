@@ -118,6 +118,9 @@ export interface Participant {
   preferredTime: string | null // HH:MM
   confirmedDate: string | null
   confirmedTime: string | null
+  // Derived: true iff a RESERVA-stage payment is registered. Recomputed by
+  // syncDepositPaid (lib/actions/payment.ts) on every payment mutation —
+  // never set manually. Kept as a column so the bot API can read it cheaply.
   depositPaid: boolean
   channel: Channel
   createdBy: string | null

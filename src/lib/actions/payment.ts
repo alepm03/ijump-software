@@ -12,6 +12,35 @@ export type CreatePaymentData = {
   notes?: string | null
 }
 
+type Client = Awaited<ReturnType<typeof createClient>>
+
+/**
+ * CRM — deposit_paid is DERIVED state: true iff the participant has at least
+ * one RESERVA-stage payment registered. There is no manual toggle; every
+ * payment mutation (create/update/delete) recomputes it here so the flag
+ * (read by the bot API via getLeadByIdOrToken and by the /reservas badge)
+ * can never contradict the payments table. Best-effort: the payment row is
+ * the primary record and is already mutated when this runs.
+ */
+async function syncDepositPaid(supabase: Client, participantId: string) {
+  const { count, error } = await supabase
+    .from('payments')
+    .select('id', { count: 'exact', head: true })
+    .eq('participant_id', participantId)
+    .eq('stage', 'RESERVA')
+  if (error) {
+    console.error('syncDepositPaid: count failed', error.message)
+    return
+  }
+  const { error: updateError } = await supabase
+    .from('participants')
+    .update({ deposit_paid: (count ?? 0) > 0 })
+    .eq('id', participantId)
+  if (updateError) {
+    console.error('syncDepositPaid: deposit_paid sync failed', updateError.message)
+  }
+}
+
 export async function createPayment(
   participantId: string,
   data: CreatePaymentData
@@ -26,19 +55,7 @@ export async function createPayment(
   })
   if (error) return { error: error.message }
 
-  // CRM — a registered RESERVA payment IS the deposit: keep deposit_paid
-  // (read by the bot API via getLeadByIdOrToken and by the /reservas
-  // payment badge) in sync automatically. Best-effort: the payment row is
-  // the primary record and is already inserted.
-  if (data.stage === 'RESERVA') {
-    const { error: depositError } = await supabase
-      .from('participants')
-      .update({ deposit_paid: true })
-      .eq('id', participantId)
-    if (depositError) {
-      console.error('createPayment: deposit_paid sync failed', depositError.message)
-    }
-  }
+  await syncDepositPaid(supabase, participantId)
 
   revalidatePath('/', 'layout')
   return {}
@@ -56,16 +73,32 @@ export async function updatePayment(
   if (data.stage !== undefined) update.stage = data.stage
   if (data.notes !== undefined) update.notes = data.notes
 
-  const { error } = await supabase.from('payments').update(update).eq('id', id)
+  const { data: updated, error } = await supabase
+    .from('payments')
+    .update(update)
+    .eq('id', id)
+    .select('participant_id')
+    .single()
   if (error) return { error: error.message }
+
+  await syncDepositPaid(supabase, updated.participant_id)
+
   revalidatePath('/', 'layout')
   return {}
 }
 
 export async function deletePayment(id: string): Promise<{ error?: string }> {
   const supabase = await createClient()
-  const { error } = await supabase.from('payments').delete().eq('id', id)
+  const { data: deleted, error } = await supabase
+    .from('payments')
+    .delete()
+    .eq('id', id)
+    .select('participant_id')
+    .single()
   if (error) return { error: error.message }
+
+  await syncDepositPaid(supabase, deleted.participant_id)
+
   revalidatePath('/', 'layout')
   return {}
 }

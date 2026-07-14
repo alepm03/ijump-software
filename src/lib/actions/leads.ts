@@ -467,25 +467,9 @@ export async function reactivateLead(leadId: string, note?: string | null): Prom
 }
 
 /** Count of leads awaiting staff action (NEW + RESCHEDULE_NEEDED) — used for the sidebar badge. */
-/**
- * Manual "deposit received" toggle (LeadSheet). Kept separate from
- * updateParticipant on purpose: deposit_paid is lead-lifecycle state, not
- * manifest data, and toggling it is NOT a client contact (no
- * last_contact_at bump — confirming money arrived is bookkeeping).
- * createPayment also sets it automatically for RESERVA-stage payments;
- * this toggle covers money that arrives without a registered payment yet
- * (e.g. a platform bono the staff verifies by hand).
- */
-export async function setDepositPaid(leadId: string, value: boolean): Promise<{ error?: string }> {
-  const supabase = await createClient()
-  const { error } = await supabase
-    .from('participants')
-    .update({ deposit_paid: value })
-    .eq('id', leadId)
-  if (error) return { error: error.message }
-  revalidatePath('/', 'layout')
-  return {}
-}
+// deposit_paid has no manual toggle — it is derived state, recomputed from
+// RESERVA-stage payments by syncDepositPaid (lib/actions/payment.ts) on every
+// payment mutation. To mark a deposit, register the reserva payment.
 
 /** "Contactado ahora" (LeadSheet) — explicit contact bump for calls/WhatsApps that change no other field. */
 export async function markLeadContacted(leadId: string): Promise<{ error?: string }> {

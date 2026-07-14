@@ -2,7 +2,7 @@
 
 Doc de handoff para Alejandro tras la revalidación S21-R del plan del bot WhatsApp (ADR-038 en el repo del chatbot). Nada de esto bloquea el arranque del canal WA; prioridades indicadas.
 
-## 1. Borrar 5 leads de test en `/reservas` (P1 — uno ocupa plaza real)
+## 1. Borrar 6 leads de test en `/reservas` (P1 — dos ocupan plaza real)
 
 | Nombre | Teléfono | ID | Nota |
 |---|---|---|---|
@@ -11,6 +11,7 @@ Doc de handoff para Alejandro tras la revalidación S21-R del plan del bot Whats
 | `TEST E2E DEDUPE V31B - BORRAR` | 620000902 | `027a8413-b65b-4767-a283-8bac4e49b251` | |
 | `TEST E2E CREACION 201 - BORRAR` | 620000903 | `da6b07a5-5ef9-48b3-92cc-86f3306c9226` | **CONFIRMED 01/08/2026 08:00 — ocupa plaza** |
 | `TEST V26 EN - BORRAR` | 620000801 | `1808b8a7-3375-42f1-b0ad-40be930acfa8` | |
+| `Test S21B Reserva BORRAR` | **teléfono incorrecto — ver nota** | `8c514c48-1a19-4dea-847c-453af1b14be8`, token `9493366d-12b0-46b5-b6f1-022bd05256dd` | **TENTATIVE 05/09/2026.** Creada el 14/07 verificando el canal WhatsApp: un bug del bot (agente no conocía el E.164 de su propia sesión) le hizo enviar un teléfono interno de la empresa en vez del teléfono del cliente de prueba. El bug se corrige en el chatbot, no en el software — solo pedimos que se borre este lead (búscalo por nombre o ID). |
 
 ## 2. Hallazgo del 409 — ✅ RESUELTO (verificado, nada que hacer)
 

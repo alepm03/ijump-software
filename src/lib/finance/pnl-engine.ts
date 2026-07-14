@@ -39,6 +39,7 @@ export interface ParticipantPnlRow {
 
 export interface FlightPnlRow {
   id: string
+  status: string
   is_back_to_back: boolean
   participants: ParticipantPnlRow[]
 }
@@ -64,9 +65,19 @@ export const NON_COMPLETED_STATUSES: ReadonlySet<string> = new Set([
  * Per-participant revenue using the COALESCE rule:
  *  - If the participant has ≥1 item row → SUM(items.amount)
  *  - Otherwise                          → SUM(payments.amount)
+ *
+ * Non-flying participants (CANCELLED / NO_SHOW / WEATHER_CANCELLED) count
+ * ONLY their payments, never their items: the sale never happened, but money
+ * already collected is non-refundable per the waiver terms and stays as
+ * revenue. Auto items are already cleared on cancellation
+ * (clearAutoParticipantItems); this rule additionally covers manual items
+ * (e.g. an on-site OW supplement) that survive that clear — without it, a
+ * cancelled participant with a lingering manual item would both count
+ * revenue for a jump that never happened AND hide their deposit payments
+ * behind the COALESCE.
  */
 export function participantRevenue(p: ParticipantPnlRow): number {
-  if (p.participant_items.length > 0) {
+  if (!NON_COMPLETED_STATUSES.has(p.operational_status) && p.participant_items.length > 0) {
     return p.participant_items.reduce((s, i) => s + i.amount, 0)
   }
   return p.payments.reduce((s, pay) => s + pay.amount, 0)
@@ -76,13 +87,15 @@ export function participantRevenue(p: ParticipantPnlRow): number {
  * Accumulate revenueByCategory for a list of participants.
  * Participants WITH items  → add amounts to their product's category.
  * Participants WITHOUT items → add payments to SIN_DESGLOSE.
+ * Non-flying participants   → payments to SIN_DESGLOSE (same rule as
+ * participantRevenue, so the breakdown always foots to revenueTotal).
  */
 export function accumulateRevenue(
   participants: ParticipantPnlRow[],
   acc: RevenueByCategory
 ): void {
   for (const p of participants) {
-    if (p.participant_items.length > 0) {
+    if (!NON_COMPLETED_STATUSES.has(p.operational_status) && p.participant_items.length > 0) {
       for (const item of p.participant_items) {
         // Uncategorizable item revenue (product row missing / category null)
         // falls into OTHER so the breakdown always foots to revenueTotal.
@@ -272,7 +285,11 @@ export function buildPnl(params: {
     const completedParticipants = allParticipants.filter(
       (p) => !NON_COMPLETED_STATUSES.has(p.operational_status)
     )
-    const flightCount = day.flights.length
+    // Cancelled flights never flew: they must not charge PER_FLIGHT costs
+    // (fuel, pilot). Their former occupants were moved to another flight by
+    // cancelFlight (zero-orphans), so participant-based numbers are unaffected.
+    const activeFlights = day.flights.filter((f) => f.status !== 'CANCELLED')
+    const flightCount = activeFlights.length
     const completedJumpCount = completedParticipants.length
 
     // Conditional counts for special-case cost categories
@@ -280,7 +297,7 @@ export function buildPnl(params: {
       p.participant_items.some((item) => item.products?.category === 'CAMERA_EXTERNAL')
     ).length
 
-    const backToBackJumpCount = day.flights
+    const backToBackJumpCount = activeFlights
       .filter((f) => f.is_back_to_back)
       .flatMap((f) => f.participants)
       .filter((p) => !NON_COMPLETED_STATUSES.has(p.operational_status))

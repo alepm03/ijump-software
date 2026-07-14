@@ -130,12 +130,16 @@ export async function getDailySummary(dayId: string): Promise<DailySummary> {
 
   const { data: flights, error: flightsError } = await supabase
     .from('flights')
-    .select('id')
+    .select('id, status')
     .eq('operational_day_id', dayId)
 
   if (flightsError) throw new Error(flightsError.message)
   if (!flights?.length) return emptyDailySummary()
 
+  // Cancelled flights stay out of the "Vuelos" KPI (they never flew) but
+  // their ids are still used to fetch participants, so anyone not yet
+  // relocated is not silently dropped from the day's numbers.
+  const activeFlightCount = flights.filter((f) => f.status !== 'CANCELLED').length
   const flightIds = flights.map((f) => f.id)
 
   const { data: participants, error: participantsError } = await supabase
@@ -144,13 +148,16 @@ export async function getDailySummary(dayId: string): Promise<DailySummary> {
     .in('flight_id', flightIds)
 
   if (participantsError) throw new Error(participantsError.message)
-  if (!participants?.length) return { ...emptyDailySummary(), totalFlights: flights.length }
+  if (!participants?.length) return { ...emptyDailySummary(), totalFlights: activeFlightCount }
 
   const activeParticipants = participants.filter(
     (p) => !['CANCELLED', 'NO_SHOW', 'WEATHER_CANCELLED'].includes(p.operational_status)
   )
 
-  const participantIds = activeParticipants.map((p) => p.id)
+  // "Cobrado" = money actually collected, regardless of who ended up
+  // cancelled/no-show (deposits are non-refundable) — so payments are
+  // fetched for ALL the day's participants, matching the treasury cash view.
+  const participantIds = participants.map((p) => p.id)
   const groupIds = [...new Set(activeParticipants.map((p) => p.reservation_group_id).filter(Boolean))] as string[]
 
   const [paymentsResult, groupsResult] = await Promise.all([
@@ -170,7 +177,7 @@ export async function getDailySummary(dayId: string): Promise<DailySummary> {
   )
 
   const summary = emptyDailySummary()
-  summary.totalFlights = flights.length
+  summary.totalFlights = activeFlightCount
   summary.totalJumps = activeParticipants.length
 
   for (const p of activeParticipants) {

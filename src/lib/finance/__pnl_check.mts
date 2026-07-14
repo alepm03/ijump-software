@@ -160,9 +160,9 @@ const days: DayPnlRow[] = [
     id: DAY_ID,
     date: '2026-10-04',
     flights: [
-      { id: F1_ID, is_back_to_back: false, participants: [P1, P2] },
-      { id: F2_ID, is_back_to_back: true,  participants: [P3, P4] },
-      { id: F3_ID, is_back_to_back: false, participants: [P5] },
+      { id: F1_ID, status: 'COMPLETED', is_back_to_back: false, participants: [P1, P2] },
+      { id: F2_ID, status: 'COMPLETED', is_back_to_back: true,  participants: [P3, P4] },
+      { id: F3_ID, status: 'COMPLETED', is_back_to_back: false, participants: [P5] },
     ],
   },
 ]
@@ -311,6 +311,7 @@ const nullCatDay: DayPnlRow[] = [
     flights: [
       {
         id: 'reg-flight',
+        status: 'COMPLETED',
         is_back_to_back: false,
         participants: [
           {
@@ -404,6 +405,57 @@ const monthlyOverridePnl = buildPnl({ periodLabel: '2026-10', days, expenses: mo
 const moGenerales = monthlyOverridePnl.costGroups.find(g => g.group === 'GENERALES')
 assert(moGenerales?.total === 1240,
   `monthly override: TASAS === 1240 (manual row wins, NOT 1240+100; got ${moGenerales?.total})`)
+
+// ─── Cancelled flight: no PER_FLIGHT costs (fuel/pilot), nothing else moves ───
+console.log('\n-- Cancelled flight excluded from PER_FLIGHT costs --')
+const cancelledFlightDays: DayPnlRow[] = [
+  {
+    id: DAY_ID,
+    date: '2026-10-04',
+    flights: [
+      ...days[0].flights,
+      { id: 'cccc0000-0000-0000-0000-000000000004', status: 'CANCELLED', is_back_to_back: false, participants: [] },
+    ],
+  },
+]
+const cfPnl = buildPnl({ periodLabel: 'cf', days: cancelledFlightDays, expenses, categories, monthsInPeriod: 1 })
+assert(cfPnl.costsTotal === pnl.costsTotal,
+  `cancelled flight: costsTotal unchanged (${pnl.costsTotal}; got ${cfPnl.costsTotal})`)
+assert(cfPnl.revenueTotal === pnl.revenueTotal,
+  `cancelled flight: revenueTotal unchanged (${pnl.revenueTotal}; got ${cfPnl.revenueTotal})`)
+
+// ─── Cancelled participant: payments only, lingering manual item ignored ─────
+console.log('\n-- Cancelled participant counts payments only --')
+const PC: ParticipantPnlRow = {
+  id: 'dddd0000-0000-0000-0000-000000000006',
+  operational_status: 'CANCELLED',
+  assigned_instructor_id: I1_ID,
+  reservation_group: null,
+  instructor: I1,
+  payments: [{ amount: 50 }],
+  // Manual OW item that survived clearAutoParticipantItems — must NOT count
+  // as revenue nor hide the 50€ deposit behind the COALESCE.
+  participant_items: [
+    { amount: 45, product_id: 'prod-ow', products: { category: 'OVERWEIGHT' } },
+  ],
+}
+const cpDays: DayPnlRow[] = [
+  {
+    id: 'cp-day',
+    date: '2026-10-06',
+    flights: [{ id: 'cp-flight', status: 'COMPLETED', is_back_to_back: false, participants: [PC] }],
+  },
+]
+const cpPnl = buildPnl({ periodLabel: 'cp', days: cpDays, expenses: [], categories, monthsInPeriod: 0 })
+assert(cpPnl.revenueTotal === 50,
+  `cancelled participant: revenueTotal === 50 (deposit only, OW item ignored; got ${cpPnl.revenueTotal})`)
+assert(cpPnl.revenueByCategory.SIN_DESGLOSE === 50,
+  `cancelled participant: deposit lands in SIN_DESGLOSE (got ${cpPnl.revenueByCategory.SIN_DESGLOSE})`)
+assert(cpPnl.revenueByCategory.OVERWEIGHT === undefined,
+  `cancelled participant: no OVERWEIGHT revenue line (got ${cpPnl.revenueByCategory.OVERWEIGHT})`)
+const cpSum = Object.values(cpPnl.revenueByCategory).reduce((s, v) => s + (v ?? 0), 0)
+assert(cpSum === cpPnl.revenueTotal,
+  `cancelled participant: Σ revenueByCategory (${cpSum}) === revenueTotal (${cpPnl.revenueTotal})`)
 
 console.log('\n-- Raw output --')
 console.log(JSON.stringify(pnl, null, 2))

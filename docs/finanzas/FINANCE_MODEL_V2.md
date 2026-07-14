@@ -215,9 +215,12 @@ avión desde jun-2026), registrar **filas de gasto mensuales reales** (anulan la
   **incluye intereses**. Se modela como `CUOTA_PRESTAMO_AVION` (FIXED_PER_MONTH): aparece mensual en
   la vista de mes y **×12 en la vista anual** (donde Raúl quiere verlo). No se construye tabla de
   amortización (principal/interés) a propósito: la cuota real ya es el coste de caja.
-- **Costes por salto solo sobre saltos realizados** (no planificados): confirmado. El motor ya cuenta
-  únicamente saltos completados (instructores, plegados, edición, cámara, equipos). Una jornada con
-  saltos en estado "Pendiente" muestra 0 hasta marcarlos "Completado" — comportamiento correcto.
+- **Costes por salto sobre saltos no cancelados** (corrección de redacción, jul-2026: la versión
+  anterior de este punto afirmaba que el motor solo contaba saltos en estado "Completado", pero
+  nunca fue así). El criterio real e intencionado del motor es: cuenta como salto todo participante
+  cuyo estado NO sea CANCELLED / NO_SHOW / WEATHER_CANCELLED (instructores, plegados, edición,
+  cámara, equipos). Es decir, un salto "Pendiente" o "Embarcado" ya carga sus costes; solo la
+  cancelación los quita. Decisión revalidada por Alejandro en jul-2026.
 
 ### 12.5 Pendientes contables (🔵 Raúl)
 - Cuota real mensual del préstamo del avión (importe exacto del banco). Hoy `CUOTA_PRESTAMO_AVION` = 0.
@@ -227,3 +230,21 @@ avión desde jun-2026), registrar **filas de gasto mensuales reales** (anulan la
 - El +200 €/mes de aplazamiento (may–dic 2026): financiación temporal, no coste recurrente; si se
   modela, línea aparte acotada en el tiempo, nunca mezclada en el bundle de 1.040 €.
 - IVA: club deportivo exento por ahora; revisar al cambiar de régimen.
+
+## 13. Consistencia manifest ↔ finanzas (v2.3, jul-2026)
+
+Reglas cerradas por Alejandro para que el manifest (caja) y finanzas (devengo) no se contradigan:
+
+- **Vuelos cancelados no cargan costes PER_FLIGHT** (combustible, piloto) ni cuentan en el KPI
+  "Vuelos" del manifest: un vuelo `status = CANCELLED` nunca despegó. Sus ocupantes fueron
+  reubicados por `cancelFlight` (regla zero-orphans), así que los números por participante no
+  dependen del vuelo cancelado.
+- **Ingreso de participantes no voladores (CANCELLED / NO_SHOW / WEATHER_CANCELLED) = solo sus
+  pagos.** El motor ignora sus `participant_items` aunque existan (p. ej. un OW manual que
+  sobrevivió al `clearAutoParticipantItems`): la venta no ocurrió, pero el dinero cobrado es no
+  reembolsable (waiver) y sigue contando, bajo SIN_DESGLOSE.
+- **Suplemento OW idempotente**: `addOverweightSupplement` rechaza un segundo item OW para el
+  mismo participante — un doble click en el botón "+ OW" del manifest ya no duplica ingreso.
+- **El KPI del manifest se llama "Cobrado"** (antes "Ingresos") y suma los pagos de TODOS los
+  participantes del día, cancelados incluidos: si el dinero entró, está cobrado — coherente con el
+  cierre de caja de tesorería. "Ingresos" queda reservado para finanzas (devengo por items).

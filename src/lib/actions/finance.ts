@@ -894,6 +894,18 @@ export async function addOverweightSupplement(
     .single()
   if (productError) return { error: 'El producto de sobrepeso (OW) no está activo en el catálogo' }
 
+  // Idempotent: one OW supplement per person, ever. A double tap on the
+  // manifest button must not double the recognized revenue.
+  const { count: existing, error: existingError } = await supabase
+    .from('participant_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('participant_id', participantId)
+    .eq('product_id', product.id)
+  if (existingError) return { error: existingError.message }
+  if ((existing ?? 0) > 0) {
+    return { error: 'Este participante ya tiene el suplemento OW registrado' }
+  }
+
   const { data, error } = await supabase
     .from('participant_items')
     .insert({
@@ -1506,6 +1518,7 @@ const PNL_DAY_SELECT = `
   date,
   flights (
     id,
+    status,
     is_back_to_back,
     participants (
       id,
@@ -1723,6 +1736,7 @@ const KPI_DAY_SELECT = `
   date,
   flights (
     id,
+    status,
     participants (
       id,
       operational_status,
@@ -1753,6 +1767,7 @@ interface KpiParticipantRow {
 
 interface KpiFlightRow {
   id: string
+  status: string
   participants: KpiParticipantRow[]
 }
 
@@ -1795,7 +1810,11 @@ function computeKpis(
 
   for (const day of days) {
     for (const flight of day.flights) {
-      totalFlights++
+      // Cancelled flights never flew — they stay out of the flight count
+      // (same rule as buildPnl's PER_FLIGHT costs). Their participants are
+      // still iterated: zero-orphans normally leaves them empty, but if any
+      // remain their payments/status must keep counting.
+      if (flight.status !== 'CANCELLED') totalFlights++
       for (const p of flight.participants) {
         totalParticipants++
 

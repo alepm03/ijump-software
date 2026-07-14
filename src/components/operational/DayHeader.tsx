@@ -174,7 +174,7 @@ export function DayHeader({ day }: DayHeaderProps) {
           <div className="w-px h-7 bg-border mx-4 flex-shrink-0" />
           <KpiStat
             value={`${summary.totalRevenue.toFixed(0)}€`}
-            label="Ingresos"
+            label="Cobrado"
             accent
           />
         </div>

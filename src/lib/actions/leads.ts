@@ -177,6 +177,11 @@ export async function confirmLead(
 /**
  * Releases the lead's current slot (if any) and re-confirms it for a new date.
  *
+ * `time`: the client's requested hour for the new date, or null for "any
+ * hour" (reservations_assign_seat seats them in the first flight with room —
+ * see the 20260715 migration). Undefined leaves preferred_time untouched
+ * (legacy callers: GroupRescheduleModal keeps the original hour).
+ *
  * H7 fix (AUDITORIA.md) — classify the new date BEFORE touching the lead's
  * current state. The previous version freed the seat and set
  * lead_status='NEW' unconditionally, then asked confirmLead to classify
@@ -186,6 +191,8 @@ export async function confirmLead(
  * actually take the lead (CONFIRMABLE or TENTATIVE_ONLY) — an unavailable
  * target date leaves the lead exactly as it was, matching the restoration
  * behaviour rescheduleLeadsBatch already applies after a failed attempt.
+ * (Availability is day-level, so classifying before setting preferred_time
+ * is safe — the hour never changes the classification.)
  *
  * Known trade-off: rescheduling to the lead's own current date computes
  * availability while that seat is still held, so it can under-report free
@@ -193,7 +200,11 @@ export async function confirmLead(
  * isn't a real flow (see RescheduleReservationModal, which only offers
  * dates from the calendar picker).
  */
-export async function rescheduleLead(leadId: string, newDate: string): Promise<ConfirmLeadResult> {
+export async function rescheduleLead(
+  leadId: string,
+  newDate: string,
+  time?: string | null
+): Promise<ConfirmLeadResult> {
   const today = todayIso()
   const slots = await getDayAvailability(newDate)
   const classification = classifyDate(newDate, today, slots)
@@ -206,9 +217,18 @@ export async function rescheduleLead(leadId: string, newDate: string): Promise<C
   const supabase = await createClient()
   // CRM P0 — a reschedule attempt is a contact even if the new date ends up
   // unavailable (confirmLead bumps it again on the successful paths).
+  // operational_status resets to PENDING: a NO_SHOW/CANCELLED being
+  // rescheduled starts a fresh operational trail (same reset as
+  // reactivateLead) — otherwise the engine would keep treating them as
+  // non-flying on the NEW date.
   await supabase
     .from('participants')
-    .update({ lead_status: 'NEW', last_contact_at: new Date().toISOString() })
+    .update({
+      lead_status: 'NEW',
+      operational_status: 'PENDING',
+      ...(time !== undefined && { preferred_time: time }),
+      last_contact_at: new Date().toISOString(),
+    })
     .eq('id', leadId)
   return confirmLead(leadId, newDate)
 }
@@ -571,7 +591,9 @@ export async function countLeadAttention(): Promise<LeadAttentionCounts> {
   const { data, error } = await supabase
     .from('participants')
     .select('last_contact_at')
-    .in('lead_status', ['NEW', 'RESCHEDULE_NEEDED'])
+    // NO_SHOW included since the /reservas "Reagendar" tab exists: a no-show
+    // waiting to be rebooked is staff work exactly like a RESCHEDULE_NEEDED.
+    .in('lead_status', ['NEW', 'RESCHEDULE_NEEDED', 'NO_SHOW'])
   if (error || !data) return { pending: 0, cold: 0 }
   return {
     pending: data.length,
@@ -624,12 +646,17 @@ export async function getLeadByIdOrToken(
   }
 }
 
-export type LeadFilter = 'pending' | 'confirmed' | 'cancelled'
+export type LeadFilter = 'pending' | 'reschedule' | 'confirmed' | 'cancelled'
 
+// 'reschedule' groups everyone waiting for a new date: weather/flight
+// cancellations (RESCHEDULE_NEEDED) and no-shows (recoverable — their
+// deposit is already collected). 'cancelled' is only definitive
+// cancellations.
 const STATUSES_BY_FILTER: Record<LeadFilter, LeadStatus[]> = {
-  pending: ['NEW', 'TENTATIVE', 'RESCHEDULE_NEEDED'],
+  pending: ['NEW', 'TENTATIVE'],
+  reschedule: ['RESCHEDULE_NEEDED', 'NO_SHOW'],
   confirmed: ['CONFIRMED'],
-  cancelled: ['CANCELLED', 'NO_SHOW'],
+  cancelled: ['CANCELLED'],
 }
 
 /** Row count for a tab badge — head:true avoids downloading the rows (the cancelled tab grows without bound). */

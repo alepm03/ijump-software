@@ -6,9 +6,15 @@
  * Cancelling a flight with occupants requires a destination for them
  * (zero-orphans rule enforced server-side by cancelFlight — see
  * src/lib/actions/flight.ts). This dialog lets staff pick:
- *   - an existing flight of the day with enough free seats, or
+ *   - an existing flight of the day with enough free seats,
  *   - a brand-new flight (pre-filled with the cancelled flight's time),
- *     only offered while the day hasn't hit maxFlightsPerDay.
+ *     only offered while the day hasn't hit maxFlightsPerDay,
+ *   - rescheduling: occupants return to /reservas ("Reagendar" tab) to be
+ *     rebooked on another date (weather-cancellation circuit, per flight), or
+ *   - definitive cancellation: occupants are cancelled with the flight and
+ *     any deposit already collected is kept (non-refundable).
+ * The last two are always available, so cancelling a flight is never
+ * blocked by a full day.
  *
  * Free-seat math and the maxFlightsPerDay check are done client-side for
  * UX only (disable options, show messaging) — the server re-validates
@@ -88,9 +94,6 @@ export function CancelFlightDialog({ flight, flights, policy, onClose }: CancelF
     }
   })
 
-  const anyOptionAvailable = options.some((o) => !o.disabled) || canCreateNew
-  const noOptionsPossible = occupants > 0 && !anyOptionAvailable
-
   function handleConfirm() {
     if (!flight) return
 
@@ -102,6 +105,26 @@ export function CancelFlightDialog({ flight, flights, policy, onClose }: CancelF
           return
         }
         toast.success('Vuelo cancelado')
+        router.refresh()
+        onClose()
+      })
+      return
+    }
+
+    if (selection === 'reschedule' || selection === 'cancel-all') {
+      const destination =
+        selection === 'reschedule' ? ({ type: 'reschedule' } as const) : ({ type: 'cancel' } as const)
+      startTransition(async () => {
+        const result = await cancelFlight(flight.id, destination)
+        if (result.error) {
+          toast.error(result.error)
+          return
+        }
+        toast.success(
+          selection === 'reschedule'
+            ? 'Vuelo cancelado — participantes enviados a Reservas para reagendar'
+            : 'Vuelo y participantes cancelados'
+        )
         router.refresh()
         onClose()
       })
@@ -153,20 +176,14 @@ export function CancelFlightDialog({ flight, flights, policy, onClose }: CancelF
             </DialogDescription>
           ) : (
             <DialogDescription>
-              Mueve a sus {occupants} {occupants === 1 ? 'participante' : 'participantes'} a otro
-              vuelo del día:
+              ¿Qué hacemos con {occupants === 1 ? 'su participante' : `sus ${occupants} participantes`}?
+              Muévelos a otro vuelo del día, envíalos a reagendar o cancélalos:
             </DialogDescription>
           )}
         </DialogHeader>
 
         {occupants > 0 && (
           <div className="flex flex-col gap-2">
-            {noOptionsPossible ? (
-              <div className="rounded-lg bg-secondary p-3 text-sm text-foreground">
-                No queda hueco en ningún vuelo del día y no se pueden crear más vuelos. Cancela o
-                reagenda participantes antes de cancelar este vuelo.
-              </div>
-            ) : (
               <div className="flex flex-col gap-1.5">
                 {options.map(({ flight: f, free, disabled }) => (
                   <label
@@ -225,8 +242,47 @@ export function CancelFlightDialog({ flight, flights, policy, onClose }: CancelF
                     Se alcanzó el máximo de vuelos del día.
                   </p>
                 )}
+
+                <label
+                  className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm transition-colors cursor-pointer ${
+                    selection === 'reschedule'
+                      ? 'border-primary/40 bg-secondary/40'
+                      : 'border-border hover:bg-secondary/50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="cancel-flight-destination"
+                    value="reschedule"
+                    checked={selection === 'reschedule'}
+                    onChange={() => setSelection('reschedule')}
+                    className="accent-primary"
+                  />
+                  <span className="text-foreground">
+                    Reagendar — vuelven a Reservas para elegir otra fecha
+                  </span>
+                </label>
+
+                <label
+                  className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm transition-colors cursor-pointer ${
+                    selection === 'cancel-all'
+                      ? 'border-destructive/40 bg-destructive/5'
+                      : 'border-border hover:bg-secondary/50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="cancel-flight-destination"
+                    value="cancel-all"
+                    checked={selection === 'cancel-all'}
+                    onChange={() => setSelection('cancel-all')}
+                    className="accent-primary"
+                  />
+                  <span className="text-destructive">
+                    No reagendar — cancelación definitiva (el depósito cobrado se retiene)
+                  </span>
+                </label>
               </div>
-            )}
           </div>
         )}
 
@@ -244,7 +300,11 @@ export function CancelFlightDialog({ flight, flights, policy, onClose }: CancelF
               ? 'Cancelando...'
               : occupants === 0
                 ? 'Cancelar vuelo'
-                : `Mover ${occupants} ${occupants === 1 ? 'participante' : 'participantes'} y cancelar vuelo`}
+                : selection === 'reschedule'
+                  ? 'Enviar a reagendar y cancelar vuelo'
+                  : selection === 'cancel-all'
+                    ? 'Cancelar vuelo y participantes'
+                    : `Mover ${occupants} ${occupants === 1 ? 'participante' : 'participantes'} y cancelar vuelo`}
           </Button>
         </DialogFooter>
       </DialogContent>

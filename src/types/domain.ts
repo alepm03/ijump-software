@@ -378,6 +378,12 @@ export interface Expense {
  */
 export type RevenueByCategory = Partial<Record<ProductCategory, number>> & {
   SIN_DESGLOSE?: number
+  /**
+   * Non-refundable deposits kept from leads cancelled definitively WITHOUT a
+   * seat (flight_id NULL) — their payments belong to no operational day, so
+   * they enter the P&L as a synthetic line attributed to the payment date.
+   */
+  DEPOSITO_RETENIDO?: number
 }
 
 /** One cost category line inside a P&L group */

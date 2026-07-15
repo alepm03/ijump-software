@@ -11,7 +11,7 @@ import type { ProfitAndLoss, Expense, ProductCategory, ExpenseGroup } from '@/ty
 
 // ─── Category display labels ─────────────────────────────────────────────────
 
-export const CATEGORY_LABELS: Record<ProductCategory | 'SIN_DESGLOSE', string> = {
+export const CATEGORY_LABELS: Record<ProductCategory | 'SIN_DESGLOSE' | 'DEPOSITO_RETENIDO', string> = {
   TANDEM_BASE: 'Tándem base',
   CAMERA_HANDYCAM: 'Handycam',
   CAMERA_EXTERNAL: 'Cámara externa',
@@ -20,6 +20,7 @@ export const CATEGORY_LABELS: Record<ProductCategory | 'SIN_DESGLOSE', string> =
   GROUND_REPORT: 'Reportaje en tierra',
   OTHER: 'Otros',
   SIN_DESGLOSE: 'Sin desglosar (histórico)',
+  DEPOSITO_RETENIDO: 'Depósitos retenidos',
 }
 
 export const GROUP_LABELS: Record<ExpenseGroup, string> = {
@@ -99,7 +100,7 @@ function buildIngresosSheet(ws: ExcelJS.Worksheet, pnl: ProfitAndLoss): void {
   applyRowStyle(headerRow, headerStyle(HEADER_BG))
   headerRow.height = 20
 
-  const orderedCats: Array<ProductCategory | 'SIN_DESGLOSE'> = [
+  const orderedCats: Array<ProductCategory | 'SIN_DESGLOSE' | 'DEPOSITO_RETENIDO'> = [
     'TANDEM_BASE',
     'CAMERA_HANDYCAM',
     'CAMERA_EXTERNAL',
@@ -108,18 +109,14 @@ function buildIngresosSheet(ws: ExcelJS.Worksheet, pnl: ProfitAndLoss): void {
     'GROUND_REPORT',
     'OTHER',
     'SIN_DESGLOSE',
+    'DEPOSITO_RETENIDO',
   ]
 
   let rowIndex = 2
   const revenueTotal = pnl.revenueTotal
 
   for (const cat of orderedCats) {
-    const amount = pnl.revenueByCategory[cat as ProductCategory] ?? pnl.revenueByCategory.SIN_DESGLOSE ?? 0
-    // For non-SIN_DESGLOSE use the typed access
-    const actualAmount =
-      cat === 'SIN_DESGLOSE'
-        ? (pnl.revenueByCategory.SIN_DESGLOSE ?? 0)
-        : (pnl.revenueByCategory[cat as ProductCategory] ?? 0)
+    const actualAmount = pnl.revenueByCategory[cat] ?? 0
 
     if (actualAmount === 0) continue
 
@@ -333,7 +330,7 @@ function buildResumenSheet(ws: ExcelJS.Worksheet, pnl: ProfitAndLoss): void {
     row.commit()
   }
 
-  const orderedCats: Array<ProductCategory | 'SIN_DESGLOSE'> = [
+  const orderedCats: Array<ProductCategory | 'SIN_DESGLOSE' | 'DEPOSITO_RETENIDO'> = [
     'TANDEM_BASE',
     'CAMERA_HANDYCAM',
     'CAMERA_EXTERNAL',
@@ -342,13 +339,11 @@ function buildResumenSheet(ws: ExcelJS.Worksheet, pnl: ProfitAndLoss): void {
     'GROUND_REPORT',
     'OTHER',
     'SIN_DESGLOSE',
+    'DEPOSITO_RETENIDO',
   ]
 
   for (const cat of orderedCats) {
-    const amount =
-      cat === 'SIN_DESGLOSE'
-        ? (pnl.revenueByCategory.SIN_DESGLOSE ?? 0)
-        : (pnl.revenueByCategory[cat as ProductCategory] ?? 0)
+    const amount = pnl.revenueByCategory[cat] ?? 0
     if (amount === 0) continue
     addLine(CATEGORY_LABELS[cat], amount, true)
   }

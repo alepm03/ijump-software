@@ -5,10 +5,14 @@ import { createClient } from '@/lib/supabase/server'
 import type { FlightStatus } from '@/types/domain'
 import { getPolicy } from '@/lib/actions/availability'
 
-/** Where to move a cancelled flight's occupants — see cancelFlight. */
+/** What to do with a cancelled flight's occupants — see cancelFlight. */
 export type CancelFlightDestination =
   | { type: 'existing'; toFlightId: string }
   | { type: 'new'; estimatedDepartureTime: string | null }
+  /** Send the occupants back to /reservas to pick a new date (no-show-style circuit). */
+  | { type: 'reschedule' }
+  /** Definitive cancellation: occupants cancelled with the flight; deposits already collected are kept. */
+  | { type: 'cancel' }
 
 export async function createFlight(
   dayId: string,
@@ -66,16 +70,25 @@ export async function updateFlight(
 }
 
 /**
- * Cancels a flight, reassigning its occupants first (zero-orphans rule):
- * every participant currently on this flight, in ANY status, must end up
- * on a valid flight_id — never left pointing at a cancelled flight.
+ * Cancels a flight. Its occupants must be resolved first — relocated,
+ * sent back to /reservas, or cancelled along with the flight:
  *
  * - No occupants: just mark CANCELLED.
  * - Has occupants + no destination: caller must choose one first.
  * - destination.type === 'new': inserts a fresh flight directly (see below)
- *   then moves everyone into it via reservations_move_participants.
+ *   then moves everyone into it via reservations_move_participants
+ *   (zero-orphans: nobody flying is left pointing at a cancelled flight).
  * - destination.type === 'existing': moves everyone into that flight via
  *   the same RPC, which validates capacity server-side.
+ * - destination.type === 'reschedule': same circuit as the weather
+ *   cancellation (handleWeatherCancellation) but per flight — occupants go
+ *   CANCELLED operationally, leads detach (flight_id NULL) and surface in
+ *   the /reservas "Reagendar" tab as RESCHEDULE_NEEDED; auto sale items are
+ *   cleared. Walk-ins (never leads) stay attached as CANCELLED.
+ * - destination.type === 'cancel': definitive — occupants go CANCELLED
+ *   (operational + lead status) but KEEP their flight_id, so any deposit
+ *   already collected stays counted in this day's Cobrado and P&L
+ *   (non-refundable per the waiver). Auto sale items are cleared.
  *
  * If the move RPC fails (e.g. destination full), the flight is NOT
  * cancelled — the error is returned so the caller can pick another
@@ -113,7 +126,58 @@ export async function cancelFlight(
   }
 
   if (!destination) {
-    return { error: 'El vuelo tiene participantes: elige un vuelo destino' }
+    return { error: 'El vuelo tiene participantes: elige qué hacer con ellos' }
+  }
+
+  if (destination.type === 'reschedule' || destination.type === 'cancel') {
+    // Both paths cancel the occupants operationally and clear their auto
+    // sale items (a jump that won't happen must not carry itemized revenue;
+    // payments are untouched — deposits are non-refundable).
+    const { error: statusError } = await supabase
+      .from('participants')
+      .update({ operational_status: 'CANCELLED' })
+      .in('id', occupantIds)
+    if (statusError) return { error: statusError.message }
+
+    if (destination.type === 'reschedule') {
+      // Weather-cancellation circuit, per flight: leads detach and queue up
+      // in the /reservas "Reagendar" tab for the staff to rebook.
+      const { error: leadError } = await supabase
+        .from('participants')
+        .update({ flight_id: null, lead_status: 'RESCHEDULE_NEEDED' })
+        .in('id', occupantIds)
+        .not('lead_status', 'is', null)
+      if (leadError) return { error: leadError.message }
+    } else {
+      // Definitive: lead status closes too. flight_id is kept on purpose —
+      // the deposit stays attributed to this day (Cobrado + P&L).
+      const { error: leadError } = await supabase
+        .from('participants')
+        .update({ lead_status: 'CANCELLED' })
+        .in('id', occupantIds)
+        .not('lead_status', 'is', null)
+      if (leadError) return { error: leadError.message }
+    }
+
+    // Batched auto-item clear (same pattern as handleWeatherCancellation).
+    // Best-effort: statuses are already set; this must not block the cancel.
+    const { error: itemsError } = await supabase
+      .from('participant_items')
+      .delete()
+      .in('participant_id', occupantIds)
+      .eq('auto_generated', true)
+    if (itemsError) {
+      console.error('cancelFlight: clearing auto items failed', itemsError.message)
+    }
+
+    const { error: cancelError } = await supabase
+      .from('flights')
+      .update({ status: 'CANCELLED' })
+      .eq('id', flightId)
+    if (cancelError) return { error: cancelError.message }
+
+    revalidatePath('/', 'layout')
+    return {}
   }
 
   let toFlightId: string

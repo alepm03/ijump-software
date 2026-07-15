@@ -58,6 +58,7 @@ export function buildIngresosCsv(pnl: ProfitAndLoss): string {
     'GROUND_REPORT',
     'OTHER',
     'SIN_DESGLOSE',
+    'DEPOSITO_RETENIDO',
   ] as const
 
   for (const cat of orderedCats) {

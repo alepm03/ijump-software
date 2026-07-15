@@ -23,6 +23,7 @@ import type { DateClass, LeadWithDetails } from '@/types/domain'
 
 const TABS: { id: LeadFilter; label: string }[] = [
   { id: 'pending', label: 'Pendientes' },
+  { id: 'reschedule', label: 'Reagendar' },
   { id: 'confirmed', label: 'Confirmadas' },
   { id: 'cancelled', label: 'Canceladas' },
 ]
@@ -58,7 +59,7 @@ export function ReservationsView({ tab, leads, counts, classifications, coldCoun
   // reactivated (lead_status leaves NO_SHOW, so it drops out of the
   // 'cancelled' tab filter — see STATUSES_BY_FILTER in leads.ts).
   const recoverableNoShowCount = useMemo(() => {
-    if (tab !== 'cancelled') return 0
+    if (tab !== 'reschedule') return 0
     const currentYearMonth = format(new Date(), 'yyyy-MM')
     return leads.filter(
       (l) => l.leadStatus === 'NO_SHOW' && l.confirmedDate?.startsWith(currentYearMonth)
@@ -84,9 +85,9 @@ export function ReservationsView({ tab, leads, counts, classifications, coldCoun
 
   // Sprint 3 E3 — group RESCHEDULE_NEEDED leads by preferredDate so the staff
   // can reassign an entire weather-cancelled day in one pass instead of
-  // rebooking each lead individually. Only surfaced on the 'pending' tab.
+  // rebooking each lead individually. Surfaced on the 'reschedule' tab.
   const rescheduleGroups = useMemo(() => {
-    if (tab !== 'pending') return []
+    if (tab !== 'reschedule') return []
     const byDate = new Map<string, LeadWithDetails[]>()
     for (const lead of leads) {
       if (lead.leadStatus !== 'RESCHEDULE_NEEDED' || !lead.preferredDate) continue
@@ -173,7 +174,7 @@ export function ReservationsView({ tab, leads, counts, classifications, coldCoun
           </div>
         )}
 
-        {tab === 'cancelled' && recoverableNoShowCount > 0 && (
+        {tab === 'reschedule' && recoverableNoShowCount > 0 && (
           <div className="flex items-center gap-3 bg-secondary border border-border rounded-lg px-4 py-3">
             <p className="text-sm text-foreground">
               <span className="font-semibold">{recoverableNoShowCount}</span>{' '}

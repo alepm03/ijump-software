@@ -150,13 +150,11 @@ export async function buildFinancePnlPdf(pnl: ProfitAndLoss): Promise<Uint8Array
     'GROUND_REPORT',
     'OTHER',
     'SIN_DESGLOSE',
+    'DEPOSITO_RETENIDO',
   ] as const
 
   for (const cat of orderedCats) {
-    const amount =
-      cat === 'SIN_DESGLOSE'
-        ? (pnl.revenueByCategory.SIN_DESGLOSE ?? 0)
-        : (pnl.revenueByCategory[cat] ?? 0)
+    const amount = pnl.revenueByCategory[cat] ?? 0
     if (amount === 0) continue
     dataRow(CATEGORY_LABELS[cat], amount, true)
   }

@@ -181,12 +181,38 @@ export async function confirmLead(
  * hour" (reservations_assign_seat seats them in the first flight with room —
  * see the 20260715 migration). Undefined leaves preferred_time untouched
  * (legacy callers: GroupRescheduleModal keeps the original hour).
+ *
+ * H7 fix (AUDITORIA.md) — classify the new date BEFORE touching the lead's
+ * current state. The previous version freed the seat and set
+ * lead_status='NEW' unconditionally, then asked confirmLead to classify
+ * newDate; if that came back UNAVAILABLE/NOT_OPERATING the lead had already
+ * lost its original seat and was left dangling as NEW with no flight. Now
+ * we classify first and only mutate anything once we know the new date can
+ * actually take the lead (CONFIRMABLE or TENTATIVE_ONLY) — an unavailable
+ * target date leaves the lead exactly as it was, matching the restoration
+ * behaviour rescheduleLeadsBatch already applies after a failed attempt.
+ * (Availability is day-level, so classifying before setting preferred_time
+ * is safe — the hour never changes the classification.)
+ *
+ * Known trade-off: rescheduling to the lead's own current date computes
+ * availability while that seat is still held, so it can under-report free
+ * capacity for that edge case. Out of scope here — reschedule-to-same-date
+ * isn't a real flow (see RescheduleReservationModal, which only offers
+ * dates from the calendar picker).
  */
 export async function rescheduleLead(
   leadId: string,
   newDate: string,
   time?: string | null
 ): Promise<ConfirmLeadResult> {
+  const today = todayIso()
+  const slots = await getDayAvailability(newDate)
+  const classification = classifyDate(newDate, today, slots)
+
+  if (classification === 'NOT_OPERATING' || classification === 'UNAVAILABLE') {
+    return { classification }
+  }
+
   await freeSeat(leadId)
   const supabase = await createClient()
   // CRM P0 — a reschedule attempt is a contact even if the new date ends up
@@ -487,25 +513,9 @@ export async function reactivateLead(leadId: string, note?: string | null): Prom
 }
 
 /** Count of leads awaiting staff action (NEW + RESCHEDULE_NEEDED) — used for the sidebar badge. */
-/**
- * Manual "deposit received" toggle (LeadSheet). Kept separate from
- * updateParticipant on purpose: deposit_paid is lead-lifecycle state, not
- * manifest data, and toggling it is NOT a client contact (no
- * last_contact_at bump — confirming money arrived is bookkeeping).
- * createPayment also sets it automatically for RESERVA-stage payments;
- * this toggle covers money that arrives without a registered payment yet
- * (e.g. a platform bono the staff verifies by hand).
- */
-export async function setDepositPaid(leadId: string, value: boolean): Promise<{ error?: string }> {
-  const supabase = await createClient()
-  const { error } = await supabase
-    .from('participants')
-    .update({ deposit_paid: value })
-    .eq('id', leadId)
-  if (error) return { error: error.message }
-  revalidatePath('/', 'layout')
-  return {}
-}
+// deposit_paid has no manual toggle — it is derived state, recomputed from
+// RESERVA-stage payments by syncDepositPaid (lib/actions/payment.ts) on every
+// payment mutation. To mark a deposit, register the reserva payment.
 
 /** "Contactado ahora" (LeadSheet) — explicit contact bump for calls/WhatsApps that change no other field. */
 export async function markLeadContacted(leadId: string): Promise<{ error?: string }> {

@@ -36,7 +36,6 @@ import { PaymentManager } from '@/components/operational/shared/PaymentManager'
 import { updateParticipant, type UpdateParticipantData } from '@/lib/actions/participant'
 import {
   markLeadContacted,
-  setDepositPaid,
   setPreferredDate,
   updateLeadSource,
 } from '@/lib/actions/leads'
@@ -97,6 +96,8 @@ export function LeadSheet({ lead, onOpenChange }: LeadSheetProps) {
 
   const awaitingStaff = lead.leadStatus === 'NEW' || lead.leadStatus === 'RESCHEDULE_NEEDED'
   const cold = awaitingStaff && isLeadCold(lead.lastContactAt)
+  // Read-only: the deposit is the registered RESERVA payment, nothing else.
+  const depositSecured = lead.payments.some((p) => p.stage === 'RESERVA')
 
   return (
     <Sheet open onOpenChange={onOpenChange}>
@@ -262,25 +263,23 @@ export function LeadSheet({ lead, onOpenChange }: LeadSheetProps) {
               </div>
               <div className="flex flex-col gap-1">
                 <FieldLabel>Depósito</FieldLabel>
-                <button
-                  onClick={() => run(() => setDepositPaid(lead.id, !lead.depositPaid))}
-                  disabled={isPending}
-                  className={`inline-flex items-center gap-2 w-fit text-sm px-2.5 py-1.5 rounded-md border transition-colors disabled:opacity-50 ${
-                    lead.depositPaid
+                <span
+                  className={`inline-flex items-center gap-2 w-fit text-sm px-2.5 py-1.5 rounded-md border ${
+                    depositSecured
                       ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                      : 'bg-background text-muted-foreground border-input hover:bg-secondary'
+                      : 'bg-background text-muted-foreground border-input'
                   }`}
-                  title="Marca manual de depósito recibido; se activa solo al registrar un pago de reserva"
+                  title="Derivado de los pagos: se marca al registrar un pago de reserva"
                 >
                   <span
                     className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center ${
-                      lead.depositPaid ? 'bg-emerald-600 border-emerald-600' : 'border-input'
+                      depositSecured ? 'bg-emerald-600 border-emerald-600' : 'border-input'
                     }`}
                   >
-                    {lead.depositPaid && <Check size={10} className="text-primary-foreground" />}
+                    {depositSecured && <Check size={10} className="text-primary-foreground" />}
                   </span>
-                  {lead.depositPaid ? 'Depósito recibido' : 'Sin depósito'}
-                </button>
+                  {depositSecured ? 'Depósito recibido' : 'Sin depósito'}
+                </span>
               </div>
             </div>
           </div>

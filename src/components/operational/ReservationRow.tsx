@@ -60,8 +60,10 @@ function formatTime(time: string | null): string {
 
 /**
  * Payment badge derived from the lead's registered payments (never stored):
- * a LIQUIDACION-stage payment means settled; any money in (or the manual
- * deposit_paid flag) means a deposit is secured; otherwise nothing paid.
+ * a LIQUIDACION-stage payment means settled; any money in means a deposit
+ * is secured; otherwise nothing paid. deposit_paid is intentionally NOT
+ * consulted here — it is itself derived from RESERVA payments
+ * (syncDepositPaid), so payments are the single source of truth.
  */
 function paymentBadge(lead: LeadWithDetails): { label: string; className: string } {
   const settled = lead.payments.some((p) => p.stage === 'LIQUIDACION')
@@ -70,9 +72,6 @@ function paymentBadge(lead: LeadWithDetails): { label: string; className: string
   }
   if (lead.paidTotal > 0) {
     return { label: `Depósito ${lead.paidTotal}€`, className: 'bg-amber-50 text-amber-600' }
-  }
-  if (lead.depositPaid) {
-    return { label: 'Depósito ✓', className: 'bg-amber-50 text-amber-600' }
   }
   return { label: 'Sin pago', className: 'bg-secondary text-muted-foreground' }
 }

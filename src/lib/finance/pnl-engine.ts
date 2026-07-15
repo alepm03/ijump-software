@@ -255,8 +255,14 @@ export function buildPnl(params: {
   expenses: Expense[]
   categories: ExpenseCategory[]
   monthsInPeriod: number
+  /**
+   * Deposits kept from leads cancelled definitively without a seat — see
+   * fetchRetainedDeposits (finance.ts). Already scoped to the period by
+   * payment date; enters revenue as the DEPOSITO_RETENIDO synthetic line.
+   */
+  retainedDeposits?: number
 }): ProfitAndLoss {
-  const { periodLabel, days, expenses, categories, monthsInPeriod } = params
+  const { periodLabel, days, expenses, categories, monthsInPeriod, retainedDeposits = 0 } = params
 
   // Index expenses by (operationalDayId, categoryId) for O(1) lookup
   type ExpenseKey = `${string}:${string}` // `${dayId}:${categoryId}`
@@ -325,6 +331,13 @@ export function buildPnl(params: {
       })
       catCostAccum.set(cat.id, (catCostAccum.get(cat.id) ?? 0) + cost)
     }
+  }
+
+  // Retained deposits (leads cancelled definitively without a seat) — a
+  // synthetic revenue line so that money doesn't vanish from the P&L.
+  if (retainedDeposits > 0) {
+    revenueTotal += retainedDeposits
+    revByCategory.DEPOSITO_RETENIDO = (revByCategory.DEPOSITO_RETENIDO ?? 0) + retainedDeposits
   }
 
   // Add manual fixed monthly costs (expense rows with operational_day_id NULL)

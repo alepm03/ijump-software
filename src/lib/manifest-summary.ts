@@ -7,6 +7,8 @@ export function computeManifestSummary(flights: FlightWithParticipants[]) {
   const active = allParticipants.filter(
     (p) => !CANCELLED_STATUSES.includes(p.operationalStatus)
   )
+  // Cancelled flights never flew: out of the flight count and capacity.
+  const activeFlights = flights.filter((f) => f.status !== 'CANCELLED')
 
   const bySource: Partial<Record<ReservationSource, number>> = {}
   const byMethod: Partial<Record<PaymentMethod, number>> = {}
@@ -20,7 +22,13 @@ export function computeManifestSummary(flights: FlightWithParticipants[]) {
 
     if (p.packageType === 'HANDYCAM' || p.packageType === 'HANDYCAM_FOTOS') handycamCount++
     if (p.packageType === 'VIDEO_EXTERNO') externalCount++
+  }
 
+  // "Cobrado" = money actually collected from EVERY participant of the day,
+  // cancelled/no-show included: deposits are non-refundable (waiver), so a
+  // cancellation never subtracts money that already came in. Matches the
+  // treasury cash view.
+  for (const p of allParticipants) {
     for (const pmt of p.payments) {
       totalRevenue += pmt.amount
       byMethod[pmt.method] = (byMethod[pmt.method] ?? 0) + pmt.amount
@@ -28,10 +36,10 @@ export function computeManifestSummary(flights: FlightWithParticipants[]) {
   }
 
   // Capacity: 2 clients per flight
-  const totalCapacity = flights.length * 2
+  const totalCapacity = activeFlights.length * 2
 
   return {
-    totalFlights: flights.length,
+    totalFlights: activeFlights.length,
     totalJumps: active.length,
     totalCapacity,
     handycamCount,

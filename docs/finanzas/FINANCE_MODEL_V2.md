@@ -248,3 +248,16 @@ Reglas cerradas por Alejandro para que el manifest (caja) y finanzas (devengo) n
 - **El KPI del manifest se llama "Cobrado"** (antes "Ingresos") y suma los pagos de TODOS los
   participantes del día, cancelados incluidos: si el dinero entró, está cobrado — coherente con el
   cierre de caja de tesorería. "Ingresos" queda reservado para finanzas (devengo por items).
+  Implementado en `computeManifestSummary` (`lib/manifest-summary.ts`), que es quien alimenta el
+  header del día (`getDailySummary` en payment.ts es código v1 sin llamadores).
+- **Depósitos retenidos (v2.3, reagendamiento)**: los pagos de leads cancelados definitivamente
+  **sin vuelo asignado** (`lead_status = CANCELLED`, `flight_id IS NULL`) no pertenecen a ningún
+  día operativo y antes desaparecían del P&L. Ahora entran como línea sintética de ingreso
+  "Depósitos retenidos" (`DEPOSITO_RETENIDO`), atribuida a la **fecha del pago** (decisión
+  jul-2026, coherente con caja). Los cancelados que conservan vuelo ya cuentan en su día por la
+  regla de pagos — el filtro `flight_id IS NULL` evita el doble conteo. Ver
+  `fetchRetainedDeposits` en finance.ts.
+- **Cancelar un vuelo** ofrece tres vías: mover a otro vuelo (lo de siempre), **reagendar**
+  (los participantes vuelven a `/reservas` → pestaña "Reagendar" como RESCHEDULE_NEEDED, circuito
+  meteo por vuelo) o **cancelación definitiva** (participantes CANCELLED que conservan su
+  `flight_id`, así el depósito sigue contando en ese día).

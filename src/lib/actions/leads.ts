@@ -174,15 +174,35 @@ export async function confirmLead(
   return { classification: 'CONFIRMABLE', flightId: data.flight_id }
 }
 
-/** Releases the lead's current slot (if any) and re-confirms it for a new date. */
-export async function rescheduleLead(leadId: string, newDate: string): Promise<ConfirmLeadResult> {
+/**
+ * Releases the lead's current slot (if any) and re-confirms it for a new date.
+ *
+ * `time`: the client's requested hour for the new date, or null for "any
+ * hour" (reservations_assign_seat seats them in the first flight with room —
+ * see the 20260715 migration). Undefined leaves preferred_time untouched
+ * (legacy callers: GroupRescheduleModal keeps the original hour).
+ */
+export async function rescheduleLead(
+  leadId: string,
+  newDate: string,
+  time?: string | null
+): Promise<ConfirmLeadResult> {
   await freeSeat(leadId)
   const supabase = await createClient()
   // CRM P0 — a reschedule attempt is a contact even if the new date ends up
   // unavailable (confirmLead bumps it again on the successful paths).
+  // operational_status resets to PENDING: a NO_SHOW/CANCELLED being
+  // rescheduled starts a fresh operational trail (same reset as
+  // reactivateLead) — otherwise the engine would keep treating them as
+  // non-flying on the NEW date.
   await supabase
     .from('participants')
-    .update({ lead_status: 'NEW', last_contact_at: new Date().toISOString() })
+    .update({
+      lead_status: 'NEW',
+      operational_status: 'PENDING',
+      ...(time !== undefined && { preferred_time: time }),
+      last_contact_at: new Date().toISOString(),
+    })
     .eq('id', leadId)
   return confirmLead(leadId, newDate)
 }
@@ -561,7 +581,9 @@ export async function countLeadAttention(): Promise<LeadAttentionCounts> {
   const { data, error } = await supabase
     .from('participants')
     .select('last_contact_at')
-    .in('lead_status', ['NEW', 'RESCHEDULE_NEEDED'])
+    // NO_SHOW included since the /reservas "Reagendar" tab exists: a no-show
+    // waiting to be rebooked is staff work exactly like a RESCHEDULE_NEEDED.
+    .in('lead_status', ['NEW', 'RESCHEDULE_NEEDED', 'NO_SHOW'])
   if (error || !data) return { pending: 0, cold: 0 }
   return {
     pending: data.length,
@@ -614,12 +636,17 @@ export async function getLeadByIdOrToken(
   }
 }
 
-export type LeadFilter = 'pending' | 'confirmed' | 'cancelled'
+export type LeadFilter = 'pending' | 'reschedule' | 'confirmed' | 'cancelled'
 
+// 'reschedule' groups everyone waiting for a new date: weather/flight
+// cancellations (RESCHEDULE_NEEDED) and no-shows (recoverable — their
+// deposit is already collected). 'cancelled' is only definitive
+// cancellations.
 const STATUSES_BY_FILTER: Record<LeadFilter, LeadStatus[]> = {
-  pending: ['NEW', 'TENTATIVE', 'RESCHEDULE_NEEDED'],
+  pending: ['NEW', 'TENTATIVE'],
+  reschedule: ['RESCHEDULE_NEEDED', 'NO_SHOW'],
   confirmed: ['CONFIRMED'],
-  cancelled: ['CANCELLED', 'NO_SHOW'],
+  cancelled: ['CANCELLED'],
 }
 
 /** Row count for a tab badge — head:true avoids downloading the rows (the cancelled tab grows without bound). */

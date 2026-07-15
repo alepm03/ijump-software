@@ -457,6 +457,26 @@ const cpSum = Object.values(cpPnl.revenueByCategory).reduce((s, v) => s + (v ?? 
 assert(cpSum === cpPnl.revenueTotal,
   `cancelled participant: Σ revenueByCategory (${cpSum}) === revenueTotal (${cpPnl.revenueTotal})`)
 
+// ─── Retained deposits: synthetic revenue line, foots to total ────────────────
+console.log('\n-- Retained deposits --')
+const rdPnl = buildPnl({
+  periodLabel: 'rd',
+  days,
+  expenses,
+  categories,
+  monthsInPeriod: 1,
+  retainedDeposits: 60,
+})
+assert(rdPnl.revenueTotal === 1200,
+  `retained: revenueTotal === 1200 (1140 + 60; got ${rdPnl.revenueTotal})`)
+assert(rdPnl.revenueByCategory.DEPOSITO_RETENIDO === 60,
+  `retained: DEPOSITO_RETENIDO === 60 (got ${rdPnl.revenueByCategory.DEPOSITO_RETENIDO})`)
+const rdSum = Object.values(rdPnl.revenueByCategory).reduce((s, v) => s + (v ?? 0), 0)
+assert(rdSum === rdPnl.revenueTotal,
+  `retained: Σ revenueByCategory (${rdSum}) === revenueTotal (${rdPnl.revenueTotal})`)
+assert(rdPnl.ebitda === 415 + 60,
+  `retained: ebitda === 475 (got ${rdPnl.ebitda})`)
+
 console.log('\n-- Raw output --')
 console.log(JSON.stringify(pnl, null, 2))
 

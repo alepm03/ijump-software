@@ -97,7 +97,12 @@ export function ReservationRow({ lead, tab, classification, onOpenDetail }: Rese
   const hasGroup = lead.groupSize >= 2 || !!lead.reservationGroup?.payerName
   // CRM P0 — aging: only leads awaiting staff action go cold (TENTATIVE
   // waits for its month, not for a human; CONFIRMED aging is informational).
-  const awaitingStaff = lead.leadStatus === 'NEW' || lead.leadStatus === 'RESCHEDULE_NEEDED'
+  // NO_SHOW counts too since the "Reagendar" tab exists: rebooking a no-show
+  // is staff work with the same urgency.
+  const awaitingStaff =
+    lead.leadStatus === 'NEW' ||
+    lead.leadStatus === 'RESCHEDULE_NEEDED' ||
+    lead.leadStatus === 'NO_SHOW'
   const isCold = awaitingStaff && isLeadCold(lead.lastContactAt)
   const agingCritical =
     !lead.lastContactAt ||
@@ -109,10 +114,16 @@ export function ReservationRow({ lead, tab, classification, onOpenDetail }: Rese
   const needsReschedule =
     tab === 'pending' &&
     !!lead.preferredDate &&
-    (classification === 'UNAVAILABLE' || classification === 'NOT_OPERATING' || lead.leadStatus === 'RESCHEDULE_NEEDED')
+    (classification === 'UNAVAILABLE' || classification === 'NOT_OPERATING')
 
-  const jumpDate = tab === 'pending' ? lead.preferredDate : lead.confirmedDate ?? lead.preferredDate
-  const jumpTime = tab === 'pending' ? lead.preferredTime : lead.confirmedTime ?? lead.preferredTime
+  const jumpDate =
+    tab === 'pending' || tab === 'reschedule'
+      ? lead.preferredDate
+      : lead.confirmedDate ?? lead.preferredDate
+  const jumpTime =
+    tab === 'pending' || tab === 'reschedule'
+      ? lead.preferredTime
+      : lead.confirmedTime ?? lead.preferredTime
   const payment = paymentBadge(lead)
 
   function handleCancel() {
@@ -211,11 +222,7 @@ export function ReservationRow({ lead, tab, classification, onOpenDetail }: Rese
       {/* Estado / disponibilidad */}
       <div className={COL.status}>
         {tab === 'pending' ? (
-          lead.leadStatus === 'RESCHEDULE_NEEDED' ? (
-            <LeadStatusBadge status="RESCHEDULE_NEEDED" />
-          ) : (
-            <AvailabilityBadge classification={lead.preferredDate ? classification : null} />
-          )
+          <AvailabilityBadge classification={lead.preferredDate ? classification : null} />
         ) : (
           lead.leadStatus && <LeadStatusBadge status={lead.leadStatus} />
         )}
@@ -294,6 +301,24 @@ export function ReservationRow({ lead, tab, classification, onOpenDetail }: Rese
             <ExternalLink size={12} /> Manifest
           </Link>
         )}
+        {tab === 'reschedule' && (
+          <>
+            <button
+              onClick={() => setRescheduleOpen(true)}
+              disabled={isPending}
+              className="text-xs font-semibold px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              Reagendar
+            </button>
+            <button
+              onClick={handleCancel}
+              disabled={isPending}
+              className="text-xs text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+          </>
+        )}
         {tab === 'cancelled' && (
           <button
             onClick={handleReactivate}
@@ -305,16 +330,22 @@ export function ReservationRow({ lead, tab, classification, onOpenDetail }: Rese
         )}
       </div>
 
-      {lead.preferredDate && (
-        <ConfirmReservationModal
-          lead={lead}
-          classification={classification}
-          open={confirmOpen}
-          onOpenChange={setConfirmOpen}
-        />
-      )}
-      <RescheduleReservationModal lead={lead} open={rescheduleOpen} onOpenChange={setRescheduleOpen} />
-      <CompleteLeadModal lead={lead} open={completeOpen} onOpenChange={setCompleteOpen} />
+      {/* Modals render in a portal, but React synthetic events still bubble
+          through the COMPONENT tree — without this stopPropagation wrapper a
+          click inside any modal (e.g. a calendar day) reaches the row's
+          onClick above and opens the LeadSheet on top. */}
+      <div onClick={(e) => e.stopPropagation()}>
+        {lead.preferredDate && (
+          <ConfirmReservationModal
+            lead={lead}
+            classification={classification}
+            open={confirmOpen}
+            onOpenChange={setConfirmOpen}
+          />
+        )}
+        <RescheduleReservationModal lead={lead} open={rescheduleOpen} onOpenChange={setRescheduleOpen} />
+        <CompleteLeadModal lead={lead} open={completeOpen} onOpenChange={setCompleteOpen} />
+      </div>
     </div>
   )
 }

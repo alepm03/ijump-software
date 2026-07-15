@@ -35,7 +35,7 @@ function pct(value: number): string {
 
 // ─── Revenue category display names ───────────────────────────────────────────
 
-const CATEGORY_LABELS: Record<ProductCategory | 'SIN_DESGLOSE', string> = {
+const CATEGORY_LABELS: Record<ProductCategory | 'SIN_DESGLOSE' | 'DEPOSITO_RETENIDO', string> = {
   TANDEM_BASE:     'Tándem base',
   CAMERA_HANDYCAM: 'Handycam',
   CAMERA_EXTERNAL: 'Cámara externa',
@@ -44,9 +44,10 @@ const CATEGORY_LABELS: Record<ProductCategory | 'SIN_DESGLOSE', string> = {
   GROUND_REPORT:   'Reportaje en tierra',
   OTHER:           'Otros',
   SIN_DESGLOSE:    'Sin desglosar (histórico)',
+  DEPOSITO_RETENIDO: 'Depósitos retenidos',
 }
 
-const CATEGORY_ORDER: Array<ProductCategory | 'SIN_DESGLOSE'> = [
+const CATEGORY_ORDER: Array<ProductCategory | 'SIN_DESGLOSE' | 'DEPOSITO_RETENIDO'> = [
   'TANDEM_BASE',
   'CAMERA_HANDYCAM',
   'CAMERA_EXTERNAL',
@@ -55,6 +56,7 @@ const CATEGORY_ORDER: Array<ProductCategory | 'SIN_DESGLOSE'> = [
   'GROUND_REPORT',
   'OTHER',
   'SIN_DESGLOSE',
+  'DEPOSITO_RETENIDO',
 ]
 
 // ─── Expense group display names ───────────────────────────────────────────────

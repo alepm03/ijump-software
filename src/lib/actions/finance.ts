@@ -1566,6 +1566,38 @@ async function fetchPnlExpenses(
   return (data ?? []).map(rowToExpense)
 }
 
+/**
+ * Retained deposits — money collected from leads that ended DEFINITIVELY
+ * cancelled without holding a seat (lead_status CANCELLED, flight_id NULL):
+ * their payments belong to no operational day, so the day-based P&L fetch
+ * cannot see them and the money would silently vanish from revenue.
+ * Attributed to the date the money came in (payments.created_at) — decision
+ * jul-2026: matches the cash view. Leads cancelled while still attached to
+ * a flight are already counted by the day P&L (payments-only rule for
+ * non-flying participants); the flight_id IS NULL filter is what prevents
+ * double counting. Boundary times compare in UTC (±2h vs Europe/Madrid at
+ * period edges — accepted imprecision, same trade-off as cash close).
+ */
+async function fetchRetainedDeposits(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  from: string,
+  to: string
+): Promise<number> {
+  const toExclusive = new Date(`${to}T00:00:00Z`)
+  toExclusive.setUTCDate(toExclusive.getUTCDate() + 1)
+
+  const { data, error } = await supabase
+    .from('payments')
+    .select('amount, created_at, participant:participants!inner(lead_status, flight_id)')
+    .eq('participant.lead_status', 'CANCELLED')
+    .is('participant.flight_id', null)
+    .gte('created_at', `${from}T00:00:00Z`)
+    .lt('created_at', toExclusive.toISOString())
+
+  if (error) throw new Error(error.message)
+  return (data ?? []).reduce((s, r) => s + r.amount, 0)
+}
+
 async function fetchCategories(
   supabase: Awaited<ReturnType<typeof createClient>>
 ): Promise<ExpenseCategory[]> {
@@ -1633,14 +1665,15 @@ function countCalendarMonths(from: string, to: string): number {
 /** Day P&L for a single operational day (Europe/Madrid, ISO 8601) */
 export async function getDayPnl(date: string): Promise<ProfitAndLoss> {
   const supabase = await createClient()
-  const [days, expenses, categories] = await Promise.all([
+  const [days, expenses, categories, retainedDeposits] = await Promise.all([
     fetchPnlDays(supabase, date, date),
     fetchPnlExpenses(supabase, date, date),
     fetchCategories(supabase),
+    fetchRetainedDeposits(supabase, date, date),
   ])
 
   // Day view: monthly fixed overhead is not attributed to a single day.
-  return buildPnl({ periodLabel: date, days, expenses, categories, monthsInPeriod: 0 })
+  return buildPnl({ periodLabel: date, days, expenses, categories, monthsInPeriod: 0, retainedDeposits })
 }
 
 /** ISO week P&L (Monday–Sunday). isoWeek is 1-based (1–53). */
@@ -1664,14 +1697,15 @@ export async function getWeekPnl(
   const periodLabel = `${year}-W${String(isoWeek).padStart(2, '0')}`
 
   const supabase = await createClient()
-  const [days, expenses, categories] = await Promise.all([
+  const [days, expenses, categories, retainedDeposits] = await Promise.all([
     fetchPnlDays(supabase, from, to),
     fetchPnlExpenses(supabase, from, to),
     fetchCategories(supabase),
+    fetchRetainedDeposits(supabase, from, to),
   ])
 
   // Week view: monthly fixed overhead is not attributed to a sub-monthly slice.
-  return buildPnl({ periodLabel, days, expenses, categories, monthsInPeriod: 0 })
+  return buildPnl({ periodLabel, days, expenses, categories, monthsInPeriod: 0, retainedDeposits })
 }
 
 /** Month P&L. month is 'YYYY-MM'. */
@@ -1683,14 +1717,15 @@ export async function getMonthPnl(month: string): Promise<ProfitAndLoss> {
   const to = `${month}-${String(lastDay).padStart(2, '0')}`
 
   const supabase = await createClient()
-  const [days, expenses, categories] = await Promise.all([
+  const [days, expenses, categories, retainedDeposits] = await Promise.all([
     fetchPnlDays(supabase, from, to),
     fetchPnlExpenses(supabase, from, to),
     fetchCategories(supabase),
+    fetchRetainedDeposits(supabase, from, to),
   ])
 
   // Month view: monthly fixed costs charged once.
-  return buildPnl({ periodLabel: month, days, expenses, categories, monthsInPeriod: 1 })
+  return buildPnl({ periodLabel: month, days, expenses, categories, monthsInPeriod: 1, retainedDeposits })
 }
 
 /**
@@ -1707,10 +1742,11 @@ export async function getYearPnl(
   const periodLabel = isYtd ? `${year} YTD (through ${to})` : String(year)
 
   const supabase = await createClient()
-  const [days, expenses, categories] = await Promise.all([
+  const [days, expenses, categories, retainedDeposits] = await Promise.all([
     fetchPnlDays(supabase, from, to),
     fetchPnlExpenses(supabase, from, to),
     fetchCategories(supabase),
+    fetchRetainedDeposits(supabase, from, to),
   ])
 
   // Year/YTD view: monthly fixed costs charged once per calendar month in range.
@@ -1723,6 +1759,7 @@ export async function getYearPnl(
     expenses,
     categories,
     monthsInPeriod: countCalendarMonths(from, to),
+    retainedDeposits,
   })
 }
 
@@ -1786,6 +1823,7 @@ const CATEGORY_KPI_LABELS: Record<string, string> = {
   GROUND_REPORT:   'Reportaje en tierra',
   OTHER:           'Otros',
   SIN_DESGLOSE:    'Sin desglosar',
+  DEPOSITO_RETENIDO: 'Depósitos retenidos',
 }
 
 const KPI_NON_COMPLETED = new Set(['CANCELLED', 'NO_SHOW', 'WEATHER_CANCELLED'])

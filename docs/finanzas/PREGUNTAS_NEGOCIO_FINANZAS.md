@@ -1,5 +1,7 @@
 # Preguntas para el módulo financiero del software iJump
 
+> ⚠️ **Nota 2026-07-16 (desde una revisión del proyecto chatbot):** al recopilar pendientes del proyecto, este documento apareció como candidato a estar desfasado — parte de su contenido no parece coherente con decisiones más recientes del software (ver p. ej. la nota "Decisión cerrada 2026-07-01" ya insertada dentro del propio documento). No se ha hecho aquí una revisión completa pregunta por pregunta: falta una pasada dedicada para confirmar qué sigue abierto de verdad y qué quedó resuelto por decisiones posteriores no reflejadas todavía.
+
 **Objetivo:** completar la información necesaria para que el software refleje fielmente cómo opera iJump y permita presentar cuentas a la gestoría. Documento dividido por destinatario para que se pueda reenviar por partes.
 
 **Cómo responder:** basta con contestar al lado de cada punto. Si algún dato no aplica o no se conoce, indíquelo y seguimos.

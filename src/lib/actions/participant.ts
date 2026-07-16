@@ -277,12 +277,17 @@ export async function moveParticipant(
  * CRM no-show circuit (docs/reservas/CRM_REVIEW_2026-07.md, "NO_SHOW y
  * CANCELLED son agujeros negros"): keeps lead_status in sync with an
  * operational_status change so a no-show surfaces in the /reservas
- * Canceladas tab, where the Reactivar flow and the recoverable-no-shows
- * counter live. Only NO_SHOW syncs — operational CANCELLED and
+ * "Reagendar" tab. Only NO_SHOW syncs — operational CANCELLED and
  * WEATHER_CANCELLED already have their own lead flows (cancelLead,
  * handleWeatherCancellation). Reverting NO_SHOW to a flying status
  * restores CONFIRMED (the participant did show after all); reverting to
  * another non-flying status leaves lead_status alone.
+ *
+ * Walk-ins (participants created directly in the manifest, lead_status
+ * NULL) are PROMOTED to lead on NO_SHOW — rescheduling-v2: every no-show
+ * must surface in the Reagendar tab, not only the ones that entered
+ * through /reservas. Their preferred_date is seeded from the missed
+ * flight's day so the tab shows which date they lost.
  *
  * Best-effort by design (errors logged, never returned): callers invoke it
  * after their primary operational_status update has already succeeded.
@@ -293,11 +298,30 @@ async function syncLeadStatusForOperationalChange(
   status: OperationalStatus
 ): Promise<void> {
   if (status === 'NO_SHOW') {
+    const { data: row, error: fetchError } = await supabase
+      .from('participants')
+      .select('lead_status, preferred_date, flight:flights(operational_day:operational_days(date))')
+      .eq('id', id)
+      .single()
+    if (fetchError || !row) {
+      console.error('syncLeadStatusForOperationalChange: NO_SHOW fetch failed', fetchError?.message)
+      return
+    }
+
+    const missedDate =
+      (row.flight as { operational_day: { date: string } | null } | null)?.operational_day?.date ??
+      null
+
     const { error } = await supabase
       .from('participants')
-      .update({ lead_status: 'NO_SHOW' })
+      .update({
+        lead_status: 'NO_SHOW',
+        // Walk-in promotion: give them the missed day as reference date.
+        ...(row.lead_status === null && !row.preferred_date && missedDate
+          ? { preferred_date: missedDate }
+          : {}),
+      })
       .eq('id', id)
-      .not('lead_status', 'is', null)
     if (error) {
       console.error('syncLeadStatusForOperationalChange: NO_SHOW sync failed', error.message)
     }

@@ -140,14 +140,35 @@ export async function cancelFlight(
     if (statusError) return { error: statusError.message }
 
     if (destination.type === 'reschedule') {
-      // Weather-cancellation circuit, per flight: leads detach and queue up
-      // in the /reservas "Reagendar" tab for the staff to rebook.
+      // Weather-cancellation circuit, per flight: occupants detach and queue
+      // up in the /reservas "Reagendar" tab for the staff to rebook.
+      // Leads keep their own preferred_date.
       const { error: leadError } = await supabase
         .from('participants')
         .update({ flight_id: null, lead_status: 'RESCHEDULE_NEEDED' })
         .in('id', occupantIds)
         .not('lead_status', 'is', null)
       if (leadError) return { error: leadError.message }
+
+      // Walk-ins (created directly in the manifest, lead_status NULL) are
+      // promoted into the circuit too — otherwise "reagendar" silently does
+      // nothing for them. The cancelled day becomes their preferred_date so
+      // the Reagendar tab shows which date they lost.
+      const { data: dayRow } = await supabase
+        .from('operational_days')
+        .select('date')
+        .eq('id', flight.operational_day_id)
+        .single()
+      const { error: walkInError } = await supabase
+        .from('participants')
+        .update({
+          flight_id: null,
+          lead_status: 'RESCHEDULE_NEEDED',
+          ...(dayRow?.date ? { preferred_date: dayRow.date } : {}),
+        })
+        .in('id', occupantIds)
+        .is('lead_status', null)
+      if (walkInError) return { error: walkInError.message }
     } else {
       // Definitive: lead status closes too. flight_id is kept on purpose —
       // the deposit stays attributed to this day (Cobrado + P&L).

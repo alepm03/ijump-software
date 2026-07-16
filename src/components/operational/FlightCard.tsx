@@ -115,6 +115,15 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete, on
   }
 
   function handleStatusChange(status: FlightStatus) {
+    // Cancelling is NOT a plain status change: it must resolve the occupants
+    // (move / send to reschedule / cancel them too), so it always goes
+    // through CancelFlightDialog — same flow as the ⋮ "Cancelar vuelo" item.
+    // A bare updateFlight({status: 'CANCELLED'}) here would leave occupants
+    // attached to a cancelled flight and skip the /reservas circuit.
+    if (status === 'CANCELLED') {
+      onCancel()
+      return
+    }
     startTransition(async () => {
       const result = await updateFlight(flight.id, { status })
       if (result.error) toast.error(result.error)

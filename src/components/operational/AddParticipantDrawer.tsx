@@ -429,8 +429,9 @@ export function AddParticipantDrawer({
                 <div className="flex items-start gap-1.5 text-2xs text-state-warning">
                   <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
                   <span>
-                    Esa hora está completa ({fullSlotAtPreferredTime.active}/{fullSlotAtPreferredTime.max}): se
-                    creará un vuelo nuevo a esa hora, o elige un hueco libre.
+                    Esa hora está completa ({fullSlotAtPreferredTime.active}/{fullSlotAtPreferredTime.max}): la
+                    reserva quedará en conflicto y no podrás confirmarla hasta que haya hueco a esa hora. Elige
+                    otra hora o déjala vacía (cualquier hora).
                   </span>
                 </div>
               )}

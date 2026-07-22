@@ -24,8 +24,10 @@ import {
   isOperatingDay,
   computeDaySlots,
   classifyDate,
+  classifyLeadSlot,
   type AvailabilityPolicy,
   type DayLoad,
+  type SlotOccupancy,
 } from './availability-engine.js'
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -149,6 +151,40 @@ const pastDateLoad: DayLoad = { date: '2026-06-20', weatherStatus: 'OK', flights
 const slotsPast = computeDaySlots(pastDateLoad, POLICY)
 assert(classifyDate('2026-06-20', TODAY, slotsPast) === 'UNAVAILABLE',
   'a past date (even same month) classifies as UNAVAILABLE')
+
+// ─── classifyLeadSlot: time-slot conflict overlay ────────────
+console.log('\n-- classifyLeadSlot: specific-hour conflict --')
+
+// Occupancy: 10:00 flight full (2/2), 11:00 has room (1/2).
+const occ: SlotOccupancy[] = [
+  { time: '10:00', active: 2, max: 2 },
+  { time: '11:00', active: 1, max: 2 },
+]
+
+// Specific full hour on an otherwise-confirmable day → conflict (UNAVAILABLE).
+assert(classifyLeadSlot('CONFIRMABLE', '10:00', occ) === 'UNAVAILABLE',
+  'a lead asking for a FULL exact hour becomes UNAVAILABLE (conflict) even if the day has room')
+// Also matches HH:MM:SS preferred_time values from the DB.
+assert(classifyLeadSlot('CONFIRMABLE', '10:00:00', occ) === 'UNAVAILABLE',
+  'HH:MM:SS preferred_time still detects the full-hour conflict')
+
+// Specific hour with room → unchanged (will join that flight).
+assert(classifyLeadSlot('CONFIRMABLE', '11:00', occ) === 'CONFIRMABLE',
+  'a lead asking for an hour with a free seat stays CONFIRMABLE')
+
+// Specific hour with no flight yet → unchanged (a new flight will be created there).
+assert(classifyLeadSlot('CONFIRMABLE', '12:00', occ) === 'CONFIRMABLE',
+  'a lead asking for an hour with no flight yet stays CONFIRMABLE (new flight will be created)')
+
+// Any-hour lead (no preferred time) → unchanged.
+assert(classifyLeadSlot('CONFIRMABLE', null, occ) === 'CONFIRMABLE',
+  'an any-hour lead is never conflicted by a full slot')
+
+// Overlay only applies to CONFIRMABLE — a full/tentative/non-operating base is preserved.
+assert(classifyLeadSlot('TENTATIVE_ONLY', '10:00', occ) === 'TENTATIVE_ONLY',
+  'a far-future tentative date is left tentative regardless of the requested hour')
+assert(classifyLeadSlot('UNAVAILABLE', '11:00', occ) === 'UNAVAILABLE',
+  'a full day stays UNAVAILABLE regardless of the requested hour')
 
 console.log('')
 if (process.exitCode === 1) {

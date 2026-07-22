@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { getPolicy } from '@/lib/actions/availability'
 import type {
   OperationalDay,
   OperationalDaySummary,
@@ -184,9 +185,14 @@ export async function getOperationalDaysWithStats(
     }))
 }
 
-function addHours(time: string, hours: number): string {
+/**
+ * Adds `minutes` to an HH:MM time, clamping at 23:59 so a late start with a
+ * wide interval never wraps past midnight into the next day.
+ */
+function addMinutes(time: string, minutes: number): string {
   const [h, m] = time.split(':').map(Number)
-  return `${String((h + hours) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  const total = Math.min(h * 60 + m + minutes, 23 * 60 + 59)
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
 }
 
 export async function createOperationalDay(
@@ -194,6 +200,10 @@ export async function createOperationalDay(
   startTime: string
 ): Promise<{ error?: string; date?: string }> {
   const supabase = await createClient()
+
+  // Auto-scheduled flights are spaced by the configurable interval (45 min by
+  // default in prod), matching "Añadir vuelo" — not a hardcoded hour.
+  const policy = await getPolicy()
 
   const { data: day, error } = await supabase
     .from('operational_days')
@@ -210,7 +220,7 @@ export async function createOperationalDay(
     operational_day_id: day.id,
     flight_number: i + 1,
     order_index: i,
-    estimated_departure_time: addHours(startTime, i),
+    estimated_departure_time: addMinutes(startTime, i * policy.flightIntervalMinutes),
   }))
 
   const { error: flightsError } = await supabase.from('flights').insert(flights)

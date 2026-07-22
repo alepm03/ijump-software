@@ -32,6 +32,7 @@ interface ReservationsViewProps {
   tab: LeadFilter
   leads: LeadWithDetails[]
   counts: Record<LeadFilter, number>
+  /** Per-lead availability class, keyed by lead id (day class + preferred-hour overlay). */
   classifications: Record<string, DateClass>
   /**
    * CRM P0 — lead-aging queue, computed server-side over the PENDING set so
@@ -217,7 +218,7 @@ export function ReservationsView({ tab, leads, counts, classifications, coldCoun
                   key={lead.id}
                   lead={lead}
                   tab={tab}
-                  classification={lead.preferredDate ? classifications[lead.preferredDate] ?? null : null}
+                  classification={classifications[lead.id] ?? null}
                   onOpenDetail={() => setDetailLeadId(lead.id)}
                 />
               ))}

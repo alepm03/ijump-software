@@ -111,3 +111,43 @@ export function classifyDate(target: string, today: string, slots: DaySlots): Da
   const daysAhead = daysBetween(today, target)
   return daysAhead <= CONFIRMABLE_WINDOW_DAYS ? 'CONFIRMABLE' : 'TENTATIVE_ONLY'
 }
+
+/** One flight's occupancy at a given departure time — input to classifyLeadSlot. */
+export interface SlotOccupancy {
+  time: string // HH:MM
+  active: number
+  max: number
+}
+
+/**
+ * Time-aware overlay on top of classifyDate for a lead that requested a
+ * SPECIFIC hour.
+ *
+ * The day-level classification (classifyDate) only knows total free capacity,
+ * so it says CONFIRMABLE as long as the day can hold anyone. But a lead who
+ * asked for an exact hour can only be auto-seated at that exact hour:
+ * reservations_assign_seat joins the flight at that time or creates a new one
+ * there — it never relocates to a different time. So if a flight already
+ * exists at the requested hour and is FULL, the lead cannot be confirmed until
+ * room frees up (or the hour changes) → CONFLICT, surfaced as UNAVAILABLE
+ * (rendered "Conflicto", which also swaps the row's Confirmar → Reagendar).
+ *
+ * Only overlaid on the CONFIRMABLE case:
+ *   - `preferredTime` null (any hour) → day-level result unchanged.
+ *   - No flight yet at that hour → a new flight will be created there → unchanged.
+ *   - A flight with room at that hour → will join it → unchanged.
+ *   - A full flight at that exact hour → UNAVAILABLE (conflict).
+ * A far-future TENTATIVE date is left tentative: it's parked and re-evaluated
+ * when its window arrives, so an hour conflict isn't meaningful yet.
+ */
+export function classifyLeadSlot(
+  base: DateClass,
+  preferredTime: string | null,
+  occupancy: SlotOccupancy[]
+): DateClass {
+  if (base !== 'CONFIRMABLE' || !preferredTime) return base
+  const hhmm = preferredTime.slice(0, 5)
+  const slot = occupancy.find((s) => s.time.slice(0, 5) === hhmm)
+  if (slot && slot.active >= slot.max) return 'UNAVAILABLE'
+  return base
+}

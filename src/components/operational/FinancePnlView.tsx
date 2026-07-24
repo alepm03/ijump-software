@@ -378,10 +378,10 @@ function CostGroupSection({
 
   return (
     <>
-      {/* Group header row */}
-      <div className="grid items-center px-4 py-2 bg-secondary/30 border-b border-border"
+      {/* Group header row — strongest band + dark text: top level of the hierarchy */}
+      <div className="grid items-center px-4 py-2 bg-secondary/60 border-y border-border"
         style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(7.5rem,1fr) 7.5rem 4rem' }}>
-        <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+        <span className="text-[0.6875rem] font-bold uppercase tracking-[0.06em] text-foreground">
           {GROUP_LABELS[group]}
         </span>
         <div className="pr-4">
@@ -392,7 +392,7 @@ function CostGroupSection({
             />
           </div>
         </div>
-        <span className="text-right text-[0.8125rem] font-semibold tabular-nums text-muted-foreground">
+        <span className="text-right text-[0.8125rem] font-semibold tabular-nums text-foreground">
           {euro(total)}
         </span>
         <span className="text-right text-[0.71875rem] tabular-nums text-muted-foreground">
@@ -407,14 +407,14 @@ function CostGroupSection({
             const sgCats = nonZero.filter((c) => c.subgroup === sg)
             return (
               <div key={sg}>
-                {/* Subgroup header */}
-                <div className="grid items-center px-4 py-[6px] bg-secondary/10 border-b border-border"
+                {/* Subgroup header — brand-orange label marks the middle level */}
+                <div className="grid items-center px-4 py-[6px] bg-secondary/20 border-b border-border"
                   style={{ gridTemplateColumns: 'minmax(0,1.4fr) minmax(7.5rem,1fr) 7.5rem 4rem' }}>
-                  <span className="text-[0.65625rem] font-semibold uppercase tracking-[0.06em] text-muted-foreground pl-3">
+                  <span className="text-[0.65625rem] font-semibold uppercase tracking-[0.06em] text-primary pl-3">
                     {SUBGROUP_LABELS[sg] ?? sg}
                   </span>
                   <div />
-                  <span className="text-right text-[0.75rem] font-semibold tabular-nums text-muted-foreground">
+                  <span className="text-right text-[0.75rem] font-semibold tabular-nums text-primary/80">
                     {euro(sgTotal)}
                   </span>
                   <span />

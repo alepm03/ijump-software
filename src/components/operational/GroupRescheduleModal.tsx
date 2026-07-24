@@ -112,7 +112,7 @@ export function GroupRescheduleModal({ leads, open, onOpenChange }: GroupResched
         if (!next) handleClose()
       }}
     >
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
         {results ? (
           <>
             <DialogHeader>
@@ -165,7 +165,7 @@ export function GroupRescheduleModal({ leads, open, onOpenChange }: GroupResched
               </DialogDescription>
             </DialogHeader>
 
-            <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
+            <div className="flex flex-col gap-1 max-h-28 overflow-y-auto">
               {leads.map((lead) => {
                 const assignment = assignments[lead.id]
                 return (

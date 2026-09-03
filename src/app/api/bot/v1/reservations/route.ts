@@ -1,12 +1,24 @@
 /**
  * POST /api/bot/v1/reservations  (scope reservations:write)
  *
- * Creates a lead and immediately attempts to confirm it for the
- * requested date — there is no Stripe/online payment in this module
- * (see docs/reservas/CHECKLIST.md), so unlike the original tech-appendix
- * contract there is no AWAITING_PAYMENT/paymentUrl step: the bot gets the
- * final outcome (CONFIRMED / TENTATIVE / 409 unavailable) in one call,
- * the same as a staff member clicking "Confirmar" in /reservas would.
+ * Creates a lead for the requested date. There is no Stripe/online payment
+ * in this module (see docs/reservas/CHECKLIST.md), so unlike the original
+ * tech-appendix contract there is no AWAITING_PAYMENT/paymentUrl step.
+ *
+ * Whether the lead is then confirmed in the same call depends on the
+ * `bot_autoconfirm_enabled` business setting:
+ *
+ * - true  → the route confirms it immediately (assigning a real seat), so the
+ *           bot gets the final outcome (CONFIRMED / TENTATIVE / 409) in one
+ *           call, exactly as a staff member clicking "Confirmar" would.
+ * - false → (transition phase, 2026-09, the current default) the lead is left
+ *           NEW with its preferred_date and shows up in /reservas → pendientes
+ *           for a human to confirm. Reason: while reservations still arrive
+ *           through the legacy channel, the availability engine only sees
+ *           seats booked through THIS system, so auto-assigning one can
+ *           double-book a flight the old book already filled. The response
+ *           carries requiresStaffConfirmation: true so the bot promises a
+ *           callback instead of a confirmed slot.
  *
  * Batch/companion participants (the `participants?` array in the
  * original contract) are deferred — out of scope for this pass, the bot
@@ -18,8 +30,10 @@ import { z } from 'zod'
 import { authenticateBotRequest, apiErrorResponse } from '@/lib/api/auth'
 import { enforceRateLimit } from '@/lib/api/rate-limit'
 import { createLead, confirmLead, cancelLead, findActiveLeadByPhone, getLeadByIdOrToken } from '@/lib/actions/leads'
-import { listNextAvailableSlots } from '@/lib/actions/availability'
+import { classifyDateLive, listNextAvailableSlots } from '@/lib/actions/availability'
+import { isBotAutoconfirmEnabled } from '@/lib/actions/settings'
 import { normalizePhone } from '@/lib/phone'
+import type { DateClass } from '@/types/domain'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -86,6 +100,10 @@ export async function POST(request: Request) {
     }
   }
 
+  // Transition-phase gate (see the file header): off means the bot only files
+  // the lead, staff confirm it from /reservas.
+  const autoConfirm = await isBotAutoconfirmEnabled(client)
+
   const created = await createLead(
     {
       fullName: input.fullName,
@@ -104,13 +122,26 @@ export async function POST(request: Request) {
     return apiErrorResponse(500, 'internal_error', created.error ?? 'Failed to create reservation')
   }
 
-  const result = await confirmLead(created.leadId, input.preferredDate, client)
-  if (result.error) {
-    return apiErrorResponse(500, 'internal_error', result.error)
+  // Both branches below classify the requested date; only the autoconfirm one
+  // acts on it. An unbookable date is rejected either way — accepting a lead
+  // for a closed or full day just moves the dead end to the staff queue.
+  let classification: DateClass | undefined
+  if (autoConfirm) {
+    const result = await confirmLead(created.leadId, input.preferredDate, client)
+    if (result.error) {
+      return apiErrorResponse(500, 'internal_error', result.error)
+    }
+    classification = result.classification
+  } else {
+    try {
+      classification = await classifyDateLive(input.preferredDate, client)
+    } catch (e) {
+      return apiErrorResponse(500, 'internal_error', e instanceof Error ? e.message : 'Availability check failed')
+    }
   }
 
-  if (result.classification === 'UNAVAILABLE' || result.classification === 'NOT_OPERATING') {
-    // Bug fix (2026-07): confirmLead couldn't assign this date, so the lead
+  if (classification === 'UNAVAILABLE' || classification === 'NOT_OPERATING') {
+    // Bug fix (2026-07): the requested date can't take this lead, so the lead
     // created above is a dead end with a NEW status and the unavailable date
     // baked in. Left as-is, it stays ACTIVE_LEAD_STATUSES-active and the
     // client's inevitable retry (accepting one of the suggestedDates below)
@@ -136,9 +167,12 @@ export async function POST(request: Request) {
       reservationId: created.leadId,
       token: created.token,
       status: lead?.status ?? null,
-      dateClassification: result.classification,
+      dateClassification: classification,
       confirmedDate: lead?.confirmedDate ?? null,
       confirmedTime: lead?.confirmedTime ?? null,
+      // The bot must NOT promise a slot while this is true: the lead is only
+      // queued in /reservas, no seat is held for it yet.
+      requiresStaffConfirmation: !autoConfirm,
       statusUrl: `/reserva/${created.token}`,
     },
     { status: 201 }

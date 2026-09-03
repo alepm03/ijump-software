@@ -98,6 +98,19 @@ export async function getDayAvailability(
   return computeDaySlots(load, policy)
 }
 
+/**
+ * Classifies `date` against live availability WITHOUT touching any lead.
+ *
+ * confirmLead() does this internally, but it also mutates (parks the lead as
+ * TENTATIVE, or assigns a seat). Callers that only need to know whether a date
+ * is bookable — the bot route when staff confirmation is required — use this
+ * instead, so a rejected date can be answered without a write.
+ */
+export async function classifyDateLive(date: string, client?: DbClient): Promise<DateClass> {
+  const slots = await getDayAvailability(date, client)
+  return classifyDate(date, todayIso(), slots)
+}
+
 /** Availability + classification for every day in a given month (YYYY-MM). */
 export async function getMonthAvailability(
   yearMonth: string

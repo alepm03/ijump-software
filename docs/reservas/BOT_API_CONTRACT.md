@@ -89,7 +89,12 @@ Desglose completo de un día concreto.
 
 Scope requerido: `reservations:write`
 
-Crea una reserva. **No hay pago online en este módulo** (Stripe está fuera de alcance) — la reserva se confirma o queda en tentativa en la misma llamada, no hay paso intermedio de pago.
+Crea una reserva. **No hay pago online en este módulo** (Stripe está fuera de alcance), no hay paso intermedio de pago.
+
+> ⚠️ **Fase de transición (desde 2026-09) — la reserva NO se confirma sola.**
+> Mientras sigan entrando reservas por el canal antiguo (teléfono/libro en papel), el motor de disponibilidad solo ve las plazas reservadas a través de este sistema. Confirmar automáticamente calcularía la capacidad con una foto incompleta y podría duplicar plaza en un vuelo que el libro antiguo ya tiene lleno.
+> Por eso la reserva del bot se queda como lead **`NEW`** en `/reservas → pendientes`, a un click de "Confirmar" para el staff, y la respuesta trae **`requiresStaffConfirmation: true`**.
+> Se controla con la fila `bot_autoconfirm_enabled` de `business_settings` (`false` por defecto). Al ponerla en `true` — cuando ya no entren reservas fuera del sistema — el endpoint vuelve a confirmar en la misma llamada, sin desplegar nada.
 
 **Body:**
 ```json
@@ -113,7 +118,21 @@ Crea una reserva. **No hay pago online en este módulo** (Stripe está fuera de 
 
 > Nota: de momento **una reserva = una persona**. Reservas de grupo (varios participantes en una sola llamada) no están soportadas todavía en este endpoint.
 
-**201 (creada):**
+**201 (creada) — con `bot_autoconfirm_enabled = false` (comportamiento actual):**
+```json
+{
+  "reservationId": "uuid",
+  "token": "uuid",
+  "status": "NEW",
+  "dateClassification": "CONFIRMABLE",
+  "confirmedDate": null,
+  "confirmedTime": null,
+  "requiresStaffConfirmation": true,
+  "statusUrl": "/reserva/uuid"
+}
+```
+
+**201 (creada) — con `bot_autoconfirm_enabled = true`:**
 ```json
 {
   "reservationId": "uuid",
@@ -122,13 +141,21 @@ Crea una reserva. **No hay pago online en este módulo** (Stripe está fuera de 
   "dateClassification": "CONFIRMABLE",
   "confirmedDate": "2026-07-04",
   "confirmedTime": "09:00:00",
+  "requiresStaffConfirmation": false,
   "statusUrl": "/reserva/uuid"
 }
 ```
 
-`status` puede ser:
-- **`CONFIRMED`** — fecha dentro de la ventana de confirmación inmediata (30 días desde hoy) y con plazas. Ya tiene vuelo real asignado (`confirmedDate`/`confirmedTime`).
-- **`TENTATIVE`** — fecha más allá de la ventana de 30 días. Queda parqueada; el sistema la confirma automáticamente (cron diario) en cuanto la fecha entra en la ventana, o el staff la reagenda si para entonces ya no hay sitio. En este caso `confirmedDate`/`confirmedTime` van `null`.
+**Cómo debe leerlo el bot:** ramificar por `requiresStaffConfirmation`, no por `status`.
+
+- **`requiresStaffConfirmation: true`** → la reserva está anotada pero **no hay plaza reservada**. El bot NO debe dar fecha ni hora como confirmadas: mensaje de "reserva anotada, el equipo te contacta en 24-48h para confirmar disponibilidad y el depósito". `confirmedDate`/`confirmedTime` van `null` siempre en este caso, y `status` es `NEW`.
+- **`requiresStaffConfirmation: false`** → comportamiento clásico, `status` puede ser:
+  - **`CONFIRMED`** — fecha dentro de la ventana de confirmación inmediata (30 días desde hoy) y con plazas. Ya tiene vuelo real asignado (`confirmedDate`/`confirmedTime`).
+  - **`TENTATIVE`** — fecha más allá de la ventana de 30 días. Queda parqueada; el sistema la confirma automáticamente (cron diario) en cuanto la fecha entra en la ventana, o el staff la reagenda si para entonces ya no hay sitio. En este caso `confirmedDate`/`confirmedTime` van `null`.
+
+`dateClassification` se devuelve en ambos modos: indica si la fecha pedida era reservable (`CONFIRMABLE` / `TENTATIVE_ONLY`) en el momento del alta. Es informativo — **no es una promesa de plaza** cuando `requiresStaffConfirmation` es `true`.
+
+El 409 por fecha no disponible funciona igual en los dos modos: una fecha cerrada o llena se rechaza en el alta, no se cuela en la cola del staff.
 
 **200 (ya existía — idempotencia por teléfono, v1.1):**
 

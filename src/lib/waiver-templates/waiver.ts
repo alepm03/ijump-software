@@ -1,12 +1,12 @@
-export const WAIVER_TITLE = 'Términos y Condiciones — I Jump Skydive Puravida'
+export const WAIVER_TITLE = 'Términos y Condiciones — I Jump Skydive Pura Vida C.D.'
 
 export const WAIVER_LEGAL_TEXT = `
 DOCUMENTO DE COMPRENSIÓN Y CONSENTIMIENTO DE ACTIVIDAD TANDEM
-I JUMP SKYDIVE PURAVIDA
+I JUMP SKYDIVE PURA VIDA C.D. — CIF G-23600968
 
 Por favor, indique que USTED ENTIENDE Y ACEPTA lo siguiente y que ha recibido este documento informativo con anterioridad a efectuar la reserva de la actividad:
 
-• Los depósitos no son reembolsables. Las reservas son válidas por 6 meses desde la compra. En caso de imposibilidad de salto en la fecha programada por cuestiones meteorológicas u otras que, a criterio de I Jump Skydive Puravida, pongan o puedan poner en peligro la integridad del alumno y/o el instructor, se procederá a la reprogramación del salto en otra fecha posterior pero no será motivo en ningún caso de devolución de la cantidad previamente abonada.
+• Los depósitos no son reembolsables. Las reservas son válidas por 6 meses desde la compra. En caso de imposibilidad de salto en la fecha programada por cuestiones meteorológicas u otras que, a criterio de I Jump Skydive Pura Vida C.D., pongan o puedan poner en peligro la integridad del alumno y/o el instructor, se procederá a la reprogramación del salto en otra fecha posterior pero no será motivo en ningún caso de devolución de la cantidad previamente abonada.
 
 • Los alumnos deben tener al menos 18 años el día del salto (14 con consentimiento del/los tutores, según ley).
 
@@ -30,7 +30,7 @@ Por favor, indique que USTED ENTIENDE Y ACEPTA lo siguiente y que ha recibido es
 
 • Los precios promocionales son válidos para los saltos en tándem completados durante el período de promoción, sin importar la fecha en que se haga la reserva. Las promociones no pueden combinarse ni mezclarse con otros descuentos.
 
-• Entiendo que I Jump Skydive Puravida está ubicado en el aeródromo de Casas de los Pinos en el Centro Internacional de Paracaidismo Aero Balas, S.L., cerca de La Roda en el sur de Castilla la Mancha, N-301, km 190.
+• Entiendo que I Jump Skydive Pura Vida C.D. está ubicado en el aeródromo de Casas de los Pinos en el Centro Internacional de Paracaidismo Aero Balas, S.L., cerca de La Roda en el sur de Castilla la Mancha, N-301, km 190.
 `.trim()
 
 export const HEALTH_ITEMS: Record<string, string> = {

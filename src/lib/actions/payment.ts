@@ -144,7 +144,7 @@ export async function getDailySummary(dayId: string): Promise<DailySummary> {
 
   const { data: participants, error: participantsError } = await supabase
     .from('participants')
-    .select('id, package_type, overweight_fee, reservation_group_id, operational_status')
+    .select('id, package_type, reservation_group_id, operational_status, participant_items ( products ( category ) )')
     .in('flight_id', flightIds)
 
   if (participantsError) throw new Error(participantsError.message)
@@ -188,7 +188,11 @@ export async function getDailySummary(dayId: string): Promise<DailySummary> {
 
     if (p.package_type === 'HANDYCAM' || p.package_type === 'HANDYCAM_FOTOS') summary.handycamCount++
     if (p.package_type === 'VIDEO_EXTERNO') summary.externalCameraCount++
-    if (p.overweight_fee > 0) summary.overweightCount++
+    // Overweight is a CHARGE, not a payment stage and not the legacy
+    // participants.overweight_fee column (write-only, never read by Finanzas
+    // v2). One source of truth: an OVERWEIGHT-category participant_items line.
+    if (p.participant_items?.some((it) => it.products?.category === 'OVERWEIGHT'))
+      summary.overweightCount++
   }
 
   for (const pmt of paymentsResult.data ?? []) {

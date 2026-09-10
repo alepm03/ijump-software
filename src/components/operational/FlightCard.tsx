@@ -17,7 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import type { FlightWithParticipants, Instructor, FlightStatus } from '@/types/domain'
+import type { FlightWithParticipants, Instructor, FlightStatus, Product } from '@/types/domain'
 
 // STATUS_CONFIG uses token class names — no hex (Phase 1)
 // Flight statuses map to the nearest semantic family
@@ -66,6 +66,8 @@ export function ManifestColHead() {
 interface FlightCardProps {
   flight: FlightWithParticipants
   instructors: Instructor[]
+  /** Active product catalog — forwarded to each row for the OW badge / "+ Extra". */
+  products: Product[]
   onAddParticipant: () => void
   onDelete: () => void
   onCancel: () => void
@@ -73,7 +75,7 @@ interface FlightCardProps {
   highlightId?: string | null
 }
 
-export function FlightCard({ flight, instructors, onAddParticipant, onDelete, onCancel, highlightId = null }: FlightCardProps) {
+export function FlightCard({ flight, instructors, products, onAddParticipant, onDelete, onCancel, highlightId = null }: FlightCardProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [editingTime, setEditingTime] = useState(false)
@@ -300,6 +302,7 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete, on
                 participant={participant}
                 flightId={flight.id}
                 instructors={instructors}
+                products={products}
                 highlighted={participant.id === highlightId}
               />
             ))}

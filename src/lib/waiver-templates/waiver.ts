@@ -1,14 +1,14 @@
-export const WAIVER_TITLE = 'Términos y Condiciones — I Jump Skydive Pura Vida C.D.'
+export const WAIVER_TITLE = 'Términos y Condiciones · I Jump Skydive Pura Vida C.D.'
 
 export const WAIVER_LEGAL_TEXT = `
 DOCUMENTO DE COMPRENSIÓN Y CONSENTIMIENTO DE ACTIVIDAD TANDEM
-I JUMP SKYDIVE PURA VIDA C.D. — CIF G-23600968
+I JUMP SKYDIVE PURA VIDA C.D. · CIF G-23600968
 
 Por favor, indique que USTED ENTIENDE Y ACEPTA lo siguiente y que ha recibido este documento informativo con anterioridad a efectuar la reserva de la actividad:
 
 • Los depósitos no son reembolsables. Las reservas son válidas por 6 meses desde la compra. En caso de imposibilidad de salto en la fecha programada por cuestiones meteorológicas u otras que, a criterio de I Jump Skydive Pura Vida C.D., pongan o puedan poner en peligro la integridad del alumno y/o el instructor, se procederá a la reprogramación del salto en otra fecha posterior pero no será motivo en ningún caso de devolución de la cantidad previamente abonada.
 
-• Los alumnos deben tener al menos 18 años el día del salto (14 con consentimiento del/los tutores, según ley).
+• Los alumnos deben tener al menos 18 años el día del salto (14 con consentimiento del/los tutores).
 
 • El peso máximo es de 110kg. El peso debe medirse con ropa, zapatos y totalmente equipado (mono y arnés). Si excede de 90kg. en las condiciones anteriormente señaladas, debe usar un equipo diferente que incurre en un cargo adicional de 45€.
 

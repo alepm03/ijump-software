@@ -1,12 +1,17 @@
 # DOCUMENTO DE CONSENTIMIENTO INFORMADO PARA LA PRÁCTICA DE PARACAIDISMO DEPORTIVO
 
-C.D. I JUMP SKYDIVE PURA VIDA  
-CIF G-23600968  
-Aeródromo de Casas de los Pinos. N-301, Km 190, carretera de los Higuerones s/n. 16612 (Cuenca)
+I JUMP SKYDIVE PURA VIDA C.D. · CIF G-23600968
+Aeródromo de Casas de los Pinos. N-301, Km 190, carretera de los Higuerones s/n. 16612 Casas de los Pinos (Cuenca)
+
+> **Documento fuente.** La versión que el cliente firma realmente vive en
+> `src/lib/waiver-templates/rgpd.ts` y se sirve por QR. Este fichero es el
+> espejo en papel de esa versión. Actualizado el 2026-09-10 para colocar el
+> "C.D." al final de la razón social. Si se edita uno de los dos, hay que
+> editar el otro.
 
 D. Dña. ____________________, nacido/a el día _______ de____________ de ______________, con DNI _________________, y domicilio en _________________________________, provincia de ________________, Calle_______________________________________________, con teléfono ______________________, e-mail ________________________________ y licencia deportiva clase (en su caso) _____________, número _______________.
 
-MANIFIESTA: que consecuencia de mi petición he sido invitado por C.D. I JUMP SKYDIVE PURA VIDA a realizar un vuelo de divulgación/paseo o saltos de paracaidismo, tándem, en la aeronave a lo largo todo el año actual. El salto tándem es el primer salto de bautismo como socio.
+MANIFIESTA: que consecuencia de mi petición he sido invitado por I JUMP SKYDIVE PURA VIDA C.D. a realizar un vuelo de divulgación/paseo o saltos de paracaidismo, tándem, en la aeronave a lo largo todo el año actual. El salto tándem es el primer salto de bautismo como socio.
 
 Que ante la eventualidad de un accidente durante el tiempo que dure la realización del vuelo y maniobras directamente relacionadas con el mismo, sabiendo que la práctica del Paracaidismo es un deporte de alto riesgo:
 
@@ -48,3 +53,25 @@ Menores de edad reconocimiento de firma del padre o tutor (Banco o Notario) o pr
 VALIDEZ DE UN AÑO ENHORABUENA YA ERES SOCIO DEL CLUB (COLABORADOR)
 
 Artículo 6.2 Código Civil*: La exclusión voluntaria de la Ley aplicable y la renuncia de los derechos en ella reconocidos solo serán válidas cuando no contraríen el interés o el orden público ni perjudique a tercero.
+
+---
+
+## Divergencias entre este papel y lo que se firma digitalmente
+
+Tres elementos de este documento **no existen** en la versión digital
+(`rgpd.ts` + el formulario de firma). Se conservan aquí y quedan pendientes de
+decisión, ninguno es bloqueante:
+
+1. **Los dos testigos firmantes.** El papel los exige, la firma digital no los
+   recoge. Es la divergencia de más peso de las tres.
+2. **Reconocimiento de firma del padre o tutor para menores** (banco o notario,
+   o presencia física). No está contemplado en el flujo digital.
+3. **"Validez de un año" y el alta como socio colaborador.** El texto digital
+   sí menciona la condición de socio en el párrafo MANIFIESTA, pero no recoge
+   la validez anual ni esta línea final. Confirmado por Ricardo el 2026-09-10:
+   **el alta de socio no conlleva cuota**.
+
+El resto del contenido sí está cubierto: los datos identificativos y el
+contacto de emergencia se recogen como campos del formulario
+(`WAIVER_FIELDS`), y los derechos de imagen, el consentimiento médico y la
+declaración de sobriedad son casillas independientes (`CONSENT_ITEMS`).

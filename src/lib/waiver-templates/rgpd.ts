@@ -1,10 +1,10 @@
 export const RGPD_TITLE = 'Consentimiento Informado para la Práctica de Paracaidismo Deportivo'
 
 export const RGPD_LEGAL_TEXT = `
-C.D. I JUMP SKYDIVE PURA VIDA — CIF G-23600968
+I JUMP SKYDIVE PURA VIDA C.D. · CIF G-23600968
 Aeródromo de Casas de los Pinos. N-301, Km 190, carretera de los Higuerones s/n. 16612 (Cuenca)
 
-MANIFIESTA: que consecuencia de mi petición he sido invitado por C.D. I JUMP SKYDIVE PURA VIDA a realizar un vuelo de divulgación/paseo o saltos de paracaidismo, tándem, en la aeronave a lo largo todo el año actual. El salto tándem es el primer salto de bautismo como socio.
+MANIFIESTA: que consecuencia de mi petición he sido invitado por I JUMP SKYDIVE PURA VIDA C.D. a realizar un vuelo de divulgación/paseo o saltos de paracaidismo, tándem, en la aeronave a lo largo todo el año actual. El salto tándem es el primer salto de bautismo como socio.
 
 Que ante la eventualidad de un accidente durante el tiempo que dure la realización del vuelo y maniobras directamente relacionadas con el mismo, sabiendo que la práctica del Paracaidismo es un deporte de alto riesgo:
 

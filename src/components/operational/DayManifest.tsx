@@ -35,6 +35,7 @@ import type {
   FlightWithParticipants,
   Instructor,
   OperationalDayWithDetails,
+  Product,
 } from '@/types/domain'
 
 /** operational_status values that mean "not actually occupying a seat" — same rule as pnl-engine's NON_COMPLETED_STATUSES. */
@@ -48,11 +49,13 @@ interface DayManifestProps {
   day: OperationalDayWithDetails
   instructors: Instructor[]
   policy: AvailabilityPolicy
+  /** Active product catalog — powers the OW badge and the "+ Extra" picker. */
+  products: Product[]
   /** Participant to scroll to and briefly highlight (deep-link from /reservas). */
   highlightId?: string | null
 }
 
-export function DayManifest({ day, instructors, policy, highlightId = null }: DayManifestProps) {
+export function DayManifest({ day, instructors, policy, products, highlightId = null }: DayManifestProps) {
   const router = useRouter()
   const dndId = useId()
   const [isPending, startTransition] = useTransition()
@@ -254,6 +257,7 @@ export function DayManifest({ day, instructors, policy, highlightId = null }: Da
                       key={flight.id}
                       flight={flight}
                       instructors={instructors}
+                      products={products}
                       onAddParticipant={() => setAddToFlightId(flight.id)}
                       onDelete={() => handleDeleteFlight(flight.id)}
                       onCancel={() => setCancelFlightId(flight.id)}

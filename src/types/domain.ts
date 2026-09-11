@@ -620,6 +620,12 @@ export interface WaiverFormData {
   healthDeclaration?: Record<string, boolean>
   // Consent checkboxes (RGPD / Consentimiento Informado)
   consents?: Record<string, boolean>
+  // Witness (RGPD only) — one witness, not the original paper's two (business
+  // decision 2026-09-11). Usually someone from the participant's own group;
+  // Ana (administración) signs as a fallback when nobody else is available.
+  witnessName?: string
+  witnessDni?: string
+  witnessAge?: string
 }
 
 export interface Waiver {

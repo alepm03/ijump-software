@@ -12,7 +12,10 @@ export async function generateWaiverPdf(
   documentType: WaiverDocumentType,
   formData: WaiverFormData,
   signatureDataUrl: string,
-  participantName: string
+  participantName: string,
+  // RGPD only: the one witness the original paper's two witnesses were
+  // simplified to (business decision 2026-09-11).
+  witnessSignatureDataUrl?: string
 ): Promise<string> {
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
@@ -169,6 +172,47 @@ export async function generateWaiverPdf(
     margin,
     y
   )
+  y += 10
+
+  // ── Witness (RGPD only) ─────────────────────────────────────────────────────
+  // The original paper required two witnesses (name, DNI, edad, firma each).
+  // Simplified to one — see WaiverFormData.witnessName.
+  if (documentType === 'RGPD' && formData.witnessName) {
+    divider()
+    checkPageBreak(60)
+    sectionTitle('TESTIGO')
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8.5)
+    doc.setTextColor(100, 100, 100)
+    doc.text('Nombre:', margin, y)
+    doc.setTextColor(30, 30, 30)
+    doc.text(formData.witnessName || '—', margin + 22, y)
+    y += 6
+
+    doc.setTextColor(100, 100, 100)
+    doc.text('DNI:', margin, y)
+    doc.setTextColor(30, 30, 30)
+    doc.text(formData.witnessDni || '—', margin + 22, y)
+    y += 6
+
+    doc.setTextColor(100, 100, 100)
+    doc.text('Edad:', margin, y)
+    doc.setTextColor(30, 30, 30)
+    doc.text(formData.witnessAge || '—', margin + 22, y)
+    y += 8
+
+    if (witnessSignatureDataUrl) {
+      try {
+        doc.addImage(witnessSignatureDataUrl, 'PNG', margin, y, 80, 36)
+        y += 42
+      } catch {
+        doc.setFontSize(8)
+        doc.text('[Firma del testigo capturada]', margin, y)
+        y += 12
+      }
+    }
+  }
 
   const dataUri = doc.output('datauristring')
   return dataUri.substring(dataUri.indexOf(',') + 1)

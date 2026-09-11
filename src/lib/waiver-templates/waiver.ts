@@ -26,6 +26,8 @@ Por favor, indique que USTED ENTIENDE Y ACEPTA lo siguiente y que ha recibido es
 
 • Al hacer una reserva, los alumnos están aceptando los presentes Términos y Condiciones.
 
+• El salto en tándem es parte de un curso de paracaidismo. Soy consciente de que después de mi salto, puedo continuar mi progresión en el curso de paracaidismo de acuerdo con el programa AFF.
+
 • Tenga en cuenta que el paquete del video lo conservaremos durante 15 días desde el día de su salto. Por lo tanto, recomendamos que descargue los archivos a su dispositivo/nube tan pronto como los reciba por correo electrónico.
 
 • Los precios promocionales son válidos para los saltos en tándem completados durante el período de promoción, sin importar la fecha en que se haga la reserva. Las promociones no pueden combinarse ni mezclarse con otros descuentos.

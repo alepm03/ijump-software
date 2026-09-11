@@ -23,6 +23,7 @@ Por favor, indique que USTED ENTIENDE Y ACEPTA lo siguiente y que ha recibido es
 - Los saltos reprogramados por parte del alumno, sin importar la razón, estarán sujetos al precio aplicable ese día.
 - El alumno no podrá hacer uso de cámaras u otros dispositivos para realizar videos o cualquier contenido multimedia. Está prohibido el uso de relojes y objetos que no puedan garantizar la seguridad de la actividad en su totalidad.
 - Al hacer una reserva, los alumnos están aceptando los presentes Términos y Condiciones.
+- El salto en tándem es parte de un curso de paracaidismo. Soy consciente de que después de mi salto, puedo continuar mi progresión en el curso de paracaidismo de acuerdo con el programa AFF.
 - Tenga en cuenta que el paquete del video lo conservaremos durante 15 días desde el día de su salto. Por lo tanto, recomendamos que descargue los archivos a su dispositivo/nube tan pronto como los reciba por correo electrónico.
 - Los precios promocionales son válidos para los saltos en tándem completados durante el período de promoción, sin importar la fecha en que se haga la reserva. Las promociones no pueden combinarse ni mezclarse con otros descuentos.
 - Entiendo que I Jump Skydive Pura Vida C.D. está ubicado en el aeródromo de Casas de los Pinos en el Centro Internacional de Paracaidismo Aero Balas, S.L., cerca de La Roda en el sur de Castilla la Mancha, N-301, km 190.
@@ -48,15 +49,10 @@ EL ALUMNO
 
 ---
 
-## Divergencia pendiente de decisión
+## Divergencia resuelta (2026-09-11)
 
-El documento original en papel incluía una viñeta más que **no está** en la
-versión digital que se firma hoy:
-
-> «El salto en tándem es parte de un curso de paracaidismo. Soy consciente de
-> que después de mi salto, puedo continuar mi progresión en el curso de
-> paracaidismo de acuerdo con el programa AFF.»
-
-Se conserva aquí para no perderla. Decisión pendiente de Ricardo y Raúl:
-reincorporarla a `waiver.ts` o retirarla también de este documento. Mientras
-no se decida, lo que se firma es la versión sin esta cláusula.
+La cláusula del programa AFF, que el papel original tenía y la versión
+digital no, se ha reincorporado a `waiver.ts` y a este documento. Ricardo
+confirmó que iJump sigue ofreciendo el curso de paracaidismo, y que por ser
+C.D. es una mención casi obligatoria. Pendiente (no urgente): publicarla
+también en la web, cuando haya tiempo.

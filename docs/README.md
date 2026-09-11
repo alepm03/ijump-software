@@ -42,6 +42,7 @@ Documentación **activa** del sistema de reservas (lead → confirmación → ma
 - **`CHECKLIST.md`** — estado real fase por fase. Fuente de verdad de progreso de este módulo.
 - **`RESERVATIONS_INTEGRATION.md`** — guía post-merge: arquitectura, decisiones tomadas, qué tocar para extenderlo.
 - **`BOT_API_CONTRACT.md`** — contrato de la API que consume el chatbot (relevante para el lado de Ricardo, R5).
+- **`GRUPOS.md`** — reservas de grupo: por qué no llegaban al sistema, modelo de datos, asignación de asientos sin partir el grupo, cobro y eventos de 10+.
 - **`_archivado/`** — planes preliminares y prompts de handoff ya ejecutados (R1–R10 en producción): `RESERVAS_MASTER_PLAN_v2.md`, `RESERVAS_TECH_APPENDIX_v2.md` (incluye diseño de Stripe, fuera de alcance real del MVP), `RESERVAS_MODULE_PLAN_v1.md` (plan preliminar, ver nota de corrección al inicio del propio archivo), `RESERVAS_HANDOFF_PROMPT.md`, `FINANZAS_REMODEL_V2.MD` (prompt de sesión del ajuste de gastos con datos reales de Raúl, PR #27).
 
 ## `_archivado/` (raíz)

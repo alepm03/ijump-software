@@ -7,10 +7,12 @@ import { getDayAvailability, type DbClient } from '@/lib/actions/availability'
 import { classifyDate } from '@/lib/availability/availability-engine'
 import { syncAutoParticipantItems, clearAutoParticipantItems } from '@/lib/actions/finance'
 import { normalizePhone } from '@/lib/phone'
-import { isLeadCold } from '@/lib/utils'
+import { isLeadCold, todayIso } from '@/lib/utils'
+import { getGroupEventThreshold } from '@/lib/actions/settings'
 import type {
   Channel,
   DateClass,
+  GroupPaymentMode,
   LeadStatus,
   LeadWithDetails,
   PackageType,
@@ -18,11 +20,6 @@ import type {
   PaymentStage,
   ReservationSource,
 } from '@/types/domain'
-
-/** Today as YYYY-MM-DD in the center's timezone (Europe/Madrid). */
-function todayIso(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(new Date())
-}
 
 export type CreateLeadInput = {
   fullName: string
@@ -670,26 +667,37 @@ export async function countLeads(filter: LeadFilter): Promise<number> {
   return count ?? 0
 }
 
+/**
+ * Leads for a tab, collapsed into ONE ROW PER BOOKING.
+ *
+ * A reservation group is one booking with 1..N participants, so /reservas
+ * shows the organizer's row carrying its companions underneath rather than a
+ * loose row per person. The companions are still full lead rows in the
+ * database — each has its own waiver, seat, instructor and items — they just
+ * don't deserve their own line in the staff queue.
+ *
+ * groupSize is counted from the rows actually returned for this tab, not from
+ * an embedded participants(count): that count includes cancelled members, so a
+ * party of 2 that once had a third member would keep advertising itself as 3.
+ */
 export async function listLeads(filter: LeadFilter): Promise<{ leads: LeadWithDetails[]; error?: string }> {
   const supabase = await createClient()
-  // payments: drives the per-row payment badge and the LeadSheet payment
-  // manager. participants(count) inside the group embed: a group-of-1 is
-  // structural (it carries `source` — see createParticipant), so the UI
-  // must not read "has a group id" as "comes in a group"; only >= 2 real
-  // members (or an explicit payer) mean that.
+  // payments: drives the per-row payment badge and the LeadSheet payment manager.
   const { data, error } = await supabase
     .from('participants')
     .select(
       `*,
-       reservation_group:reservation_groups!participants_reservation_group_id_fkey (*, participants(count)),
-       payments (id, participant_id, amount, method, stage, notes, created_at)`
+       reservation_group:reservation_groups!participants_reservation_group_id_fkey (*),
+       payments (id, participant_id, amount, method, stage, notes, created_at, group_payment_id)`
     )
     .in('lead_status', STATUSES_BY_FILTER[filter])
     .order('preferred_date', { ascending: true, nullsFirst: false })
+    .order('is_organizer', { ascending: false })
+    .order('created_at', { ascending: true })
 
   if (error) return { leads: [], error: error.message }
 
-  const leads: LeadWithDetails[] = (data ?? []).map((p) => ({
+  const rows: LeadWithDetails[] = (data ?? []).map((p) => ({
     id: p.id,
     reservationGroupId: p.reservation_group_id,
     flightId: p.flight_id,
@@ -717,6 +725,8 @@ export async function listLeads(filter: LeadFilter): Promise<{ leads: LeadWithDe
     channel: p.channel as Channel,
     createdBy: p.created_by,
     token: p.token,
+    isOrganizer: p.is_organizer,
+    isMinor: p.is_minor,
     reservationGroup: p.reservation_group
       ? {
           id: p.reservation_group.id,
@@ -728,9 +738,13 @@ export async function listLeads(filter: LeadFilter): Promise<{ leads: LeadWithDe
           contactEmail: p.reservation_group.contact_email,
           channel: p.reservation_group.channel as Channel,
           createdBy: p.reservation_group.created_by,
+          paymentMode: p.reservation_group.payment_mode as GroupPaymentMode,
         }
       : null,
-    groupSize: p.reservation_group?.participants?.[0]?.count ?? 0,
+    // Filled in by the collapse pass below.
+    groupSize: 1,
+    companions: [],
+    isEvent: false,
     payments: (p.payments ?? []).map((pay: Record<string, unknown>) => ({
       id: pay.id as string,
       participantId: pay.participant_id as string,
@@ -739,9 +753,48 @@ export async function listLeads(filter: LeadFilter): Promise<{ leads: LeadWithDe
       stage: pay.stage as PaymentStage,
       notes: pay.notes as string | null,
       createdAt: pay.created_at as string,
+      groupPaymentId: (pay.group_payment_id ?? null) as string | null,
     })),
     paidTotal: (p.payments ?? []).reduce((sum: number, pay: { amount: number }) => sum + pay.amount, 0),
   }))
+
+  // ── Collapse each booking into its organizer's row ──
+  const threshold = await getGroupEventThreshold(supabase)
+
+  const byGroup = new Map<string, LeadWithDetails[]>()
+  for (const row of rows) {
+    if (!row.reservationGroupId) continue
+    const members = byGroup.get(row.reservationGroupId) ?? []
+    members.push(row)
+    byGroup.set(row.reservationGroupId, members)
+  }
+
+  const emitted = new Set<string>()
+  const leads: LeadWithDetails[] = []
+
+  for (const row of rows) {
+    // A participant with no group at all (older bot-created leads) stands alone.
+    if (!row.reservationGroupId) {
+      leads.push(row)
+      continue
+    }
+    if (emitted.has(row.reservationGroupId)) continue
+    emitted.add(row.reservationGroupId)
+
+    const members = byGroup.get(row.reservationGroupId) ?? [row]
+    // The query orders organizers first, so members[0] is the organizer
+    // whenever there is one; falling back to the earliest member keeps a
+    // booking visible even if its organizer flag went missing.
+    const organizer = members.find((m) => m.isOrganizer) ?? members[0]
+    const companions = members.filter((m) => m.id !== organizer.id)
+
+    for (const member of members) {
+      member.groupSize = members.length
+      member.isEvent = members.length >= threshold
+    }
+    organizer.companions = companions
+    leads.push(organizer)
+  }
 
   return { leads }
 }

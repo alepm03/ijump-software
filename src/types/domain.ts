@@ -129,7 +129,24 @@ export interface Participant {
   // note...). Populated by E2 UI actions; backfilled from updated_at for
   // pre-existing leads by the migration that added the column.
   lastContactAt?: string | null
+  // Reservas de grupo — see docs/reservas/GRUPOS.md
+  /**
+   * The person who made the booking and supplies the group's contact data.
+   * Exactly one per reservation group (enforced by a partial unique index).
+   * A one-person booking also has its organizer: itself.
+   */
+  isOrganizer: boolean
+  /** Under 18: needs a signed parental authorisation before jumping. */
+  isMinor: boolean
 }
+
+/**
+ * How the group agreed to pay. Purely informative: it picks the default
+ * action in the UI and the manifest hint, and never restricts any payment.
+ * The real mixed case (the organizer pays everyone's deposit, each member
+ * settles their own balance on jump day) works under any value.
+ */
+export type GroupPaymentMode = 'ORGANIZER' | 'INDIVIDUAL' | 'UNDECIDED'
 
 export interface ReservationGroup {
   id: string
@@ -143,6 +160,7 @@ export interface ReservationGroup {
   contactEmail: string | null
   channel: Channel
   createdBy: string | null
+  paymentMode: GroupPaymentMode
 }
 
 export interface Payment {
@@ -153,6 +171,13 @@ export interface Payment {
   stage: PaymentStage
   notes: string | null
   createdAt: string
+  /**
+   * Set on every row produced by a single group charge split across members,
+   * so the UI can show and undo them as one operation. NULL for individual
+   * payments — the payments model itself is unchanged, one row per person,
+   * which is what keeps cash close, AR and the P&L adding up.
+   */
+  groupPaymentId: string | null
 }
 
 export interface Instructor {
@@ -554,6 +579,20 @@ export interface LeadWithDetails extends Participant {
   payments: Payment[]
   /** Σ payments.amount, precomputed for the row badge. */
   paidTotal: number
+  /**
+   * The rest of the booking, populated ONLY on the organizer's row: listLeads
+   * collapses a group into a single row so /reservas shows one line per
+   * booking, not per person. Companions are full lead rows underneath — each
+   * one needs its own waiver, seat, instructor, items and overweight fee —
+   * they just don't carry phone or email of their own.
+   */
+  companions: LeadWithDetails[]
+  /**
+   * Group at or above business_settings.group_event_threshold (10). Accepted
+   * like any other booking, but never auto-confirmed: the team has to confirm
+   * it explicitly and negotiate it. See docs/reservas/GRUPOS.md.
+   */
+  isEvent: boolean
 }
 
 // ─── End reservations module types ───────────────────────────

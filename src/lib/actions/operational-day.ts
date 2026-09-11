@@ -12,6 +12,7 @@ import type {
   WeatherStatus,
   LeadStatus,
   Channel,
+  GroupPaymentMode,
 } from '@/types/domain'
 
 export async function getOperationalDays(): Promise<OperationalDay[]> {
@@ -102,6 +103,8 @@ export async function getOperationalDay(
       channel: p.channel as Channel,
       createdBy: p.created_by,
       token: p.token,
+      isOrganizer: p.is_organizer,
+      isMinor: p.is_minor,
       instructor: p.instructor
         ? { id: p.instructor.id, name: p.instructor.name, active: p.instructor.active, feePerJump: p.instructor.fee_per_jump, createdAt: p.instructor.created_at }
         : null,
@@ -113,6 +116,7 @@ export async function getOperationalDay(
         stage: pmt.stage,
         notes: pmt.notes,
         createdAt: pmt.created_at,
+        groupPaymentId: pmt.group_payment_id,
       })),
       items: (p.participant_items ?? []).map((it) => ({
         id: it.id,
@@ -137,6 +141,7 @@ export async function getOperationalDay(
             contactEmail: p.reservation_group.contact_email,
             channel: p.reservation_group.channel as Channel,
             createdBy: p.reservation_group.created_by,
+            paymentMode: p.reservation_group.payment_mode as GroupPaymentMode,
           }
         : null,
     })),

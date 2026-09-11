@@ -135,6 +135,7 @@ gh pr create --title "..." --body "..."
 | CRM P0 (aging de leads `last_contact_at` + cola >48h en `/reservas`, dedupe por teléfono con normalización canónica, idempotencia por teléfono en la API del bot — contrato v1.1) | ✅ Producción | #50 |
 | CRM P1 (reactivar leads NO_SHOW/CANCELLED, canal STAFF_PHONE/STAFF_WHATSAPP + migración CHECK, H9 límites Zod en API bot) | ✅ Producción | #55 |
 | CRM lead management (circuito no-show manifest↔leads + barrido cron, `/reservas` como tabla CRM con ficha de lead `LeadSheet`, pagos y `deposit_paid` desde reservas, alerta leads fríos + badge sidebar, fix badge Grupo, deep-link al manifest) | ✅ Producción | #58 |
+| Reservas de grupo — núcleo (semántica real de `reservation_groups`, organizador y menores, RPC `reservations_assign_group` todo-o-nada con vuelos consecutivos, `/reservas` colapsa una fila por reserva, fix cadencia de vuelos) | ⏳ En revisión | (PR 1 de 3) — guía en `docs/reservas/GRUPOS.md` |
 
 ### Lo que NO está en scope (aún)
 - CRM avanzado
@@ -308,6 +309,7 @@ docs/
     CHECKLIST.md
     RESERVATIONS_INTEGRATION.md
     BOT_API_CONTRACT.md
+    GRUPOS.md                  # reservas de grupo: modelo, asignación sin partir el grupo, cobro, eventos
     _archivado/                # planes preliminares de reservas ya ejecutados
   _archivado/                # referencia histórica sin módulo propio — no vigente, no borrar sin revisar
 ```
@@ -377,6 +379,7 @@ npx tsc --noEmit                     # verificación de tipos
 node_modules/.bin/jiti src/lib/finance/__pnl_check.mts    # check regresión P&L
 node_modules/.bin/jiti src/lib/export/__gastos_check.mts  # check regresión gastos
 node_modules/.bin/jiti src/lib/finance/__itemization_check.mts  # check motor auto-itemización (Sprint 1 tesorería)
+node_modules/.bin/jiti supabase/__assign_group_check.mts  # check RPC de asignación de grupo (Postgres real vía PGlite)
 
 # Supabase
 supabase start

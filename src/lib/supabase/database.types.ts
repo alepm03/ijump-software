@@ -533,6 +533,8 @@ export type Database = {
           full_name: string
           geared_up: boolean
           id: string
+          is_minor: boolean
+          is_organizer: boolean
           last_contact_at: string | null
           lead_status: string | null
           notes: string | null
@@ -562,6 +564,8 @@ export type Database = {
           full_name: string
           geared_up?: boolean
           id?: string
+          is_minor?: boolean
+          is_organizer?: boolean
           last_contact_at?: string | null
           lead_status?: string | null
           notes?: string | null
@@ -591,6 +595,8 @@ export type Database = {
           full_name?: string
           geared_up?: boolean
           id?: string
+          is_minor?: boolean
+          is_organizer?: boolean
           last_contact_at?: string | null
           lead_status?: string | null
           notes?: string | null
@@ -634,6 +640,7 @@ export type Database = {
         Row: {
           amount: number
           created_at: string
+          group_payment_id: string | null
           id: string
           method: Database["public"]["Enums"]["payment_method"]
           notes: string | null
@@ -643,6 +650,7 @@ export type Database = {
         Insert: {
           amount: number
           created_at?: string
+          group_payment_id?: string | null
           id?: string
           method: Database["public"]["Enums"]["payment_method"]
           notes?: string | null
@@ -652,6 +660,7 @@ export type Database = {
         Update: {
           amount?: number
           created_at?: string
+          group_payment_id?: string | null
           id?: string
           method?: Database["public"]["Enums"]["payment_method"]
           notes?: string | null
@@ -717,6 +726,7 @@ export type Database = {
           id: string
           notes: string | null
           payer_name: string | null
+          payment_mode: string
           source: Database["public"]["Enums"]["reservation_source"]
         }
         Insert: {
@@ -728,6 +738,7 @@ export type Database = {
           id?: string
           notes?: string | null
           payer_name?: string | null
+          payment_mode?: string
           source?: Database["public"]["Enums"]["reservation_source"]
         }
         Update: {
@@ -739,6 +750,7 @@ export type Database = {
           id?: string
           notes?: string | null
           payer_name?: string | null
+          payment_mode?: string
           source?: Database["public"]["Enums"]["reservation_source"]
         }
         Relationships: []
@@ -842,6 +854,14 @@ export type Database = {
         Returns: {
           allowed: boolean
           retry_after_seconds: number
+        }[]
+      }
+      reservations_assign_group: {
+        Args: { p_date: string; p_group_id: string }
+        Returns: {
+          confirmed_time: string
+          flight_id: string
+          participant_id: string
         }[]
       }
       reservations_assign_seat: {

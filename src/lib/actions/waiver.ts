@@ -24,6 +24,9 @@ const waiverFormDataSchema = z.object({
   sportsLicenseNumber: z.string().max(60).optional(),
   healthDeclaration: z.record(z.string().max(100), z.boolean()).optional(),
   consents: z.record(z.string().max(100), z.boolean()).optional(),
+  witnessName: z.string().max(120).optional(),
+  witnessDni: z.string().max(60).optional(),
+  witnessAge: z.string().max(10).optional(),
 })
 
 const PNG_MAGIC_BYTES = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
@@ -178,7 +181,10 @@ export async function getWaiverByToken(token: string): Promise<{
 export async function submitWaiver(
   token: string,
   formData: WaiverFormData,
-  signatureBase64: string
+  signatureBase64: string,
+  // RGPD only: one witness signature (the original paper required two — see
+  // WaiverFormData.witnessName). WAIVER submissions never pass this.
+  witnessSignatureBase64?: string
 ): Promise<{ error?: string }> {
   const supabase = createServiceClient()
 
@@ -199,6 +205,16 @@ export async function submitWaiver(
 
   const sigBuffer = decodeAndValidateSignature(signatureBase64)
   if (!sigBuffer) return { error: 'invalid_signature' }
+
+  // Present means the form claims to include one — validate it strictly.
+  // Absent is fine (WAIVER submissions, or an RGPD client that hasn't
+  // rolled out the witness UI yet): we don't retroactively require it here,
+  // the client-side form is what enforces "required for RGPD".
+  let witnessSigBuffer: Buffer | null = null
+  if (witnessSignatureBase64) {
+    witnessSigBuffer = decodeAndValidateSignature(witnessSignatureBase64)
+    if (!witnessSigBuffer) return { error: 'invalid_witness_signature' }
+  }
 
   const participantRow = existing.participants as { full_name: string } | null
   const participantName = participantRow?.full_name ?? 'Participante'
@@ -225,7 +241,8 @@ export async function submitWaiver(
     existing.document_type as WaiverDocumentType,
     parsedFormData,
     signatureBase64,
-    participantName
+    participantName,
+    witnessSigBuffer ? witnessSignatureBase64 : undefined
   )
 
   // Upload PDF — {participantId}/WAIVER/NombreCliente-Fecha-WAIVER-{waiverIdShort}.pdf
@@ -249,6 +266,22 @@ export async function submitWaiver(
     return { error: `Signature upload failed: ${sigError.message}` }
   }
 
+  // Witness signature — same bucket, sibling path, only when one was sent.
+  // No dedicated column for this (avoids a migration for a JSON-shaped
+  // extra): the signed URL rides inside form_data alongside witnessName/
+  // witnessDni/witnessAge, exactly like the rest of the submitted fields.
+  let witnessSigPath: string | null = null
+  if (witnessSigBuffer) {
+    witnessSigPath = `${existing.participant_id}/${docLabel}/${baseName}-${waiverIdShort}-firma-testigo.png`
+    const { error: witnessSigError } = await supabase.storage
+      .from('waiver-documents')
+      .upload(witnessSigPath, witnessSigBuffer, { contentType: 'image/png', upsert: false })
+
+    if (witnessSigError && !isDuplicateUploadError(witnessSigError)) {
+      return { error: `Witness signature upload failed: ${witnessSigError.message}` }
+    }
+  }
+
   // Build signed URLs for permanent reference (10-year expiry)
   const { data: pdfSigned } = await supabase.storage
     .from('waiver-documents')
@@ -258,11 +291,23 @@ export async function submitWaiver(
     .from('waiver-documents')
     .createSignedUrl(sigPath, 60 * 60 * 24 * 365 * 10)
 
+  let witnessSignatureUrl: string | undefined
+  if (witnessSigPath) {
+    const { data: witnessSigSigned } = await supabase.storage
+      .from('waiver-documents')
+      .createSignedUrl(witnessSigPath, 60 * 60 * 24 * 365 * 10)
+    witnessSignatureUrl = witnessSigSigned?.signedUrl ?? witnessSigPath
+  }
+
+  const formDataToStore = witnessSignatureUrl
+    ? { ...parsedFormData, witnessSignatureUrl }
+    : parsedFormData
+
   // Update waiver record
   const { error: updateError } = await supabase
     .from('waivers')
     .update({
-      form_data: parsedFormData as unknown as import('@/lib/supabase/database.types').Json,
+      form_data: formDataToStore as unknown as import('@/lib/supabase/database.types').Json,
       pdf_url: pdfSigned?.signedUrl ?? pdfPath,
       signature_url: sigSigned?.signedUrl ?? sigPath,
       status: 'COMPLETED',

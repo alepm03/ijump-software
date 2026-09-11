@@ -20,6 +20,8 @@ Asimismo, DECLARO haber recibido las instrucciones oportunas de las posibles eme
 
 He sido informado de la prohibición de la práctica de submarinismo deportivo 24 horas antes del salto, y que respetaré mi descanso personal no habiendo trasnochado la noche anterior a la práctica de este deporte.
 
+VALIDEZ DE UN AÑO ENHORABUENA YA ERES SOCIO DEL CLUB (COLABORADOR)
+
 Artículo 6.2 Código Civil*: La exclusión voluntaria de la Ley aplicable y la renuncia de los derechos en ella reconocidos solo serán válidas cuando no contraríen el interés o el orden público ni perjudique a tercero.
 `.trim()
 

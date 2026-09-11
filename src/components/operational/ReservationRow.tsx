@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Users, ExternalLink } from 'lucide-react'
+import { Users, ExternalLink, ChevronRight, ChevronDown, Baby, PartyPopper } from 'lucide-react'
 import { toast } from 'sonner'
 import { cancelLead, reactivateLead, type LeadFilter } from '@/lib/actions/leads'
+import { cancelGroup, removeCompanion } from '@/lib/actions/group'
 import { updateParticipant, type UpdateParticipantData } from '@/lib/actions/participant'
 import { AvailabilityBadge, LeadStatusBadge } from '@/components/operational/ReservationStatusBadge'
 import { ConfirmReservationModal } from '@/components/operational/ConfirmReservationModal'
@@ -16,6 +17,8 @@ import { CompleteLeadModal } from '@/components/operational/CompleteLeadModal'
 import { InlineField } from '@/components/operational/InlineField'
 import { formatAging, isLeadCold } from '@/lib/utils'
 import type { DateClass, LeadWithDetails } from '@/types/domain'
+import { PACKAGE_LABELS } from '@/types/domain'
+
 
 /** 96h with no contact escalates the aging badge from amber to red. */
 const AGING_CRITICAL_MS = 96 * 60 * 60 * 1000
@@ -90,10 +93,17 @@ export function ReservationRow({ lead, tab, classification, onOpenDetail }: Rese
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [rescheduleOpen, setRescheduleOpen] = useState(false)
   const [completeOpen, setCompleteOpen] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  // Frozen on mount instead of read during render: aging is a display hint,
+  // and a clock that ticks mid-render makes the component impure (the row
+  // would render differently on every pass). Any navigation remounts it.
+  const [now] = useState(() => Date.now())
 
-  // A group-of-1 is structural (it carries `source`); only 2+ real members
-  // or an explicit payer mean this person actually comes in a group.
-  const hasGroup = lead.groupSize >= 2 || !!lead.reservationGroup?.payerName
+  // This row IS the booking: listLeads collapses each reservation group into
+  // its organizer's row, with the rest of the party in `companions`.
+  const companions = lead.companions
+  const hasGroup = lead.groupSize >= 2
+  const minorsInParty = (lead.isMinor ? 1 : 0) + companions.filter((c) => c.isMinor).length
   // CRM P0 — aging: only leads awaiting staff action go cold (TENTATIVE
   // waits for its month, not for a human; CONFIRMED aging is informational).
   // NO_SHOW counts too since the "Reagendar" tab exists: rebooking a no-show
@@ -102,10 +112,9 @@ export function ReservationRow({ lead, tab, classification, onOpenDetail }: Rese
     lead.leadStatus === 'NEW' ||
     lead.leadStatus === 'RESCHEDULE_NEEDED' ||
     lead.leadStatus === 'NO_SHOW'
-  const isCold = awaitingStaff && isLeadCold(lead.lastContactAt)
+  const isCold = awaitingStaff && isLeadCold(lead.lastContactAt, now)
   const agingCritical =
-    !lead.lastContactAt ||
-    Date.now() - new Date(lead.lastContactAt).getTime() > AGING_CRITICAL_MS
+    !lead.lastContactAt || now - new Date(lead.lastContactAt).getTime() > AGING_CRITICAL_MS
   const canConfirmDirectly =
     tab === 'pending' &&
     !!lead.preferredDate &&
@@ -125,11 +134,30 @@ export function ReservationRow({ lead, tab, classification, onOpenDetail }: Rese
       : lead.confirmedTime ?? lead.preferredTime
   const payment = paymentBadge(lead)
 
+  /**
+   * Cancelling a booking cancels the whole party. Cancelling only the
+   * organizer would strand the companions: they hold no phone or email of
+   * their own, so nobody would know who to call. Dropping a single companion
+   * is done from the booking's detail sheet instead.
+   */
   function handleCancel() {
+    if (hasGroup && !confirm(
+      `Se cancelará la reserva completa: ${lead.fullName} y ${companions.length} acompañante${companions.length === 1 ? '' : 's'}. ¿Continuar?`
+    )) return
+
     startTransition(async () => {
-      const result = await cancelLead(lead.id)
+      const result = hasGroup && lead.reservationGroupId
+        ? await cancelGroup(lead.reservationGroupId)
+        : await cancelLead(lead.id)
       if (result.error) toast.error(result.error)
-      else toast.success(`Reserva de ${lead.fullName} cancelada`)
+      else {
+        toast.success(
+          hasGroup
+            ? `Reserva de ${lead.fullName} (${lead.groupSize} personas) cancelada`
+            : `Reserva de ${lead.fullName} cancelada`
+        )
+        router.refresh()
+      }
     })
   }
 
@@ -156,9 +184,10 @@ export function ReservationRow({ lead, tab, classification, onOpenDetail }: Rese
   }
 
   return (
+    <div className="bg-card border border-border rounded-lg overflow-hidden">
     <div
-      className={`flex items-center gap-2 px-4 py-3 bg-card border border-border rounded-lg transition-colors ${
-        onOpenDetail ? 'cursor-pointer hover:border-primary/40' : ''
+      className={`flex items-center gap-2 px-4 py-3 transition-colors ${
+        onOpenDetail ? 'cursor-pointer hover:bg-secondary/40' : ''
       }`}
       onClick={onOpenDetail}
     >
@@ -172,15 +201,33 @@ export function ReservationRow({ lead, tab, classification, onOpenDetail }: Rese
             className="font-semibold text-sm"
           />
           {hasGroup && (
+            <button
+              onClick={() => setExpanded((v) => !v)}
+              className="inline-flex items-center gap-1 text-2xs font-semibold px-1.5 py-0.5 rounded-full bg-secondary text-primary hover:bg-secondary/70 transition-colors whitespace-nowrap"
+              title={`Reserva de ${lead.groupSize} personas — ver acompañantes`}
+            >
+              {expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+              <Users size={11} /> {lead.groupSize}
+            </button>
+          )}
+          {lead.isEvent && (
             <span
-              className="inline-flex items-center gap-1 text-2xs text-muted-foreground"
+              className="inline-flex items-center gap-1 text-2xs font-semibold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 whitespace-nowrap"
+              title="Grupo grande: lo tiene que confirmar el equipo expresamente, no se autoconfirma"
+            >
+              <PartyPopper size={11} /> Evento
+            </span>
+          )}
+          {minorsInParty > 0 && (
+            <span
+              className="inline-flex items-center gap-1 text-2xs font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 whitespace-nowrap"
               title={
-                lead.groupSize >= 2
-                  ? `Grupo de ${lead.groupSize}`
-                  : `Grupo · pagador: ${lead.reservationGroup?.payerName}`
+                minorsInParty === 1
+                  ? 'Hay un menor de edad: falta la autorización paterna firmada'
+                  : `Hay ${minorsInParty} menores de edad: falta la autorización paterna firmada`
               }
             >
-              <Users size={12} /> {lead.groupSize >= 2 ? `Grupo · ${lead.groupSize}` : 'Grupo'}
+              <Baby size={11} /> {minorsInParty > 1 ? minorsInParty : ''} Menor{minorsInParty > 1 ? 'es' : ''}
             </span>
           )}
         </div>
@@ -344,6 +391,84 @@ export function ReservationRow({ lead, tab, classification, onOpenDetail }: Rese
         )}
         <RescheduleReservationModal lead={lead} open={rescheduleOpen} onOpenChange={setRescheduleOpen} />
         <CompleteLeadModal lead={lead} open={completeOpen} onOpenChange={setCompleteOpen} />
+      </div>
+    </div>
+
+    {/* Acompañantes — el resto de la reserva, plegado por defecto para que la
+        cola siga leyéndose como una lista de reservas y no de personas. */}
+    {expanded && companions.length > 0 && (
+      <div className="border-t border-border bg-secondary/30" onClick={(e) => e.stopPropagation()}>
+        {companions.map((companion) => (
+          <CompanionRow key={companion.id} companion={companion} />
+        ))}
+      </div>
+    )}
+    </div>
+  )
+}
+
+/** One companion inside an expanded booking row. Editable in place, like the organizer. */
+function CompanionRow({ companion }: { companion: LeadWithDetails }) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+
+  function save(data: UpdateParticipantData) {
+    startTransition(async () => {
+      const result = await updateParticipant(companion.id, data)
+      if (result.error) toast.error(result.error)
+      else router.refresh()
+    })
+  }
+
+  function handleRemove() {
+    if (!confirm(`¿Quitar a ${companion.fullName} de la reserva?`)) return
+    startTransition(async () => {
+      const result = await removeCompanion(companion.id)
+      if (result.error) toast.error(result.error)
+      else {
+        toast.success(`${companion.fullName} ya no forma parte de la reserva`)
+        router.refresh()
+      }
+    })
+  }
+
+  return (
+    <div className="flex items-center gap-3 pl-10 pr-4 py-2 border-b border-border/50 last:border-b-0">
+      <div className="flex-1 min-w-0 flex items-center gap-2">
+        <InlineField
+          value={companion.fullName}
+          placeholder="Nombre"
+          onSave={(v) => { if (v) save({ fullName: v }) }}
+          className="text-sm"
+        />
+        {companion.isMinor && (
+          <span
+            className="inline-flex items-center gap-1 text-2xs font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700"
+            title="Menor de edad: falta la autorización paterna firmada"
+          >
+            <Baby size={10} /> Menor
+          </span>
+        )}
+      </div>
+      <div className="w-20 flex-shrink-0 text-xs text-muted-foreground" title="Peso — fija el límite del tándem y el recargo de sobrepeso">
+        <InlineField
+          value={companion.weight != null ? String(companion.weight) : ''}
+          placeholder="Sin peso"
+          onSave={(v) => save({ weight: v ? Number(v) : null })}
+          inputType="number"
+        />
+      </div>
+      <div className="w-32 flex-shrink-0 text-xs text-muted-foreground">
+        {PACKAGE_LABELS[companion.packageType]}
+      </div>
+      <div className="w-40 flex-shrink-0 flex justify-end">
+        <button
+          onClick={handleRemove}
+          disabled={isPending}
+          className="text-xs text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+        >
+          Quitar
+        </button>
       </div>
     </div>
   )

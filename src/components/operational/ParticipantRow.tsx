@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useDraggable } from '@dnd-kit/core'
-import { GripVertical, Check } from 'lucide-react'
+import { GripVertical, Check, Users, Baby } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateParticipant, deleteParticipant } from '@/lib/actions/participant'
 import { Button } from '@/components/ui/button'
@@ -52,6 +52,7 @@ import type {
   Waiver,
   WaiverDocumentType,
 } from '@/types/domain'
+import { GROUP_CHIP_COLORS, type GroupPresence } from '@/lib/manifest-groups'
 import { RESERVATION_SOURCE_LABELS } from '@/types/domain'
 
 // ─── Status / Package config — tokens only, no hex ───────────────────────────
@@ -750,9 +751,14 @@ interface ParticipantRowProps {
   products: Product[]
   /** Deep-link target from /reservas: scroll into view and flash a ring. */
   highlighted?: boolean
+  /**
+   * The booking this participant belongs to, when it brings 2+ people to this
+   * day. Null for solo bookings — a chip on every row would be noise.
+   */
+  group?: GroupPresence | null
 }
 
-export function ParticipantRow({ participant: p, flightId, instructors, products, highlighted = false }: ParticipantRowProps) {
+export function ParticipantRow({ participant: p, flightId, instructors, products, highlighted = false, group = null }: ParticipantRowProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -1013,6 +1019,34 @@ export function ParticipantRow({ participant: p, flightId, instructors, products
           onSave={(v) => save({ fullName: v })}
           className="font-medium min-w-[110px] text-sm order-3"
         />
+
+        {/* Group chip — same colour for everyone in the booking, with the
+            person's position in it, so the staff can see at a glance who must
+            not be separated when reordering the day. */}
+        {group && (
+          <span
+            className={`order-3 inline-flex items-center gap-1 text-2xs font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap ${
+              GROUP_CHIP_COLORS[group.colorIndex]
+            } ${group.isSplit ? 'ring-1 ring-amber-400' : ''}`}
+            title={
+              group.isSplit
+                ? `Grupo de ${group.label} (${group.size} personas) — ha quedado repartido en vuelos no consecutivos`
+                : `Grupo de ${group.label} — ${group.size} personas`
+            }
+          >
+            <Users size={10} />
+            {group.label.split(' ')[0]} {group.positionById[p.id]}/{group.size}
+          </span>
+        )}
+
+        {p.isMinor && (
+          <span
+            className="order-3 inline-flex items-center gap-1 text-2xs font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 whitespace-nowrap"
+            title="Menor de edad: no puede saltar sin la autorización paterna firmada"
+          >
+            <Baby size={10} /> Menor
+          </span>
+        )}
 
         {p.channel !== 'STAFF' && p.leadStatus === 'CONFIRMED' && (
           <span className="order-4">

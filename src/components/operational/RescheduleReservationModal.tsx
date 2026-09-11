@@ -16,6 +16,7 @@ import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { toast } from 'sonner'
 import { rescheduleLead } from '@/lib/actions/leads'
+import { rescheduleGroup } from '@/lib/actions/group'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -64,15 +65,18 @@ export function RescheduleReservationModal({
   const needsTime = timeMode === 'specific' && !time
   const canConfirm = !!selectedDate && !needsTime
 
+  // Rescheduling moves the whole party: splitting a group across two dates is
+  // exactly what the client asks us not to do.
+  const isGroup = lead.groupSize >= 2
+  const who = isGroup ? `${lead.fullName} y ${lead.companions.length} más` : lead.fullName
+
   function handleConfirm() {
     if (!selectedDate || !canConfirm) return
     setError(null)
     startTransition(async () => {
-      const result = await rescheduleLead(
-        lead.id,
-        selectedDate,
-        timeMode === 'any' ? null : time
-      )
+      const result = isGroup && lead.reservationGroupId
+        ? await rescheduleGroup(lead.reservationGroupId, selectedDate, timeMode === 'any' ? null : time)
+        : await rescheduleLead(lead.id, selectedDate, timeMode === 'any' ? null : time)
       if (result.error) {
         setError(result.error)
         return
@@ -80,9 +84,12 @@ export function RescheduleReservationModal({
       const dateLabel = format(parseISO(selectedDate), "d 'de' MMMM", { locale: es })
       const timeLabel = timeMode === 'any' ? 'primer vuelo con hueco' : `${time}h`
       if (result.classification === 'CONFIRMABLE') {
-        toast.success(`${lead.fullName} reagendado al ${dateLabel} · ${timeLabel}`)
+        toast.success(`${who} reagendado al ${dateLabel} · ${timeLabel}`)
       } else if (result.classification === 'TENTATIVE_ONLY') {
-        toast.info(`${lead.fullName} queda como tentativa para ${dateLabel}`)
+        toast.info(`${who} queda como tentativa para ${dateLabel}`)
+      } else if ('groupDoesNotFit' in result && result.groupDoesNotFit) {
+        setError(`Ese día no caben ${lead.groupSize} personas juntas. Prueba con otra fecha.`)
+        return
       } else {
         toast.error('Esa fecha ya no tiene hueco — elige otra.')
         return
@@ -105,7 +112,15 @@ export function RescheduleReservationModal({
         <DialogHeader>
           <DialogTitle>Reagendar reserva</DialogTitle>
           <DialogDescription>
-            Elige una fecha con hueco para <span className="font-medium text-foreground">{lead.fullName}</span>.
+            Elige una fecha con hueco para{' '}
+            <span className="font-medium text-foreground">{lead.fullName}</span>
+            {isGroup && (
+              <>
+                {' '}y sus {lead.companions.length} acompañantes. Se mueven todos juntos:
+                hacen falta {lead.groupSize} plazas el mismo día.
+              </>
+            )}
+            {!isGroup && '.'}
           </DialogDescription>
         </DialogHeader>
 

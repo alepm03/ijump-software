@@ -14,12 +14,14 @@
  * or none of it), which is a different invariant from the per-lead actions.
  */
 
+import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { type DbClient, getDayAvailability } from '@/lib/actions/availability'
 import { classifyDate } from '@/lib/availability/availability-engine'
 import { clearAutoParticipantItems, syncAutoParticipantItems } from '@/lib/actions/finance'
 import { getGroupEventThreshold } from '@/lib/actions/settings'
+import { splitGroupPayment } from '@/lib/finance/group-payment'
 import { normalizePhone } from '@/lib/phone'
 import { todayIso } from '@/lib/utils'
 import type {
@@ -27,6 +29,8 @@ import type {
   DateClass,
   GroupPaymentMode,
   PackageType,
+  PaymentMethod,
+  PaymentStage,
   ReservationSource,
 } from '@/types/domain'
 
@@ -548,6 +552,195 @@ export async function getGroupPartySize(groupId: string, client?: DbClient): Pro
     return 1
   }
   return count ?? 1
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Group charges — see src/lib/finance/group-payment.ts for the split itself.
+//
+// The payments model stays exactly as it was: one row per participant, which
+// is what keeps cash close, AR and the P&L adding up per person. A group
+// charge is simply turned into N rows sharing a group_payment_id, so it can be
+// shown and undone as the single operation the staff actually performed.
+// ────────────────────────────────────────────────────────────────────────────
+
+export type GroupMemberBalance = {
+  participantId: string
+  fullName: string
+  isOrganizer: boolean
+  itemsTotal: number
+  paidTotal: number
+  /** What this member still owes; never negative. */
+  pending: number
+}
+
+export type GroupBalance = {
+  members: GroupMemberBalance[]
+  itemsTotal: number
+  paidTotal: number
+  pending: number
+  /** Members with nothing left to pay — drives the "faltan N personas" hint. */
+  settledCount: number
+}
+
+/**
+ * What the whole booking owes, member by member.
+ *
+ * This is what makes "cada uno paga lo suyo" work without asking the client
+ * anything: every member already carries their booking, so when the staff
+ * charges member 3 they can see the party's overall balance at the same time.
+ */
+export async function getGroupBalance(
+  groupId: string,
+  client?: DbClient
+): Promise<{ balance?: GroupBalance; error?: string }> {
+  const supabase = client ?? (await createClient())
+
+  const { data, error } = await supabase
+    .from('participants')
+    .select(
+      `id, full_name, is_organizer, created_at,
+       participant_items (quantity, unit_price, amount),
+       payments (amount)`
+    )
+    .eq('reservation_group_id', groupId)
+    .not('lead_status', 'eq', 'CANCELLED')
+    .order('is_organizer', { ascending: false })
+    .order('created_at', { ascending: true })
+
+  if (error) return { error: error.message }
+
+  const members: GroupMemberBalance[] = (data ?? []).map((p) => {
+    const itemsTotal = (p.participant_items ?? []).reduce(
+      (sum, it) => sum + (it.amount ?? it.quantity * it.unit_price),
+      0
+    )
+    const paidTotal = (p.payments ?? []).reduce((sum, pay) => sum + pay.amount, 0)
+    return {
+      participantId: p.id,
+      fullName: p.full_name,
+      isOrganizer: p.is_organizer,
+      itemsTotal,
+      paidTotal,
+      pending: Math.max(0, itemsTotal - paidTotal),
+    }
+  })
+
+  return {
+    balance: {
+      members,
+      itemsTotal: members.reduce((sum, m) => sum + m.itemsTotal, 0),
+      paidTotal: members.reduce((sum, m) => sum + m.paidTotal, 0),
+      pending: members.reduce((sum, m) => sum + m.pending, 0),
+      settledCount: members.filter((m) => m.pending === 0).length,
+    },
+  }
+}
+
+export type GroupPaymentInput = {
+  amount: number
+  method: PaymentMethod
+  stage: PaymentStage
+  notes?: string | null
+}
+
+/**
+ * Registers ONE charge paid for the whole booking, split across its members.
+ *
+ * The staff enters the amount once; the split (proportional to what each
+ * member still owes, see splitGroupPayment) produces one payments row per
+ * member, all tagged with the same group_payment_id so the operation can be
+ * shown and undone as one.
+ */
+export async function payGroup(
+  groupId: string,
+  input: GroupPaymentInput,
+  client?: DbClient
+): Promise<{ error?: string; groupPaymentId?: string; shares?: number }> {
+  const supabase = client ?? (await createClient())
+
+  if (!(input.amount > 0)) return { error: 'El importe debe ser mayor que cero' }
+
+  const { balance, error: balanceError } = await getGroupBalance(groupId, supabase)
+  if (balanceError) return { error: balanceError }
+  if (!balance || balance.members.length === 0) {
+    return { error: 'La reserva no tiene participantes activos' }
+  }
+
+  const shares = splitGroupPayment(input.amount, balance.members)
+  if (shares.length === 0) return { error: 'No se ha podido repartir el importe' }
+
+  const groupPaymentId = randomUUID()
+
+  // One statement: a half-registered group charge would leave the till short
+  // and nobody able to tell by how much.
+  const { error } = await supabase.from('payments').insert(
+    shares.map((share) => ({
+      participant_id: share.participantId,
+      amount: share.amount,
+      method: input.method,
+      stage: input.stage,
+      notes: input.notes ?? null,
+      group_payment_id: groupPaymentId,
+    }))
+  )
+  if (error) return { error: error.message }
+
+  await syncDepositPaidForGroup(supabase, shares.map((s) => s.participantId))
+
+  revalidatePath('/', 'layout')
+  return { groupPaymentId, shares: shares.length }
+}
+
+/** Undoes a group charge: every row it produced, in one go. */
+export async function deleteGroupPayment(
+  groupPaymentId: string,
+  client?: DbClient
+): Promise<{ error?: string }> {
+  const supabase = client ?? (await createClient())
+
+  const { data: rows, error: fetchError } = await supabase
+    .from('payments')
+    .select('participant_id')
+    .eq('group_payment_id', groupPaymentId)
+  if (fetchError) return { error: fetchError.message }
+
+  const { error } = await supabase.from('payments').delete().eq('group_payment_id', groupPaymentId)
+  if (error) return { error: error.message }
+
+  await syncDepositPaidForGroup(supabase, (rows ?? []).map((r) => r.participant_id))
+
+  revalidatePath('/', 'layout')
+  return {}
+}
+
+/**
+ * Recomputes deposit_paid for each participant touched by a group charge.
+ *
+ * Mirrors syncDepositPaid in payment.ts: deposit_paid is derived state (true
+ * iff a RESERVA-stage payment exists), never set by hand, so it can't end up
+ * contradicting the payments table. Best-effort — the payment rows are the
+ * primary record and are already written when this runs.
+ */
+async function syncDepositPaidForGroup(supabase: DbClient, participantIds: string[]) {
+  const unique = [...new Set(participantIds)]
+  for (const participantId of unique) {
+    const { count, error } = await supabase
+      .from('payments')
+      .select('id', { count: 'exact', head: true })
+      .eq('participant_id', participantId)
+      .eq('stage', 'RESERVA')
+    if (error) {
+      console.error('syncDepositPaidForGroup: count failed', participantId, error.message)
+      continue
+    }
+    const { error: updateError } = await supabase
+      .from('participants')
+      .update({ deposit_paid: (count ?? 0) > 0 })
+      .eq('id', participantId)
+    if (updateError) {
+      console.error('syncDepositPaidForGroup: sync failed', participantId, updateError.message)
+    }
+  }
 }
 
 /** Records what was agreed with the client about who pays. Informative only. */

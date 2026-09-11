@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useId, useState, useTransition } from 'react'
+import { useEffect, useId, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   DndContext,
@@ -13,13 +13,14 @@ import {
   DragOverlay,
 } from '@dnd-kit/core'
 import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { Plus } from 'lucide-react'
+import { AlertTriangle, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { reorderFlights, createFlight, deleteFlight } from '@/lib/actions/flight'
 import { moveParticipant } from '@/lib/actions/participant'
 import { DayHeader } from './DayHeader'
 import { CashCloseButton } from './CashCloseButton'
 import { FlightCard } from './FlightCard'
+import { computeDayGroups, splitGroups } from '@/lib/manifest-groups'
 import { CancelFlightDialog } from './CancelFlightDialog'
 import { AddParticipantDrawer } from './AddParticipantDrawer'
 import { DayFinanceTab } from './DayFinanceTab'
@@ -73,6 +74,13 @@ export function DayManifest({ day, instructors, policy, products, highlightId = 
     day.flights.map((f) => f.id),
     day.flights.flatMap((f) => f.participants.map((p) => p.id))
   )
+
+  // Group cohesion for the whole day: which bookings are here, who is member
+  // N of M, and which ones have ended up in non-consecutive flights. Computed
+  // from `flights` (the optimistic local copy) so a drag & drop that splits a
+  // group lights the warning immediately, not after the server round trip.
+  const dayGroups = useMemo(() => computeDayGroups(flights), [flights])
+  const split = useMemo(() => splitGroups(dayGroups), [dayGroups])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -206,7 +214,7 @@ export function DayManifest({ day, instructors, policy, products, highlightId = 
   return (
     // h-full fills the main area; flex-col layout
     <div className="h-full flex flex-col">
-      <DayHeader day={{ ...day, flights }} />
+      <DayHeader day={{ ...day, flights }} policy={policy} />
 
       {/* Tabs — replaces manual tab bar with style inline */}
       <Tabs defaultValue="manifest" className="flex-1 flex flex-col overflow-hidden">
@@ -252,12 +260,29 @@ export function DayManifest({ day, instructors, policy, products, highlightId = 
                 strategy={verticalListSortingStrategy}
               >
                 <div className="flex flex-col gap-2.5 px-7 py-5 max-w-[60rem] mx-auto">
+                  {split.length > 0 && (
+                    <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
+                      <AlertTriangle size={15} className="flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold">
+                          {split.length === 1
+                            ? 'Hay un grupo repartido en vuelos no consecutivos'
+                            : `Hay ${split.length} grupos repartidos en vuelos no consecutivos`}
+                        </p>
+                        <p className="text-xs text-amber-700/90">
+                          {split.map((g) => `${g.label} (${g.size})`).join(', ')} — con un vuelo ajeno
+                          de por medio. Reordena los participantes para dejarlos seguidos.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   {flights.map((flight) => (
                     <FlightCard
                       key={flight.id}
                       flight={flight}
                       instructors={instructors}
                       products={products}
+                      dayGroups={dayGroups}
                       onAddParticipant={() => setAddToFlightId(flight.id)}
                       onDelete={() => handleDeleteFlight(flight.id)}
                       onCancel={() => setCancelFlightId(flight.id)}

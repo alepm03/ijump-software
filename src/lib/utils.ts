@@ -27,3 +27,13 @@ export function isLeadCold(lastContactAt: string | null | undefined, now = Date.
   if (!lastContactAt) return true
   return now - new Date(lastContactAt).getTime() > LEAD_AGING_THRESHOLD_MS
 }
+
+/**
+ * Today as YYYY-MM-DD in the center's timezone (Europe/Madrid).
+ *
+ * Lives here because both leads.ts and group.ts need it and neither can
+ * export it: a 'use server' module may only export async functions.
+ */
+export function todayIso(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(new Date())
+}

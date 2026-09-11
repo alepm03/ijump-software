@@ -26,6 +26,10 @@ export type CreateParticipantData = {
   notes?: string | null
   source?: ReservationSource
   payerName?: string | null
+  /** Marks this row as the group's organizer (contact holder). One per group. */
+  isOrganizer?: boolean
+  /** Under 18 — needs a signed parental authorisation. */
+  isMinor?: boolean
   // Reservations module — only meaningful when flightId is null (a lead)
   leadStatus?: LeadStatus
   preferredDate?: string | null
@@ -44,6 +48,7 @@ export type UpdateParticipantData = Partial<{
   assignedInstructorId: string | null
   reservationGroupId: string | null
   notes: string | null
+  isMinor: boolean
   waiverSigned: boolean
   checkInCompleted: boolean
   gearedUp: boolean
@@ -58,9 +63,17 @@ export async function createParticipant(
 ): Promise<{ error?: string; id?: string; token?: string | null }> {
   const supabase = client ?? (await createClient())
 
+  // A reservation group is ONE booking with 1..N participants. Until now this
+  // branch ran whenever `source` was set — which the intake form always sets —
+  // so it minted a brand new group for every single person and silently
+  // discarded any reservationGroupId the caller had passed. That is why every
+  // group was a group of 1, why groupSize never reached 2, and why the "Grupo"
+  // badge never appeared (docs/reservas/CRM_REVIEW_2026-07.md §"Badge Grupo").
+  // An explicit group now always wins: a companion joins the booking that
+  // already exists instead of starting its own.
   let resolvedGroupId = data.reservationGroupId ?? null
 
-  if (data.source) {
+  if (!resolvedGroupId && data.source) {
     const { data: group, error: groupError } = await supabase
       .from('reservation_groups')
       .insert({ source: data.source, payer_name: data.payerName ?? null })
@@ -90,6 +103,8 @@ export async function createParticipant(
       reservation_group_id: resolvedGroupId,
       assigned_instructor_id: data.assignedInstructorId ?? null,
       notes: data.notes ?? null,
+      is_organizer: data.isOrganizer ?? false,
+      is_minor: data.isMinor ?? false,
       ...(data.leadStatus !== undefined && { lead_status: data.leadStatus }),
       // CRM P0 — a lead is born "just touched": intake IS the first contact.
       // Walk-ins (no leadStatus) don't need aging, so no timestamp for them.
@@ -152,6 +167,7 @@ export async function updateParticipant(
   if (data.assignedInstructorId !== undefined) update.assigned_instructor_id = data.assignedInstructorId
   if (data.reservationGroupId !== undefined) update.reservation_group_id = data.reservationGroupId
   if (data.notes !== undefined) update.notes = data.notes
+  if (data.isMinor !== undefined) update.is_minor = data.isMinor
   if (data.waiverSigned !== undefined) update.waiver_signed = data.waiverSigned
   if (data.checkInCompleted !== undefined) update.check_in_completed = data.checkInCompleted
   if (data.gearedUp !== undefined) update.geared_up = data.gearedUp

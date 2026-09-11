@@ -21,20 +21,14 @@ import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getLeadByIdOrToken } from '@/lib/actions/leads'
-import type { LeadStatus, PackageType } from '@/types/domain'
+import type { LeadStatus } from '@/types/domain'
+import { PACKAGE_LABELS } from '@/types/domain'
 
 export const dynamic = 'force-dynamic'
 
 const BUSINESS_PHONE = '+34 679 57 11 99'
 const BUSINESS_PHONE_HREF = '+34679571199'
 
-const PACKAGE_LABELS: Record<PackageType, string> = {
-  SOLO: 'Solo (sin video)',
-  HANDYCAM: 'Handycam',
-  VIDEO_EXTERNO: 'Videógrafo externo',
-  FOTOS: 'Fotos',
-  HANDYCAM_FOTOS: 'Handycam + Fotos',
-}
 
 function firstName(fullName: string): string {
   return fullName.trim().split(/\s+/)[0] ?? fullName

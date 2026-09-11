@@ -2,7 +2,16 @@ import type { FlightWithParticipants, ReservationSource, PaymentMethod } from '@
 
 const CANCELLED_STATUSES = ['CANCELLED', 'NO_SHOW', 'WEATHER_CANCELLED']
 
-export function computeManifestSummary(flights: FlightWithParticipants[]) {
+/**
+ * `maxClientsPerFlight` comes from business_settings (AvailabilityPolicy).
+ * It used to be hardcoded to 2 here, so the day's capacity line would have
+ * started lying the moment the aircraft or the tandem setup changed — the one
+ * number in the header the staff reads as ground truth.
+ */
+export function computeManifestSummary(
+  flights: FlightWithParticipants[],
+  maxClientsPerFlight = 2
+) {
   const allParticipants = flights.flatMap((f) => f.participants)
   const active = allParticipants.filter(
     (p) => !CANCELLED_STATUSES.includes(p.operationalStatus)
@@ -35,8 +44,7 @@ export function computeManifestSummary(flights: FlightWithParticipants[]) {
     }
   }
 
-  // Capacity: 2 clients per flight
-  const totalCapacity = activeFlights.length * 2
+  const totalCapacity = activeFlights.length * maxClientsPerFlight
 
   return {
     totalFlights: activeFlights.length,

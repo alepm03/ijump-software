@@ -7,6 +7,21 @@ export type PackageType =
   | 'FOTOS'
   | 'HANDYCAM_FOTOS'
 
+/**
+ * Customer-facing package names. Lived in four components with three
+ * different wordings ("Solo (sin video)" vs "Salto solo", "Videógrafo
+ * externo" vs "Vídeo externo"); consolidated here next to
+ * RESERVATION_SOURCE_LABELS so the same jump is called the same thing
+ * everywhere the client can see it.
+ */
+export const PACKAGE_LABELS: Record<PackageType, string> = {
+  SOLO: 'Solo (sin video)',
+  HANDYCAM: 'Handycam',
+  VIDEO_EXTERNO: 'Videógrafo externo',
+  FOTOS: 'Fotos',
+  HANDYCAM_FOTOS: 'Handycam + Fotos',
+}
+
 export type ReservationSource =
   | 'DIRECT'
   | 'BONO'
@@ -579,6 +594,12 @@ export interface LeadWithDetails extends Participant {
   payments: Payment[]
   /** Σ payments.amount, precomputed for the row badge. */
   paidTotal: number
+  /**
+   * Σ participant_items.amount — what this person owes in total. Precomputed
+   * so the booking's balance can be rendered from the data already on screen
+   * instead of a second round trip per open sheet.
+   */
+  itemsTotal: number
   /**
    * The rest of the booking, populated ONLY on the organizer's row: listLeads
    * collapses a group into a single row so /reservas shows one line per

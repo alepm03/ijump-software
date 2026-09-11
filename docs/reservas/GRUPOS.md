@@ -1,6 +1,10 @@
 # Reservas de grupo
 
-> Guía del módulo. Estado: PR 1 (núcleo), PR 2 (API del bot) y PR 3 (UI) listos.
+> Guía del módulo. **Estado (2026-09-11): código mergeado a `main` (PRs #73, #74, #75 —
+> el #76 corrige que #74 y #75 no habían llegado a `main` por un mal apilado de ramas,
+> ver §"Pendiente"). Migraciones sin confirmar aplicadas por Alejandro; UI sin probar en
+> navegador.** Nada de esto está activo en producción hasta que las migraciones estén
+> corridas — detalle completo en §"Pendiente" al final de este documento.
 > Decisiones de negocio: Ricardo, 2026-09-11.
 
 ---
@@ -248,8 +252,38 @@ node_modules/.bin/jiti src/lib/__manifest_groups_check.mts         # cohesión e
 
 ## Pendiente
 
-- **Chatbot** — widget con bloques de acompañante, `Tool Crear Reserva` v2 sin
-  la rama `apiSkipped = 'group'`, prompt y KB, escalado de eventos y descuentos.
+- **Confirmar que las migraciones están aplicadas.** Las dos de este módulo
+  (`20260911000000_reservation_groups.sql`, `20260911000001_reservations_assign_group.sql`)
+  están en `main` desde el #73, pero como con toda migración del proyecto, el
+  merge no las aplica solas en Supabase (ver el aviso de este `CLAUDE.md`
+  §"Estado actual del software"). Avisado a Alejandro por correo el
+  2026-09-11; sin confirmación todavía. Verificación rápida:
+  ```sql
+  select column_name from information_schema.columns
+  where table_name = 'participants' and column_name in ('is_organizer','is_minor');
+  ```
+  Debe devolver 2 filas. Si no, el código ya desplegado (está en `main`) puede
+  dar 500 al crear o editar un participante.
+- **Nota de historial — apilado de PRs (2026-09-11):** los PRs #73/#74/#75 se
+  abrieron encadenados (cada uno con base en la rama del anterior) y GitHub
+  los marcó `MERGED` los tres, pero solo el #73 llegó realmente a `main` — el
+  #74 y el #75 quedaron en ramas que se borraron al mergear. El **#76**
+  corrige eso llevando esos mismos commits a `main`. No cambió nada de
+  contenido, solo el destino. Lección para futuros PRs de este tipo: abrir
+  siempre contra `main`, y verificar con
+  `git merge-base --is-ancestor <commit> origin/main` después de cada merge
+  en vez de fiarse del estado "MERGED" del PR.
+- **Pasada visual de la UI en navegador.** El PR #75 no se ha probado en
+  pantalla: el único entorno disponible al construirlo apuntaba a la base de
+  datos de producción. Con los datos actuales el riesgo es bajo (todas las
+  reservas existentes son de una persona), pero conviene revisar `/reservas`
+  y el manifest a anchura de tablet (~820px) antes de confiar en ello.
+- **Chatbot — construido y probado, sin activar.** Widget con bloques de
+  acompañante, `Tool Crear Reserva` v2 sin la rama `apiSkipped = 'group'`,
+  prompts v30/v31_wa y KB v13, todo en `ijump-agente-ia` PR #15 (ya mergeado
+  a su `main`, repo separado). Gateado a que las migraciones de este módulo
+  estén confirmadas — runbook en
+  `chatbot/06_backend/RUNBOOK_activacion_grupos.md`.
 - **Doble fuente de verdad**: las reservas del bot seguirán yendo también al
   Google Sheet y al email. Se mantiene a propósito (Ricardo, 2026-09-11): ese
   canal ya no se usa en la práctica y se retirará más adelante.

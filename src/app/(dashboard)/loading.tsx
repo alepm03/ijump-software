@@ -21,7 +21,7 @@ export default function CalendarLoading() {
         {/* Weekday headers */}
         <div className="grid grid-cols-7 mb-2">
           {WEEKDAYS.map((wd) => (
-            <div key={wd} className="text-center text-[12px] font-medium text-muted-foreground py-1.5">
+            <div key={wd} className="text-center text-sm font-medium text-muted-foreground py-1.5">
               {wd}
             </div>
           ))}

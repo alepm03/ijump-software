@@ -77,7 +77,8 @@ export function NewDayDialog({ open, initialDate, onOpenChange }: NewDayDialogPr
               required
             />
             <p className="text-xs text-muted-foreground">
-              Se crearán 5 vuelos automáticamente cada hora desde esta hora.
+              Se crearán 5 vuelos automáticamente desde esta hora, con el
+              intervalo configurado entre ellos.
             </p>
           </div>
 

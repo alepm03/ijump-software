@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation'
 import { useSortable } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Trash2 } from 'lucide-react'
+import { Ban, GripVertical, Repeat, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateFlight, deleteFlight as deleteFlightAction } from '@/lib/actions/flight'
 import { ParticipantRow } from './ParticipantRow'
+import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,26 +17,68 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import type { FlightWithParticipants, Instructor, FlightStatus } from '@/types/domain'
+import type { FlightWithParticipants, Instructor, FlightStatus, Product } from '@/types/domain'
+import type { GroupPresence } from '@/lib/manifest-groups'
 
-// Matches prototype status colors exactly
-const STATUS_CONFIG: Record<FlightStatus, { label: string; bg: string; color: string }> = {
-  SCHEDULED: { label: 'Programado', bg: '#F4F4F5', color: '#71717A' },
-  BOARDING:  { label: 'Embarcando', bg: '#EFF6FF', color: '#3B82F6' },
-  IN_AIR:    { label: 'En vuelo',   bg: '#F0F9FF', color: '#0284C7' },
-  COMPLETED: { label: 'Completado', bg: '#F0FDF4', color: '#16A34A' },
-  DELAYED:   { label: 'Retrasado',  bg: '#FEFCE8', color: '#CA8A04' },
-  CANCELLED: { label: 'Cancelado',  bg: '#FFF1F2', color: '#E11D48' },
+// STATUS_CONFIG uses token class names — no hex (Phase 1)
+// Flight statuses map to the nearest semantic family
+const STATUS_CONFIG: Record<FlightStatus, { label: string; className: string; dotClassName: string }> = {
+  SCHEDULED: { label: 'Programado', className: 'bg-status-pending-bg text-status-pending',     dotClassName: 'bg-status-pending' },
+  BOARDING:  { label: 'Embarcando', className: 'bg-status-checked-in-bg text-status-checked-in', dotClassName: 'bg-status-checked-in' },
+  IN_AIR:    { label: 'En vuelo',   className: 'bg-state-info-bg text-state-info',              dotClassName: 'bg-state-info' },
+  COMPLETED: { label: 'Completado', className: 'bg-status-completed-bg text-status-completed',  dotClassName: 'bg-status-completed' },
+  DELAYED:   { label: 'Retrasado',  className: 'bg-status-briefed-bg text-status-briefed',      dotClassName: 'bg-status-briefed' },
+  CANCELLED: { label: 'Cancelado',  className: 'bg-status-cancelled-bg text-status-cancelled',  dotClassName: 'bg-status-cancelled' },
+}
+
+// ─── ManifestColHead — column header row (lg+ only, inside FlightCard) ───────
+// Rendered once per FlightCard when there are participants, before the rows.
+// px-3.5 (FlightCard padding) + w-8 handle = offset; grid then starts after.
+// Columns match --manifest-grid-cols: Participante|Estado|Paquete|Instructor|OW|Pago
+export function ManifestColHead() {
+  return (
+    <div className="hidden lg:flex items-center px-3.5 border-b border-border bg-background/60">
+      {/* Spacer for the drag handle — matches w-8 in ParticipantRow */}
+      <div className="w-8 flex-shrink-0" />
+      <div
+        className="flex-1 min-w-0"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'var(--manifest-grid-cols)',
+        }}
+      >
+        {(['Participante', 'Estado', 'Paquete', 'Instructor', 'OW', 'Pago'] as const).map(
+          (col) => (
+            <div
+              key={col}
+              className="py-[8px] px-3 text-[0.65625rem] font-semibold uppercase tracking-[0.07em] text-muted-foreground"
+            >
+              {col}
+            </div>
+          )
+        )}
+      </div>
+      {/* Spacer for the delete button column — matches w-12 in ParticipantRow */}
+      <div className="w-12 flex-shrink-0" />
+    </div>
+  )
 }
 
 interface FlightCardProps {
   flight: FlightWithParticipants
   instructors: Instructor[]
+  /** Active product catalog — forwarded to each row for the OW badge / "+ Extra". */
+  products: Product[]
   onAddParticipant: () => void
   onDelete: () => void
+  onCancel: () => void
+  /** Participant to scroll to and briefly highlight (deep-link from /reservas). */
+  highlightId?: string | null
+  /** Bookings present in this day, keyed by group id — drives the group chips. */
+  dayGroups: Record<string, GroupPresence>
 }
 
-export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: FlightCardProps) {
+export function FlightCard({ flight, instructors, products, onAddParticipant, onDelete, onCancel, highlightId = null, dayGroups }: FlightCardProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [editingTime, setEditingTime] = useState(false)
@@ -77,6 +120,15 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: 
   }
 
   function handleStatusChange(status: FlightStatus) {
+    // Cancelling is NOT a plain status change: it must resolve the occupants
+    // (move / send to reschedule / cancel them too), so it always goes
+    // through CancelFlightDialog — same flow as the ⋮ "Cancelar vuelo" item.
+    // A bare updateFlight({status: 'CANCELLED'}) here would leave occupants
+    // attached to a cancelled flight and skip the /reservas circuit.
+    if (status === 'CANCELLED') {
+      onCancel()
+      return
+    }
     startTransition(async () => {
       const result = await updateFlight(flight.id, { status })
       if (result.error) toast.error(result.error)
@@ -91,7 +143,7 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: 
       className={`w-full rounded-[10px] border overflow-hidden transition-all ${
         isDragging
           ? 'opacity-50 border-primary/30 shadow-lg'
-          : 'border-border shadow-[0_1px_4px_rgba(0,0,0,0.05)]'
+          : 'border-primary/20 shadow-[0_1px_4px_rgba(0,0,0,0.05)] hover:border-primary/45'
       }`}
     >
       {/* Header — slightly lighter than card body to create subtle depth */}
@@ -118,7 +170,7 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: 
           #{flight.flightNumber}
         </span>
 
-        <span className="text-border font-normal text-[13px] flex-shrink-0">·</span>
+        <span className="text-border font-normal text-sm flex-shrink-0">·</span>
 
         {/* Time */}
         {editingTime ? (
@@ -134,24 +186,23 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: 
                 setEditingTime(false)
               }
             }}
-            className="bg-background border border-input rounded px-1 py-0 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring w-20 flex-shrink-0"
+            className="bg-background border border-input rounded px-1 py-0 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 w-20 flex-shrink-0"
             autoFocus
           />
         ) : (
           <button
             onClick={() => setEditingTime(true)}
-            className="text-[13.5px] text-muted-foreground font-medium hover:text-foreground hover:bg-secondary px-1 py-0.5 rounded transition-colors flex-shrink-0 tabular-nums"
+            className="text-sm text-muted-foreground font-medium hover:text-foreground hover:bg-secondary px-1 py-0.5 rounded transition-colors flex-shrink-0 tabular-nums focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
           >
             {flight.estimatedDepartureTime ?? '-- : --'}
           </button>
         )}
 
-        {/* Status badge */}
+        {/* Status badge — rounded-full pill, min 32px hit target */}
         <DropdownMenu>
           <DropdownMenuTrigger
             disabled={isPending}
-            className="flex-shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded transition-colors"
-            style={{ background: statusCfg.bg, color: statusCfg.color }}
+            className={`flex-shrink-0 text-xs font-semibold px-2 py-1 rounded-full transition-colors min-h-[32px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${statusCfg.className}`}
           >
             {statusCfg.label}
           </DropdownMenuTrigger>
@@ -163,7 +214,7 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: 
                   onClick={() => handleStatusChange(status)}
                   className="text-xs cursor-pointer"
                 >
-                  <span className="inline-block w-2 h-2 rounded-sm mr-2 flex-shrink-0" style={{ background: cfg.color, opacity: 0.7 }} />
+                  <span className={`inline-block w-2 h-2 rounded-sm mr-2 flex-shrink-0 opacity-70 ${cfg.dotClassName}`} />
                   {cfg.label}
                 </DropdownMenuItem>
               )
@@ -175,16 +226,23 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: 
           {flight.participants.length} {flight.participants.length === 1 ? 'participante' : 'participantes'}
         </span>
 
+        {flight.isBackToBack && (
+          <span className="flex-shrink-0 bg-secondary text-muted-foreground text-2xs px-2 py-0.5 rounded-full font-medium">
+            Back-to-back
+          </span>
+        )}
+
         <div className="flex-1" />
 
-        {/* + Añadir — bordered ghost */}
-        <button
+        {/* + Añadir — Button outline */}
+        <Button
+          variant="outline"
+          size="sm"
           onClick={onAddParticipant}
-          className="flex items-center gap-1 text-[12.5px] font-medium text-muted-foreground hover:text-foreground px-2.5 py-1 rounded-md border border-border bg-transparent transition-colors flex-shrink-0"
-          style={{ letterSpacing: '-0.1px' }}
+          className="flex-shrink-0"
         >
           + Añadir
-        </button>
+        </Button>
 
         {/* ⋮ Options — bordered ghost */}
         <DropdownMenu>
@@ -194,7 +252,29 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: 
             </svg>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={() =>
+                startTransition(async () => {
+                  const r = await updateFlight(flight.id, { isBackToBack: !flight.isBackToBack })
+                  if (r.error) toast.error(r.error)
+                  else router.refresh()
+                })
+              }
+              className="cursor-pointer text-xs"
+            >
+              <Repeat size={12} className="mr-2" />
+              {flight.isBackToBack ? 'Quitar back-to-back' : 'Marcar back-to-back'}
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
+            {flight.status !== 'CANCELLED' && (
+              <DropdownMenuItem
+                onClick={onCancel}
+                className="cursor-pointer text-xs"
+              >
+                <Ban size={12} className="mr-2" />
+                Cancelar vuelo
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               onClick={onDelete}
               className="text-destructive focus:text-destructive cursor-pointer text-xs"
@@ -216,14 +296,25 @@ export function FlightCard({ flight, instructors, onAddParticipant, onDelete }: 
             Suelta participantes aquí
           </div>
         ) : (
-          flight.participants.map((participant) => (
-            <ParticipantRow
-              key={participant.id}
-              participant={participant}
-              flightId={flight.id}
-              instructors={instructors}
-            />
-          ))
+          <>
+            {/* Column header — rendered once per flight card, lg+ only */}
+            <ManifestColHead />
+            {flight.participants.map((participant) => (
+              <ParticipantRow
+                key={participant.id}
+                participant={participant}
+                flightId={flight.id}
+                instructors={instructors}
+                products={products}
+                highlighted={participant.id === highlightId}
+                group={
+                  participant.reservationGroupId
+                    ? dayGroups[participant.reservationGroupId] ?? null
+                    : null
+                }
+              />
+            ))}
+          </>
         )}
       </div>
     </div>

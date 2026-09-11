@@ -7,7 +7,58 @@ export type PackageType =
   | 'FOTOS'
   | 'HANDYCAM_FOTOS'
 
-export type ReservationSource = 'DIRECT' | 'GROUPON' | 'BONO' | 'PROMO' | 'SMARTBOX'
+/**
+ * Customer-facing package names. Lived in four components with three
+ * different wordings ("Solo (sin video)" vs "Salto solo", "Videógrafo
+ * externo" vs "Vídeo externo"); consolidated here next to
+ * RESERVATION_SOURCE_LABELS so the same jump is called the same thing
+ * everywhere the client can see it.
+ */
+export const PACKAGE_LABELS: Record<PackageType, string> = {
+  SOLO: 'Solo (sin video)',
+  HANDYCAM: 'Handycam',
+  VIDEO_EXTERNO: 'Videógrafo externo',
+  FOTOS: 'Fotos',
+  HANDYCAM_FOTOS: 'Handycam + Fotos',
+}
+
+export type ReservationSource =
+  | 'DIRECT'
+  | 'BONO'
+  | 'PROMO'
+  | 'GROUPON'
+  | 'SMARTBOX'
+  | 'WONDERBOX'
+  | 'JUMPING'
+  | 'FREEDOM'
+
+/**
+ * All reservation sources, in the order sale_channels.sort_order defines
+ * (see 20260622000000_finance_expense_model.sql) — DIRECT-kind channels
+ * first (no commission), then PLATFORM-kind channels grouped together.
+ * This is the order the "Fuente" dropdown renders in.
+ */
+export const RESERVATION_SOURCES: ReservationSource[] = [
+  'DIRECT',
+  'BONO',
+  'PROMO',
+  'GROUPON',
+  'SMARTBOX',
+  'WONDERBOX',
+  'JUMPING',
+  'FREEDOM',
+]
+
+export const RESERVATION_SOURCE_LABELS: Record<ReservationSource, string> = {
+  DIRECT: 'Directo',
+  BONO: 'Bono',
+  PROMO: 'Promo',
+  GROUPON: 'Groupon',
+  SMARTBOX: 'Smartbox',
+  WONDERBOX: 'Wonder Box',
+  JUMPING: 'Jumping',
+  FREEDOM: 'Freedom',
+}
 
 export type PaymentMethod = 'EFECTIVO' | 'TARJETA' | 'BIZUM' | 'TRANSFERENCIA' | 'GROUPON'
 
@@ -52,6 +103,8 @@ export interface Flight {
   actualDepartureTime: string | null
   status: FlightStatus
   orderIndex: number
+  /** Back-to-back flight: rented equipment needed → EQUIPOS cost applies (25 €/jump). */
+  isBackToBack: boolean
   createdAt: string
 }
 
@@ -73,7 +126,42 @@ export interface Participant {
   notes: string | null
   createdAt: string
   updatedAt: string
+  // Reservations module — see docs/reservas/RESERVAS_MODULE_PLAN_v1.md
+  // A participant IS a lead when leadStatus is not null (flightId is null until confirmed).
+  leadStatus: LeadStatus | null
+  preferredDate: string | null // YYYY-MM-DD
+  preferredTime: string | null // HH:MM
+  confirmedDate: string | null
+  confirmedTime: string | null
+  // Derived: true iff a RESERVA-stage payment is registered. Recomputed by
+  // syncDepositPaid (lib/actions/payment.ts) on every payment mutation —
+  // never set manually. Kept as a column so the bot API can read it cheaply.
+  depositPaid: boolean
+  channel: Channel
+  createdBy: string | null
+  token: string | null
+  // CRM P0 — lead aging: last time staff touched this lead (call, WhatsApp,
+  // note...). Populated by E2 UI actions; backfilled from updated_at for
+  // pre-existing leads by the migration that added the column.
+  lastContactAt?: string | null
+  // Reservas de grupo — see docs/reservas/GRUPOS.md
+  /**
+   * The person who made the booking and supplies the group's contact data.
+   * Exactly one per reservation group (enforced by a partial unique index).
+   * A one-person booking also has its organizer: itself.
+   */
+  isOrganizer: boolean
+  /** Under 18: needs a signed parental authorisation before jumping. */
+  isMinor: boolean
 }
+
+/**
+ * How the group agreed to pay. Purely informative: it picks the default
+ * action in the UI and the manifest hint, and never restricts any payment.
+ * The real mixed case (the organizer pays everyone's deposit, each member
+ * settles their own balance on jump day) works under any value.
+ */
+export type GroupPaymentMode = 'ORGANIZER' | 'INDIVIDUAL' | 'UNDECIDED'
 
 export interface ReservationGroup {
   id: string
@@ -82,6 +170,12 @@ export interface ReservationGroup {
   notes: string | null
   createdAt: string
   participants?: Participant[]
+  // Reservations module
+  contactPhone: string | null
+  contactEmail: string | null
+  channel: Channel
+  createdBy: string | null
+  paymentMode: GroupPaymentMode
 }
 
 export interface Payment {
@@ -92,14 +186,437 @@ export interface Payment {
   stage: PaymentStage
   notes: string | null
   createdAt: string
+  /**
+   * Set on every row produced by a single group charge split across members,
+   * so the UI can show and undo them as one operation. NULL for individual
+   * payments — the payments model itself is unchanged, one row per person,
+   * which is what keeps cash close, AR and the P&L adding up.
+   */
+  groupPaymentId: string | null
 }
 
 export interface Instructor {
   id: string
   name: string
   active: boolean
+  feePerJump: number
   createdAt: string
 }
+
+// ─── Finance ────────────────────────────────────────────────
+
+export interface FinancialSettings {
+  id: string
+  fuelPricePerFlight: number
+  hangarPricePerDay: number
+  packerFeePerJump: number
+  updatedAt: string
+}
+
+export type ExpenseType = 'FUEL_OVERRIDE' | 'HANGAR_OVERRIDE' | 'CUSTOM'
+
+export interface DayExpense {
+  id: string
+  operationalDayId: string
+  type: ExpenseType
+  description: string | null
+  amount: number
+  createdAt: string
+}
+
+export interface InstructorPayout {
+  instructorId: string
+  name: string
+  jumps: number
+  feePerJump: number
+  total: number
+}
+
+export interface DayFinancials {
+  date: string
+  operationalDayId: string
+  // Revenue
+  totalRevenue: number
+  revenueByMethod: Record<PaymentMethod, number>
+  // Costs
+  fuelCost: number
+  fuelIsOverride: boolean
+  fuelOverrideExpenseId: string | null
+  hangarCost: number
+  hangarIsOverride: boolean
+  hangarOverrideExpenseId: string | null
+  instructorPayouts: InstructorPayout[]
+  totalInstructorCost: number
+  packerCost: number
+  customExpenses: DayExpense[]
+  totalCosts: number
+  // Net
+  netProfit: number
+}
+
+export interface MonthFinancialSummary {
+  date: string
+  totalRevenue: number
+  totalCosts: number
+  netProfit: number
+  jumpCount: number
+  flightCount: number
+}
+
+export interface DayExpenseWithDate extends DayExpense {
+  date: string // YYYY-MM-DD of the operational day
+}
+
+export interface MonthFinancialsDetail {
+  month: string
+  // Counts
+  dayCount: number
+  flightCount: number
+  jumpCount: number
+  // Revenue
+  totalRevenue: number
+  revenueByMethod: Record<PaymentMethod, number>
+  // Fixed costs (may include per-day overrides)
+  totalFuelCost: number
+  totalHangarCost: number
+  totalPackerCost: number
+  // Instructors
+  instructorPayouts: InstructorPayout[]
+  totalInstructorCost: number
+  // Custom expenses
+  customExpenses: DayExpenseWithDate[]
+  totalCustomCost: number
+  // Totals
+  totalCosts: number
+  netProfit: number
+}
+
+// ─── Finance v2 types ────────────────────────────────────────
+
+export type ProductCategory =
+  | 'TANDEM_BASE'
+  | 'CAMERA_HANDYCAM'
+  | 'CAMERA_EXTERNAL'
+  | 'PHOTOS'
+  | 'OVERWEIGHT'
+  | 'GROUND_REPORT'
+  | 'OTHER'
+
+export type ExpenseGroup = 'COSTES_OPERATIVOS' | 'GENERALES'
+
+export type RateBasis = 'PER_FLIGHT' | 'PER_JUMP' | 'FIXED_PER_DAY' | 'FIXED_PER_MONTH'
+
+export type ChannelKind = 'DIRECT' | 'PLATFORM'
+
+/**
+ * Sale channel (Reserva directa, Bono, Promo, Groupon, Smartbox, ...).
+ * DIRECT channels carry no commission; PLATFORM channels do. Adjustable
+ * per-channel %, decoupled from ReservationSource. `commissionPct` is in
+ * percentage points (e.g. 15 = 15%); null = pending / not applicable.
+ */
+export interface SaleChannel {
+  id: string
+  code: string
+  name: string
+  channelKind: ChannelKind
+  commissionPct: number | null
+  active: boolean
+  notes: string | null
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Product {
+  id: string
+  code: string
+  name: string
+  category: ProductCategory
+  basePrice: number
+  vatRate: number | null
+  active: boolean
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ParticipantItem {
+  id: string
+  participantId: string
+  productId: string
+  quantity: number
+  unitPrice: number
+  vatRate: number | null
+  /** GENERATED column (quantity * unit_price); never written by client code */
+  amount: number
+  notes: string | null
+  createdAt: string
+  /**
+   * True when this line was created by the packageType -> products
+   * auto-itemization engine (Sprint 1 treasury). False for lines added by
+   * hand in the manifest (e.g. an OVERWEIGHT supplement). Lets a packageType
+   * change re-sync only the automatic lines, and lets cancellation flows
+   * delete only the automatic lines without touching manual additions.
+   */
+  autoGenerated: boolean
+}
+
+/**
+ * Channel × product net price matrix (Sprint 1 treasury). Keyed by
+ * ReservationSource (not sale_channels.id) — see migration
+ * 20260701000000_treasury_itemization_ar.sql for the reasoning.
+ * unitPrice is the NET amount iJump receives for that product when sold
+ * through that channel (DIRECT = catalog price; platform = agreed net,
+ * per the 2026-07-01 pricing decision — no commission is ever registered).
+ */
+export interface ChannelProductPrice {
+  id: string
+  channel: ReservationSource
+  productId: string
+  unitPrice: number
+  active: boolean
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ExpenseCategory {
+  id: string
+  code: string
+  name: string
+  groupType: ExpenseGroup
+  subgroup: string | null
+  defaultRate: number | null
+  rateBasis: RateBasis | null
+  sortOrder: number
+  active: boolean
+}
+
+export interface Expense {
+  id: string
+  expenseCategoryId: string
+  /** null = fixed monthly cost not tied to an operational day */
+  operationalDayId: string | null
+  incurredOn: string // YYYY-MM-DD
+  description: string | null
+  supplier: string | null
+  sociedad: string | null
+  amount: number
+  vatRate: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+// ─── P&L shapes ─────────────────────────────────────────────
+
+/**
+ * Revenue grouped by product_category for participants WITH items,
+ * plus a synthetic 'SIN_DESGLOSE' entry for participants WITHOUT items
+ * (whose revenue comes from payments under the COALESCE rule).
+ *
+ * Invariant: sum of all values === period revenueTotal.
+ */
+export type RevenueByCategory = Partial<Record<ProductCategory, number>> & {
+  SIN_DESGLOSE?: number
+  /**
+   * Non-refundable deposits kept from leads cancelled definitively WITHOUT a
+   * seat (flight_id NULL) — their payments belong to no operational day, so
+   * they enter the P&L as a synthetic line attributed to the payment date.
+   */
+  DEPOSITO_RETENIDO?: number
+}
+
+/** One cost category line inside a P&L group */
+export interface CostCategoryLine {
+  categoryCode: string
+  name: string
+  group: ExpenseGroup
+  subgroup: string | null
+  amount: number
+}
+
+/** One EBITDA group (COSTES_OPERATIVOS | GENERALES) with its categories */
+export interface CostGroup {
+  group: ExpenseGroup
+  total: number
+  categories: CostCategoryLine[]
+  /** Pre-computed subtotals per subgroup (only populated when the group has subgroups) */
+  subgroupTotals: Record<string, number>
+}
+
+/** Full P&L for a period (day / ISO week / month / year) */
+export interface ProfitAndLoss {
+  periodLabel: string
+  revenueTotal: number
+  revenueByCategory: RevenueByCategory
+  costGroups: CostGroup[]
+  costsTotal: number
+  ebitda: number
+  ebitdaMarginPct: number
+}
+
+// ─── Finance KPI dashboard types ─────────────────────────────────
+
+/** Mix entry for a single source or product category */
+export interface MixEntry {
+  label: string
+  count: number
+  share: number // 0–100
+}
+
+/** Instructor productivity row */
+export interface InstructorProductivity {
+  instructorId: string
+  name: string
+  jumps: number
+  shareOfTotal: number // 0–100
+}
+
+/** Depósitos vs liquidación breakdown */
+export interface PaymentStageBreakdown {
+  reserva: number
+  liquidacion: number
+  suplemento: number
+  total: number
+}
+
+/** Full KPI dashboard payload for a period */
+export interface FinanceKpis {
+  /** Period label identical to ProfitAndLoss.periodLabel */
+  periodLabel: string
+
+  // Ocupación de vuelo
+  /** Average completed clients per flight (0 if no flights) */
+  avgClientsPerFlight: number
+  /** % occupancy vs capacity-2: avgClientsPerFlight / 2 × 100 */
+  occupancyPct: number
+  totalFlights: number
+  totalCompletedJumps: number
+
+  // Ingreso medio por salto
+  revenueTotal: number
+  /** revenueTotal / totalCompletedJumps (0 if no jumps) */
+  revenuePerJump: number
+
+  // Mix por origen (reservation_groups.source)
+  mixBySource: MixEntry[]
+
+  // Mix por producto (revenueByCategory from P&L)
+  mixByProduct: MixEntry[]
+
+  // Productividad por instructor
+  instructorProductivity: InstructorProductivity[]
+
+  // % cancelación meteo
+  totalParticipants: number
+  weatherCancelledCount: number
+  /** weatherCancelledCount / totalParticipants × 100 */
+  weatherCancellationPct: number
+
+  // Depósitos vs liquidación
+  paymentStages: PaymentStageBreakdown
+}
+
+// ─── End finance KPI types ────────────────────────────────────────
+
+// ─── End finance v2 types ────────────────────────────────────────
+
+// ─── Reservations module (Leads → Manifest) ──────────────────
+// See docs/reservas/RESERVAS_MODULE_PLAN_v1.md and CHECKLIST.md
+
+export type LeadStatus =
+  | 'NEW'
+  | 'TENTATIVE'
+  | 'CONFIRMED'
+  | 'RESCHEDULE_NEEDED'
+  | 'CANCELLED'
+  | 'NO_SHOW'
+
+export type Channel = 'WEB_BOT' | 'WHATSAPP_BOT' | 'STAFF' | 'STAFF_PHONE' | 'STAFF_WHATSAPP'
+
+// Availability engine — see src/lib/availability/availability-engine.ts (R2)
+export type DateClass = 'CONFIRMABLE' | 'TENTATIVE_ONLY' | 'UNAVAILABLE' | 'NOT_OPERATING'
+
+export interface AvailabilityPolicy {
+  maxClientsPerFlight: number
+  maxFlightsPerDay: number
+  operatingWeekdays: number[] // e.g. [6, 0] = Saturday and Sunday
+  flightIntervalMinutes: number // minutes between auto-scheduled flights — configurable per season
+}
+
+export interface DayLoad {
+  date: string
+  weatherStatus: WeatherStatus
+  flights: { id: string; activeParticipantCount: number }[]
+}
+
+export interface DaySlots {
+  date: string
+  isOperatingDay: boolean
+  weatherCancelled: boolean
+  existingFlights: number
+  freeSeatsInExistingFlights: number
+  potentialNewFlights: number
+  totalFreeSeats: number
+  bookable: boolean
+}
+
+export interface BusinessSetting {
+  key: string
+  value: string
+  description: string | null
+  updatedAt: string
+}
+
+export interface ApiKey {
+  id: string
+  label: string
+  keyPrefix: string
+  scopes: string[]
+  rateLimitPerMin: number
+  active: boolean
+  lastUsedAt: string | null
+  createdAt: string
+  revokedAt: string | null
+}
+
+// Lead row with the relations the /reservas UI needs to render a row
+export interface LeadWithDetails extends Participant {
+  reservationGroup: ReservationGroup | null
+  availability?: DateClass
+  /**
+   * Real member count of the reservation group. A group-of-1 is structural
+   * (it only carries `source` — see createParticipant); the UI must treat
+   * "comes in a group" as groupSize >= 2 (or an explicit payerName).
+   */
+  groupSize: number
+  /** Payments registered for this lead — drives the payment badge and the LeadSheet. */
+  payments: Payment[]
+  /** Σ payments.amount, precomputed for the row badge. */
+  paidTotal: number
+  /**
+   * Σ participant_items.amount — what this person owes in total. Precomputed
+   * so the booking's balance can be rendered from the data already on screen
+   * instead of a second round trip per open sheet.
+   */
+  itemsTotal: number
+  /**
+   * The rest of the booking, populated ONLY on the organizer's row: listLeads
+   * collapses a group into a single row so /reservas shows one line per
+   * booking, not per person. Companions are full lead rows underneath — each
+   * one needs its own waiver, seat, instructor, items and overweight fee —
+   * they just don't carry phone or email of their own.
+   */
+  companions: LeadWithDetails[]
+  /**
+   * Group at or above business_settings.group_event_threshold (10). Accepted
+   * like any other booking, but never auto-confirmed: the team has to confirm
+   * it explicitly and negotiate it. See docs/reservas/GRUPOS.md.
+   */
+  isEvent: boolean
+}
+
+// ─── End reservations module types ───────────────────────────
 
 export type WaiverDocumentType = 'WAIVER' | 'RGPD'
 export type WaiverStatus = 'PENDING' | 'COMPLETED' | 'EXPIRED'
@@ -124,6 +641,12 @@ export interface WaiverFormData {
   healthDeclaration?: Record<string, boolean>
   // Consent checkboxes (RGPD / Consentimiento Informado)
   consents?: Record<string, boolean>
+  // Witness (RGPD only) — one witness, not the original paper's two (business
+  // decision 2026-09-11). Usually someone from the participant's own group;
+  // Ana (administración) signs as a fallback when nobody else is available.
+  witnessName?: string
+  witnessDni?: string
+  witnessAge?: string
 }
 
 export interface Waiver {
@@ -165,6 +688,8 @@ export interface ParticipantWithDetails extends Participant {
   instructor: Instructor | null
   payments: Payment[]
   reservationGroup: ReservationGroup | null
+  /** Sale line items (Sprint 1 treasury) — used to derive the AR balance. */
+  items: ParticipantItem[]
 }
 
 export interface FlightWithParticipants extends Flight {
@@ -173,4 +698,92 @@ export interface FlightWithParticipants extends Flight {
 
 export interface OperationalDayWithDetails extends OperationalDay {
   flights: FlightWithParticipants[]
+}
+
+// ─── Treasury — Accounts Receivable (Sprint 1) ────────────────
+
+/**
+ * One row in the "Cobros" (AR) view: a participant whose
+ * Σ(items) − Σ(payments) balance is > 0. `owedBy` distinguishes who the
+ * pending amount is actually owed by — a platform client (Groupon/
+ * Smartbox/...) only owes iJump the ticket suplements on-site; the
+ * itemized base sale is a receivable AGAINST THE PLATFORM, not the client.
+ */
+export interface ArReceivableRow {
+  participantId: string
+  fullName: string
+  operationalDayDate: string | null
+  flightId: string | null
+  source: ReservationSource
+  /** 'CLIENT' for DIRECT/BONO/PROMO, 'PLATFORM' for GROUPON/SMARTBOX/... */
+  owedBy: 'CLIENT' | 'PLATFORM'
+  itemsTotal: number
+  paymentsTotal: number
+  balance: number
+}
+
+export interface ArSummary {
+  rows: ArReceivableRow[]
+  totalPendingClient: number
+  totalPendingPlatform: number
+  byPlatform: Record<string, number>
+}
+
+// ─── Treasury — Daily Cash Close (Sprint 2) ───────────────────
+
+/** Header row: one per operational day, created when the till is closed. */
+export interface CashClose {
+  id: string
+  operationalDayId: string
+  closedAt: string
+  closedBy: string
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** One payment-method line within a cash close (or a live/unclosed summary). */
+export interface CashCloseLine {
+  id: string | null
+  cashCloseId: string | null
+  method: PaymentMethod
+  /** Frozen snapshot at closing time (or live-derived if not yet closed). */
+  expected: number
+  /** What the till physically held. 0 before it has been counted. */
+  counted: number
+  /** counted − expected, derived, never stored. */
+  discrepancy: number
+}
+
+/**
+ * Full cash-close view for one operational day, used by both the "already
+ * closed" (snapshot) and "not yet closed" (live) cases in getCashCloseSummary.
+ * `closed` distinguishes the two; closedAt/closedBy/notes are null when live.
+ */
+export interface CashCloseSummary {
+  operationalDayId: string
+  closed: boolean
+  cashCloseId: string | null
+  closedAt: string | null
+  closedBy: string | null
+  notes: string | null
+  lines: CashCloseLine[]
+  totals: {
+    expected: number
+    counted: number
+    discrepancy: number
+  }
+}
+
+/** One recent cash close row for the "Caja" list view. */
+export interface CashCloseListItem {
+  id: string
+  operationalDayId: string
+  operationalDayDate: string
+  closedAt: string
+  closedBy: string
+  notes: string | null
+  totalExpected: number
+  totalCounted: number
+  totalDiscrepancy: number
 }

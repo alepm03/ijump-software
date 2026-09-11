@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
-import { createInstructor, toggleInstructorActive } from '@/lib/actions/instructor'
+import { createInstructor, toggleInstructorActive, updateInstructorFee } from '@/lib/actions/instructor'
 import { useRouter } from 'next/navigation'
 import type { Instructor } from '@/types/domain'
 
@@ -116,6 +116,7 @@ export function InstructorsManager({ instructors }: Props) {
                 instructor={instructor}
                 onToggle={handleToggle}
                 loading={toggling === instructor.id}
+                onFeeUpdated={() => router.refresh()}
               />
             ))}
           </ul>
@@ -137,6 +138,7 @@ export function InstructorsManager({ instructors }: Props) {
                 instructor={instructor}
                 onToggle={handleToggle}
                 loading={toggling === instructor.id}
+                onFeeUpdated={() => router.refresh()}
               />
             ))}
           </ul>
@@ -156,17 +158,45 @@ function InstructorRow({
   instructor,
   onToggle,
   loading,
+  onFeeUpdated,
 }: {
   instructor: Instructor
   onToggle: (i: Instructor) => void
   loading: boolean
+  onFeeUpdated: () => void
 }) {
+  const [editingFee, setEditingFee] = useState(false)
+  const [feeValue, setFeeValue] = useState('')
+  const [, startTransition] = useTransition()
+
   const initials = instructor.name
     .split(' ')
     .map((w) => w[0])
     .slice(0, 2)
     .join('')
     .toUpperCase()
+
+  function handleFeeEdit() {
+    setFeeValue(instructor.feePerJump.toString())
+    setEditingFee(true)
+  }
+
+  function handleFeeSave() {
+    const parsed = parseFloat(feeValue.replace(',', '.'))
+    if (isNaN(parsed) || parsed < 0) {
+      toast.error('Fee inválido')
+      return
+    }
+    startTransition(async () => {
+      const result = await updateInstructorFee(instructor.id, parsed)
+      if (result.error) {
+        toast.error(result.error)
+      } else {
+        setEditingFee(false)
+        onFeeUpdated()
+      }
+    })
+  }
 
   return (
     <li className="flex items-center gap-3 px-4 py-3">
@@ -179,6 +209,46 @@ function InstructorRow({
       <span className="flex-1 text-sm font-medium text-foreground">
         {instructor.name}
       </span>
+
+      {/* Fee per jump */}
+      {editingFee ? (
+        <div className="flex items-center gap-1.5">
+          <input
+            type="number"
+            value={feeValue}
+            onChange={(e) => setFeeValue(e.target.value)}
+            className="w-20 rounded-lg border border-border bg-background px-2 py-1 text-xs text-right outline-none focus:ring-2 focus:ring-primary/30"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleFeeSave()
+              if (e.key === 'Escape') setEditingFee(false)
+            }}
+          />
+          <span className="text-xs text-muted-foreground">€/salto</span>
+          <button
+            onClick={handleFeeSave}
+            className="text-xs px-2 py-1 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition"
+          >
+            OK
+          </button>
+          <button
+            onClick={() => setEditingFee(false)}
+            className="text-xs px-2 py-1 rounded-lg border border-border text-muted-foreground hover:bg-secondary transition"
+          >
+            ✕
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={handleFeeEdit}
+          className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg border border-dashed border-border hover:border-border hover:bg-secondary transition"
+          title="Editar fee por salto"
+        >
+          {instructor.feePerJump > 0
+            ? `${instructor.feePerJump} €/salto`
+            : '— €/salto'}
+        </button>
+      )}
 
       {/* Status badge */}
       <span

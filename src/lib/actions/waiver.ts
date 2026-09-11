@@ -1,9 +1,68 @@
 'use server'
 
+import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { generateWaiverPdf } from '@/lib/generate-waiver-pdf'
 import type { WaiverDocumentType, WaiverFormData, WaiverStatus, Waiver } from '@/types/domain'
+
+// Runtime validation for the public waiver submission endpoint. formData
+// arrives from an unauthenticated browser client, so every field must be
+// bounded and typed before it reaches the PDF generator or Storage.
+const waiverFormDataSchema = z.object({
+  fullName: z.string().trim().min(1).max(120),
+  email: z.union([z.literal(''), z.string().max(254).email()]),
+  phone: z.string().max(60).optional(),
+  dni: z.string().max(60).optional(),
+  dateOfBirth: z.string().max(20).optional(),
+  address: z.string().max(200).optional(),
+  province: z.string().max(60).optional(),
+  emergencyContactName: z.string().max(60).optional(),
+  emergencyContactPhone: z.string().max(60).optional(),
+  emergencyContactRelationship: z.string().max(60).optional(),
+  sportsLicenseNumber: z.string().max(60).optional(),
+  healthDeclaration: z.record(z.string().max(100), z.boolean()).optional(),
+  consents: z.record(z.string().max(100), z.boolean()).optional(),
+  witnessName: z.string().max(120).optional(),
+  witnessDni: z.string().max(60).optional(),
+  witnessAge: z.string().max(10).optional(),
+})
+
+const PNG_MAGIC_BYTES = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+const MAX_SIGNATURE_BYTES = 500 * 1024
+
+// With upsert:false, a concurrent double-submit of the same waiver (both
+// requests passing the PENDING check before either finishes uploading) makes
+// the second upload fail because the object already exists. That specific
+// case is safe to swallow — the file is already there with identical
+// content — so we detect it instead of surfacing it as a real error.
+function isDuplicateUploadError(error: { message?: string; statusCode?: string } | null): boolean {
+  if (!error) return false
+  if (error.statusCode === '409') return true
+  const message = error.message ?? ''
+  return message.includes('already exists') || message.includes('Duplicate')
+}
+
+function decodeAndValidateSignature(signatureBase64: string): Buffer | null {
+  const prefix = 'data:image/png;base64,'
+  if (!signatureBase64.startsWith(prefix)) return null
+
+  let buffer: Buffer
+  try {
+    buffer = Buffer.from(signatureBase64.slice(prefix.length), 'base64')
+  } catch {
+    return null
+  }
+
+  if (buffer.length === 0 || buffer.length > MAX_SIGNATURE_BYTES) return null
+
+  for (let i = 0; i < PNG_MAGIC_BYTES.length; i++) {
+    if (buffer[i] !== PNG_MAGIC_BYTES[i]) return null
+  }
+
+  return buffer
+}
 
 // ─── Staff actions (require auth) ────────────────────────────────────────────
 
@@ -112,22 +171,26 @@ export async function getWaiverByToken(token: string): Promise<{
 
 /**
  * Submits a completed waiver.
- * Accepts the PDF and signature as base64 strings, uploads them to Storage,
- * updates the waiver record to COMPLETED, and marks the participant as signed.
+ * Validates formData and the signature at runtime, generates the legal PDF
+ * server-side (never trusting a client-supplied document), uploads both to
+ * Storage, updates the waiver record to COMPLETED, and marks the participant
+ * as signed.
  *
  * Only processes waivers in PENDING status — idempotent on re-submission.
  */
 export async function submitWaiver(
   token: string,
   formData: WaiverFormData,
-  pdfBase64: string,
-  signatureBase64: string
+  signatureBase64: string,
+  // RGPD only: one witness signature (the original paper required two — see
+  // WaiverFormData.witnessName). WAIVER submissions never pass this.
+  witnessSignatureBase64?: string
 ): Promise<{ error?: string }> {
   const supabase = createServiceClient()
 
   const { data: existing, error: fetchError } = await supabase
     .from('waivers')
-    .select('id, status, participant_id, document_type')
+    .select('id, status, participant_id, document_type, participants!waivers_participant_id_fkey(full_name)')
     .eq('token', token)
     .maybeSingle()
 
@@ -136,8 +199,33 @@ export async function submitWaiver(
   if (existing.status === 'COMPLETED') return {}
   if (existing.status === 'EXPIRED') return { error: 'expired' }
 
-  // Build paths: NombreCliente/WAIVER/NombreCliente-YYYY-MM-DD-WAIVER.pdf
-  const safeName = (formData.fullName || 'participante')
+  const parsed = waiverFormDataSchema.safeParse(formData)
+  if (!parsed.success) return { error: 'validation_error' }
+  const parsedFormData = parsed.data as WaiverFormData
+
+  const sigBuffer = decodeAndValidateSignature(signatureBase64)
+  if (!sigBuffer) return { error: 'invalid_signature' }
+
+  // Present means the form claims to include one — validate it strictly.
+  // Absent is fine (WAIVER submissions, or an RGPD client that hasn't
+  // rolled out the witness UI yet): we don't retroactively require it here,
+  // the client-side form is what enforces "required for RGPD".
+  let witnessSigBuffer: Buffer | null = null
+  if (witnessSignatureBase64) {
+    witnessSigBuffer = decodeAndValidateSignature(witnessSignatureBase64)
+    if (!witnessSigBuffer) return { error: 'invalid_witness_signature' }
+  }
+
+  const participantRow = existing.participants as { full_name: string } | null
+  const participantName = participantRow?.full_name ?? 'Participante'
+
+  // Build paths: {participantId}/WAIVER/NombreCliente-YYYY-MM-DD-WAIVER-{waiverIdShort}.pdf
+  // The participant id (folder) and waiver id (filename suffix) make the path
+  // unique per record, so two people with the same name signing the same day
+  // never collide, and a completed waiver can't be clobbered by a re-submit
+  // of a different (e.g. attacker-controlled) pending token. safeName+date
+  // stay in the filename purely so the bucket is still human-browsable.
+  const safeName = (parsedFormData.fullName || 'participante')
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')  // strip accents
     .replace(/[^a-zA-Z0-9 ]/g, '')   // remove special chars
@@ -147,24 +235,52 @@ export async function submitWaiver(
   const dateStr = new Date().toISOString().split('T')[0]
   const docLabel = existing.document_type  // 'WAIVER' | 'RGPD'
   const baseName = `${safeName}-${dateStr}-${docLabel}`
+  const waiverIdShort = existing.id.slice(0, 8)
 
-  // Upload PDF — NombreCliente/WAIVER/NombreCliente-Fecha-WAIVER.pdf
-  const pdfPath = `${safeName}/${docLabel}/${baseName}.pdf`
+  const pdfBase64 = await generateWaiverPdf(
+    existing.document_type as WaiverDocumentType,
+    parsedFormData,
+    signatureBase64,
+    participantName,
+    witnessSigBuffer ? witnessSignatureBase64 : undefined
+  )
+
+  // Upload PDF — {participantId}/WAIVER/NombreCliente-Fecha-WAIVER-{waiverIdShort}.pdf
+  const pdfPath = `${existing.participant_id}/${docLabel}/${baseName}-${waiverIdShort}.pdf`
   const pdfBuffer = Buffer.from(pdfBase64, 'base64')
   const { error: pdfError } = await supabase.storage
     .from('waiver-documents')
-    .upload(pdfPath, pdfBuffer, { contentType: 'application/pdf', upsert: true })
+    .upload(pdfPath, pdfBuffer, { contentType: 'application/pdf', upsert: false })
 
-  if (pdfError) return { error: `PDF upload failed: ${pdfError.message}` }
+  if (pdfError && !isDuplicateUploadError(pdfError)) {
+    return { error: `PDF upload failed: ${pdfError.message}` }
+  }
 
-  // Upload signature image — NombreCliente/WAIVER/NombreCliente-Fecha-WAIVER-firma.png
-  const sigPath = `${safeName}/${docLabel}/${baseName}-firma.png`
-  const sigBuffer = Buffer.from(signatureBase64.replace(/^data:image\/png;base64,/, ''), 'base64')
+  // Upload signature image — {participantId}/WAIVER/NombreCliente-Fecha-WAIVER-{waiverIdShort}-firma.png
+  const sigPath = `${existing.participant_id}/${docLabel}/${baseName}-${waiverIdShort}-firma.png`
   const { error: sigError } = await supabase.storage
     .from('waiver-documents')
-    .upload(sigPath, sigBuffer, { contentType: 'image/png', upsert: true })
+    .upload(sigPath, sigBuffer, { contentType: 'image/png', upsert: false })
 
-  if (sigError) return { error: `Signature upload failed: ${sigError.message}` }
+  if (sigError && !isDuplicateUploadError(sigError)) {
+    return { error: `Signature upload failed: ${sigError.message}` }
+  }
+
+  // Witness signature — same bucket, sibling path, only when one was sent.
+  // No dedicated column for this (avoids a migration for a JSON-shaped
+  // extra): the signed URL rides inside form_data alongside witnessName/
+  // witnessDni/witnessAge, exactly like the rest of the submitted fields.
+  let witnessSigPath: string | null = null
+  if (witnessSigBuffer) {
+    witnessSigPath = `${existing.participant_id}/${docLabel}/${baseName}-${waiverIdShort}-firma-testigo.png`
+    const { error: witnessSigError } = await supabase.storage
+      .from('waiver-documents')
+      .upload(witnessSigPath, witnessSigBuffer, { contentType: 'image/png', upsert: false })
+
+    if (witnessSigError && !isDuplicateUploadError(witnessSigError)) {
+      return { error: `Witness signature upload failed: ${witnessSigError.message}` }
+    }
+  }
 
   // Build signed URLs for permanent reference (10-year expiry)
   const { data: pdfSigned } = await supabase.storage
@@ -175,11 +291,23 @@ export async function submitWaiver(
     .from('waiver-documents')
     .createSignedUrl(sigPath, 60 * 60 * 24 * 365 * 10)
 
+  let witnessSignatureUrl: string | undefined
+  if (witnessSigPath) {
+    const { data: witnessSigSigned } = await supabase.storage
+      .from('waiver-documents')
+      .createSignedUrl(witnessSigPath, 60 * 60 * 24 * 365 * 10)
+    witnessSignatureUrl = witnessSigSigned?.signedUrl ?? witnessSigPath
+  }
+
+  const formDataToStore = witnessSignatureUrl
+    ? { ...parsedFormData, witnessSignatureUrl }
+    : parsedFormData
+
   // Update waiver record
   const { error: updateError } = await supabase
     .from('waivers')
     .update({
-      form_data: formData as unknown as import('@/lib/supabase/database.types').Json,
+      form_data: formDataToStore as unknown as import('@/lib/supabase/database.types').Json,
       pdf_url: pdfSigned?.signedUrl ?? pdfPath,
       signature_url: sigSigned?.signedUrl ?? sigPath,
       status: 'COMPLETED',

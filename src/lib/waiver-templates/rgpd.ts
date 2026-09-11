@@ -1,10 +1,10 @@
 export const RGPD_TITLE = 'Consentimiento Informado para la Práctica de Paracaidismo Deportivo'
 
 export const RGPD_LEGAL_TEXT = `
-C.D. I JUMP SKYDIVE PURA VIDA — CIF G-23600968
+I JUMP SKYDIVE PURA VIDA C.D. · CIF G-23600968
 Aeródromo de Casas de los Pinos. N-301, Km 190, carretera de los Higuerones s/n. 16612 (Cuenca)
 
-MANIFIESTA: que consecuencia de mi petición he sido invitado por C.D. I JUMP SKYDIVE PURA VIDA a realizar un vuelo de divulgación/paseo o saltos de paracaidismo, tándem, en la aeronave a lo largo todo el año actual. El salto tándem es el primer salto de bautismo como socio.
+MANIFIESTA: que consecuencia de mi petición he sido invitado por I JUMP SKYDIVE PURA VIDA C.D. a realizar un vuelo de divulgación/paseo o saltos de paracaidismo, tándem, en la aeronave a lo largo todo el año actual. El salto tándem es el primer salto de bautismo como socio.
 
 Que ante la eventualidad de un accidente durante el tiempo que dure la realización del vuelo y maniobras directamente relacionadas con el mismo, sabiendo que la práctica del Paracaidismo es un deporte de alto riesgo:
 
@@ -19,6 +19,8 @@ DECLARO: Haber recibido las clases teóricas y prácticas para la realización d
 Asimismo, DECLARO haber recibido las instrucciones oportunas de las posibles emergencias que se pudieran originar en el salto con paracaídas y haber recibido clases del manejo de campana, así como la toma de tierra asistida o no asistida. También DECLARO estar informado de la cobertura en caso de accidente por negligencia en el salto, así como tener cobertura sanitaria propia, pública o privada, para el caso de necesidad de atención sanitaria.
 
 He sido informado de la prohibición de la práctica de submarinismo deportivo 24 horas antes del salto, y que respetaré mi descanso personal no habiendo trasnochado la noche anterior a la práctica de este deporte.
+
+VALIDEZ DE UN AÑO ENHORABUENA YA ERES SOCIO DEL CLUB (COLABORADOR)
 
 Artículo 6.2 Código Civil*: La exclusión voluntaria de la Ley aplicable y la renuncia de los derechos en ella reconocidos solo serán válidas cuando no contraríen el interés o el orden público ni perjudique a tercero.
 `.trim()

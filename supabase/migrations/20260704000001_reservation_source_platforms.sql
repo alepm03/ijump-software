@@ -1,0 +1,52 @@
+-- ============================================================
+-- iJump — Extend reservation_source with the 3 remaining platforms
+-- (WONDERBOX, JUMPING, FREEDOM)
+-- ============================================================
+--
+-- Context (issue #43): sale_channels already carries all 8 sale channels —
+-- see 20260622000000_finance_expense_model.sql:103-111. Three of them
+-- (WONDERBOX, JUMPING, FREEDOM) were seeded with NO corresponding
+-- reservation_source enum value, because at the time the reservations
+-- module could not produce them on a participant. The dropdown in
+-- AddParticipantDrawer.tsx was hardcoded to the original 5-value enum
+-- (DIRECT | GROUPON | BONO | PROMO | SMARTBOX) and staff had no way to
+-- record a lead/participant sold through these 3 platforms. This migration
+-- closes that gap by adding the missing enum values.
+--
+-- ⚠ NOT REVERSIBLE — explicit, accepted exception to this repo's migration
+-- rule (see CLAUDE.md §Migraciones de base de datos: "no ALTER TYPE ADD
+-- VALUE (no reversible)"). PostgreSQL cannot drop a value from an ENUM
+-- type; the only way to undo this is to recreate the type without the new
+-- values and re-cast every column that uses it (reservation_groups.source,
+-- channel_product_prices.channel, any other FK-like usage). This exception
+-- was anticipated and accepted in issue #43 — the 3 platforms already exist
+-- in sale_channels precisely so this enum extension was the only missing
+-- step, not a new/unplanned data model decision.
+--
+-- Why NO channel_product_prices rows are inserted here:
+--   a) PostgreSQL 12+ does not allow a newly-added enum value to be used
+--      inside the SAME transaction that creates it (each ALTER TYPE ...
+--      ADD VALUE commits its own transaction boundary in this migration's
+--      run, but to stay safe and simple we don't attempt to reference the
+--      new values in DML in this same file at all).
+--   b) The net prices iJump would receive for WONDERBOX/JUMPING/FREEDOM are
+--      still pending confirmation from Raúl (S21 — see
+--      docs/PREGUNTAS_NEGOCIO_FINANZAS.md). Until those are confirmed, the
+--      auto-itemization engine's documented fallback applies: no active
+--      row in channel_product_prices for a (channel, product) pair falls
+--      back to products.base_price, with a traceable note on the
+--      auto-generated participant_items line (see
+--      20260701000000_treasury_itemization_ar.sql:46 and the itemization
+--      engine). This is expected and safe — it mirrors how the other
+--      platform channels behaved before their net prices were confirmed.
+--
+-- ROLLBACK: there is no simple rollback for this migration. Undoing it
+-- requires recreating the reservation_source type without WONDERBOX/
+-- JUMPING/FREEDOM and re-casting every column typed as reservation_source
+-- (reservation_groups.source, channel_product_prices.channel) to the new
+-- type, after first deleting/reassigning any row that already uses one of
+-- the 3 removed values. Do not attempt this without a full data audit.
+
+ALTER TYPE reservation_source ADD VALUE IF NOT EXISTS 'WONDERBOX';
+ALTER TYPE reservation_source ADD VALUE IF NOT EXISTS 'JUMPING';
+ALTER TYPE reservation_source ADD VALUE IF NOT EXISTS 'FREEDOM';

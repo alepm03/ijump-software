@@ -2,7 +2,6 @@
 
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { submitWaiver } from '@/lib/actions/waiver'
-import { generateWaiverPdf } from '@/lib/generate-waiver-pdf'
 import { WAIVER_FIELDS, HEALTH_ITEMS, WAIVER_LEGAL_TEXT, WAIVER_TITLE } from '@/lib/waiver-templates/waiver'
 import { RGPD_FIELDS, CONSENT_ITEMS, RGPD_LEGAL_TEXT, RGPD_TITLE } from '@/lib/waiver-templates/rgpd'
 import type { Waiver, WaiverDocumentType, WaiverFormData } from '@/types/domain'
@@ -112,18 +111,33 @@ export default function WaiverSigningForm({ waiver, participantName }: Props) {
     Object.fromEntries(CONSENT_ITEMS.map((c) => [c.key, false]))
   )
   const [hasSignature, setHasSignature] = useState(false)
+  // Witness (RGPD only) — one witness, not the paper's original two. Usually
+  // someone from the participant's own group; Ana (administración) signs as
+  // fallback when nobody else is available.
+  const [witnessName, setWitnessName] = useState('')
+  const [witnessDni, setWitnessDni] = useState('')
+  const [witnessAge, setWitnessAge] = useState('')
+  const [hasWitnessSignature, setHasWitnessSignature] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const witnessCanvasRef = useRef<HTMLCanvasElement>(null)
 
   function clearSignature() {
     const canvas = canvasRef.current
     if (!canvas) return
     canvas.getContext('2d')!.clearRect(0, 0, canvas.width, canvas.height)
     setHasSignature(false)
+  }
+
+  function clearWitnessSignature() {
+    const canvas = witnessCanvasRef.current
+    if (!canvas) return
+    canvas.getContext('2d')!.clearRect(0, 0, canvas.width, canvas.height)
+    setHasWitnessSignature(false)
   }
 
   function validate(): boolean {
@@ -143,6 +157,11 @@ export default function WaiverSigningForm({ waiver, participantName }: Props) {
       for (const c of requiredConsents) {
         if (!consents[c.key]) next[c.key] = 'Este consentimiento es obligatorio'
       }
+
+      if (!witnessName.trim()) next['witnessName'] = 'Campo obligatorio'
+      if (!witnessDni.trim()) next['witnessDni'] = 'Campo obligatorio'
+      if (!witnessAge.trim()) next['witnessAge'] = 'Campo obligatorio'
+      if (!hasWitnessSignature) next['witnessSignature'] = 'La firma del testigo es obligatoria'
     }
 
     if (!hasSignature) next['signature'] = 'La firma es obligatoria'
@@ -173,18 +192,17 @@ export default function WaiverSigningForm({ waiver, participantName }: Props) {
         sportsLicenseNumber: values['sportsLicenseNumber'] || undefined,
         healthDeclaration: isWaiver ? health : undefined,
         consents: !isWaiver ? consents : undefined,
+        witnessName: !isWaiver ? witnessName.trim() : undefined,
+        witnessDni: !isWaiver ? witnessDni.trim() : undefined,
+        witnessAge: !isWaiver ? witnessAge.trim() : undefined,
       }
 
       const signatureDataUrl = canvasRef.current!.toDataURL('image/png')
+      const witnessSignatureDataUrl = !isWaiver
+        ? witnessCanvasRef.current!.toDataURL('image/png')
+        : undefined
 
-      const pdfBase64 = await generateWaiverPdf(
-        documentType,
-        formData,
-        signatureDataUrl,
-        participantName
-      )
-
-      const result = await submitWaiver(waiver.token, formData, pdfBase64, signatureDataUrl)
+      const result = await submitWaiver(waiver.token, formData, signatureDataUrl, witnessSignatureDataUrl)
 
       if (result.error) {
         setSubmitError('Ha ocurrido un error al enviar el documento. Por favor, inténtalo de nuevo.')
@@ -335,11 +353,102 @@ export default function WaiverSigningForm({ waiver, participantName }: Props) {
           </section>
         )}
 
+        {/* Witness (RGPD) — one witness, not the paper's original two */}
+        {!isWaiver && (
+          <section className="space-y-4">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Testigo
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Necesitamos los datos y la firma de una persona que sea testigo de esta firma
+              (puede ser alguien de tu grupo, o el equipo de iJump si vienes solo/a).
+            </p>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">
+                Nombre completo<span className="text-destructive ml-0.5">*</span>
+              </label>
+              <input
+                type="text"
+                value={witnessName}
+                onChange={(e) => {
+                  setWitnessName(e.target.value)
+                  if (errors['witnessName']) setErrors((err) => { const n = { ...err }; delete n['witnessName']; return n })
+                }}
+                className={`w-full rounded-xl border bg-background px-4 py-3 text-foreground text-base outline-none transition focus:ring-2 focus:ring-primary/30 ${errors['witnessName'] ? 'border-destructive' : 'border-border'}`}
+                autoComplete="off"
+              />
+              {errors['witnessName'] && (
+                <p className="text-xs text-destructive mt-1">{errors['witnessName']}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  DNI<span className="text-destructive ml-0.5">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={witnessDni}
+                  onChange={(e) => {
+                    setWitnessDni(e.target.value)
+                    if (errors['witnessDni']) setErrors((err) => { const n = { ...err }; delete n['witnessDni']; return n })
+                  }}
+                  className={`w-full rounded-xl border bg-background px-4 py-3 text-foreground text-base outline-none transition focus:ring-2 focus:ring-primary/30 ${errors['witnessDni'] ? 'border-destructive' : 'border-border'}`}
+                  autoComplete="off"
+                />
+                {errors['witnessDni'] && (
+                  <p className="text-xs text-destructive mt-1">{errors['witnessDni']}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Edad<span className="text-destructive ml-0.5">*</span>
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={witnessAge}
+                  onChange={(e) => {
+                    setWitnessAge(e.target.value)
+                    if (errors['witnessAge']) setErrors((err) => { const n = { ...err }; delete n['witnessAge']; return n })
+                  }}
+                  className={`w-full rounded-xl border bg-background px-4 py-3 text-foreground text-base outline-none transition focus:ring-2 focus:ring-primary/30 ${errors['witnessAge'] ? 'border-destructive' : 'border-border'}`}
+                  autoComplete="off"
+                />
+                {errors['witnessAge'] && (
+                  <p className="text-xs text-destructive mt-1">{errors['witnessAge']}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-foreground">
+                Firma del testigo<span className="text-destructive ml-0.5">*</span>
+              </label>
+              {hasWitnessSignature && (
+                <button
+                  type="button"
+                  onClick={clearWitnessSignature}
+                  className="text-xs text-muted-foreground hover:text-foreground transition"
+                >
+                  Borrar
+                </button>
+              )}
+            </div>
+            <SignatureCanvas onHasSignatureChange={setHasWitnessSignature} canvasRef={witnessCanvasRef} />
+            {errors['witnessSignature'] && (
+              <p className="text-xs text-destructive">{errors['witnessSignature']}</p>
+            )}
+          </section>
+        )}
+
         {/* Signature */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Firma
+              {isWaiver ? 'Firma' : 'Tu firma'}
             </h2>
             {hasSignature && (
               <button

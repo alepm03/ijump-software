@@ -48,7 +48,7 @@ export default function DayLoading() {
 
       {/* Flights area */}
       <div className="flex-1 overflow-y-auto">
-        <div className="flex flex-col gap-2.5 px-7 py-5 max-w-[880px] mx-auto">
+        <div className="flex flex-col gap-2.5 px-7 py-5 max-w-[60rem] mx-auto">
           <FlightCardSkeleton participantCount={2} />
           <FlightCardSkeleton participantCount={1} />
           <FlightCardSkeleton participantCount={2} />

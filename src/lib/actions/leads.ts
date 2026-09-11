@@ -1,0 +1,869 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { createClient } from '@/lib/supabase/server'
+import { freeSeat } from '@/lib/actions/participant'
+import { getDayAvailability, type DbClient } from '@/lib/actions/availability'
+import { classifyDate } from '@/lib/availability/availability-engine'
+import { syncAutoParticipantItems, clearAutoParticipantItems } from '@/lib/actions/finance'
+import { normalizePhone } from '@/lib/phone'
+import { isLeadCold, todayIso } from '@/lib/utils'
+import { getGroupEventThreshold } from '@/lib/actions/settings'
+import type {
+  Channel,
+  DateClass,
+  GroupPaymentMode,
+  LeadStatus,
+  LeadWithDetails,
+  PackageType,
+  PaymentMethod,
+  PaymentStage,
+  ReservationSource,
+} from '@/types/domain'
+
+/**
+ * Completes a booking created without a preferred date (e.g. a bare phone
+ * inquiry).
+ *
+ * The date belongs to the BOOKING, not to one person: setting it only on the
+ * organizer would leave the companions dateless, and they would then sort and
+ * render as if they were still waiting for one. The requested hour stays on
+ * the organizer alone — that is where reservations_assign_group reads it from,
+ * and a companion carrying a different hour would be a contradiction.
+ */
+export async function setPreferredDate(
+  leadId: string,
+  date: string,
+  time?: string | null
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const now = new Date().toISOString()
+
+  const { data: lead, error: fetchError } = await supabase
+    .from('participants')
+    .select('reservation_group_id')
+    .eq('id', leadId)
+    .single()
+  if (fetchError) return { error: fetchError.message }
+
+  // CRM P0 — completing the date happens while talking to the client: contact.
+  const { error } = await supabase
+    .from('participants')
+    .update({ preferred_date: date, preferred_time: time ?? null, last_contact_at: now })
+    .eq('id', leadId)
+  if (error) return { error: error.message }
+
+  if (lead.reservation_group_id) {
+    const { error: groupError } = await supabase
+      .from('participants')
+      .update({ preferred_date: date, last_contact_at: now })
+      .eq('reservation_group_id', lead.reservation_group_id)
+      .neq('id', leadId)
+      .not('lead_status', 'eq', 'CANCELLED')
+    if (groupError) {
+      console.error('setPreferredDate: propagating to companions failed', groupError.message)
+    }
+  }
+
+  revalidatePath('/', 'layout')
+  return {}
+}
+
+type ConfirmLeadResult = {
+  error?: string
+  classification?: DateClass
+  flightId?: string
+}
+
+/**
+ * Confirms a lead for `date`.
+ *
+ * - CONFIRMABLE   → assigns a real flight via the reservations_assign_seat RPC
+ *                    (concurrency-safe: SELECT ... FOR UPDATE inside Postgres).
+ * - TENTATIVE_ONLY → the lead is parked as TENTATIVE with preferred_date = date;
+ *                    no flight_id is assigned. promoteTentativeLeads() will retry
+ *                    once that month arrives.
+ * - UNAVAILABLE / NOT_OPERATING → returns the classification so the UI can prompt
+ *                    the staff to pick another date (reschedule flow).
+ */
+export async function confirmLead(
+  leadId: string,
+  date: string,
+  client?: DbClient,
+  today: string = todayIso()
+): Promise<ConfirmLeadResult> {
+  const supabase = client ?? (await createClient())
+
+  const slots = await getDayAvailability(date, client)
+  const classification = classifyDate(date, today, slots)
+
+  if (classification === 'NOT_OPERATING' || classification === 'UNAVAILABLE') {
+    return { classification }
+  }
+
+  if (classification === 'TENTATIVE_ONLY') {
+    const { error } = await supabase
+      .from('participants')
+      // CRM P0 — confirming (even as tentative) is a staff-client contact.
+      .update({ lead_status: 'TENTATIVE', preferred_date: date, last_contact_at: new Date().toISOString() })
+      .eq('id', leadId)
+    if (error) return { error: error.message }
+    revalidatePath('/', 'layout')
+    return { classification }
+  }
+
+  // CONFIRMABLE — hand off to the Postgres function for the concurrency-sensitive part.
+  const { data, error } = await supabase
+    .rpc('reservations_assign_seat', { p_lead_id: leadId, p_date: date })
+    .single()
+
+  if (error) {
+    if (error.message.includes('NO_SEATS_AVAILABLE')) {
+      return { classification: 'UNAVAILABLE' }
+    }
+    return { error: error.message }
+  }
+
+  // Treasury Sprint 1 — the lead now has a real flight_id: auto-generate its
+  // participant_items from packageType (one data entry — already captured
+  // at intake, see createLead/AddParticipantDrawer). Idempotent (see
+  // syncAutoParticipantItems header) so a retried confirm never duplicates
+  // items. Best-effort: a pricing/catalog error must not fail the
+  // confirmation itself — the seat is already assigned.
+  // CRM P0 — seat assigned means the client was just contacted/confirmed:
+  // bump last_contact_at (the RPC itself doesn't know about aging).
+  // Best-effort like the itemization below — must not fail the confirmation.
+  const { error: contactError } = await supabase
+    .from('participants')
+    .update({ last_contact_at: new Date().toISOString() })
+    .eq('id', leadId)
+  if (contactError) {
+    console.error('confirmLead: last_contact_at bump failed', contactError.message)
+  }
+
+  const { data: leadRow } = await supabase
+    .from('participants')
+    .select('package_type')
+    .eq('id', leadId)
+    .single()
+  if (leadRow) {
+    const itemsResult = await syncAutoParticipantItems(leadId, leadRow.package_type, supabase)
+    if (itemsResult.error) {
+      console.error('confirmLead: auto-itemization failed', itemsResult.error)
+    }
+  }
+
+  revalidatePath('/', 'layout')
+  return { classification: 'CONFIRMABLE', flightId: data.flight_id }
+}
+
+/**
+ * Releases the lead's current slot (if any) and re-confirms it for a new date.
+ *
+ * `time`: the client's requested hour for the new date, or null for "any
+ * hour" (reservations_assign_seat seats them in the first flight with room —
+ * see the 20260715 migration). Undefined leaves preferred_time untouched
+ * (legacy callers: GroupRescheduleModal keeps the original hour).
+ *
+ * H7 fix (AUDITORIA.md) — classify the new date BEFORE touching the lead's
+ * current state. The previous version freed the seat and set
+ * lead_status='NEW' unconditionally, then asked confirmLead to classify
+ * newDate; if that came back UNAVAILABLE/NOT_OPERATING the lead had already
+ * lost its original seat and was left dangling as NEW with no flight. Now
+ * we classify first and only mutate anything once we know the new date can
+ * actually take the lead (CONFIRMABLE or TENTATIVE_ONLY) — an unavailable
+ * target date leaves the lead exactly as it was, matching the restoration
+ * behaviour rescheduleLeadsBatch already applies after a failed attempt.
+ * (Availability is day-level, so classifying before setting preferred_time
+ * is safe — the hour never changes the classification.)
+ *
+ * Known trade-off: rescheduling to the lead's own current date computes
+ * availability while that seat is still held, so it can under-report free
+ * capacity for that edge case. Out of scope here — reschedule-to-same-date
+ * isn't a real flow (see RescheduleReservationModal, which only offers
+ * dates from the calendar picker).
+ */
+export async function rescheduleLead(
+  leadId: string,
+  newDate: string,
+  time?: string | null
+): Promise<ConfirmLeadResult> {
+  const today = todayIso()
+  const slots = await getDayAvailability(newDate)
+  const classification = classifyDate(newDate, today, slots)
+
+  if (classification === 'NOT_OPERATING' || classification === 'UNAVAILABLE') {
+    return { classification }
+  }
+
+  await freeSeat(leadId)
+  const supabase = await createClient()
+  // CRM P0 — a reschedule attempt is a contact even if the new date ends up
+  // unavailable (confirmLead bumps it again on the successful paths).
+  // operational_status resets to PENDING: a NO_SHOW/CANCELLED being
+  // rescheduled starts a fresh operational trail (same reset as
+  // reactivateLead) — otherwise the engine would keep treating them as
+  // non-flying on the NEW date.
+  await supabase
+    .from('participants')
+    .update({
+      lead_status: 'NEW',
+      operational_status: 'PENDING',
+      ...(time !== undefined && { preferred_time: time }),
+      last_contact_at: new Date().toISOString(),
+    })
+    .eq('id', leadId)
+  return confirmLead(leadId, newDate)
+}
+
+export type LeadRescheduleAssignment = { leadId: string; date: string }
+export type LeadRescheduleOutcome = { leadId: string; classification?: DateClass; error?: string }
+
+/**
+ * Sprint 3 E3 — bulk reschedule for a group of leads that shared a weather-cancelled
+ * day (handleWeatherCancellation left them lead_status='RESCHEDULE_NEEDED' with
+ * preferredDate = the cancelled day). Staff picks a (possibly different) date per
+ * lead in GroupRescheduleModal; this applies all of them in one action.
+ *
+ * Sequential for...of (NOT Promise.all): several leads commonly land on the same
+ * new date, and flight-seat assignment must fill deterministically one at a time —
+ * concurrent confirmLead calls for the same day would race on seat availability.
+ *
+ * rescheduleLead sets lead_status='NEW' before attempting to confirm. If the
+ * outcome is not a success (error, or classification UNAVAILABLE/NOT_OPERATING),
+ * the lead would be left in lead_status='NEW' with no flight — losing its
+ * RESCHEDULE_NEEDED badge and silently disappearing from the pending group. So
+ * after every non-successful outcome we restore lead_status='RESCHEDULE_NEEDED'
+ * for that lead. Success = classification CONFIRMABLE or TENTATIVE_ONLY with no error.
+ */
+export async function rescheduleLeadsBatch(
+  assignments: LeadRescheduleAssignment[]
+): Promise<{ results: LeadRescheduleOutcome[] }> {
+  const supabase = await createClient()
+  const results: LeadRescheduleOutcome[] = []
+
+  for (const { leadId, date } of assignments) {
+    try {
+      const outcome = await rescheduleLead(leadId, date)
+      const success =
+        !outcome.error &&
+        (outcome.classification === 'CONFIRMABLE' || outcome.classification === 'TENTATIVE_ONLY')
+
+      if (!success) {
+        await supabase.from('participants').update({ lead_status: 'RESCHEDULE_NEEDED' }).eq('id', leadId)
+      }
+
+      results.push({ leadId, classification: outcome.classification, error: outcome.error })
+    } catch (err) {
+      await supabase.from('participants').update({ lead_status: 'RESCHEDULE_NEEDED' }).eq('id', leadId)
+      results.push({ leadId, error: err instanceof Error ? err.message : 'Unknown error' })
+    }
+  }
+
+  revalidatePath('/', 'layout')
+  return { results }
+}
+
+/**
+ * Called when an operational day's weather_status is set to CANCELLED.
+ * Releases every confirmed participant's seat for that day and marks them
+ * RESCHEDULE_NEEDED so they surface in /reservas for the staff to rebook.
+ * Participants that were never leads (lead_status NULL, e.g. walk-ins added
+ * directly in the manifest) are left with operational_status WEATHER_CANCELLED
+ * but are not turned into leads.
+ */
+export async function handleWeatherCancellation(dayId: string): Promise<{ error?: string }> {
+  const supabase = await createClient()
+
+  const { data: flights, error: flightsError } = await supabase
+    .from('flights')
+    .select('id')
+    .eq('operational_day_id', dayId)
+  if (flightsError) return { error: flightsError.message }
+
+  const flightIds = (flights ?? []).map((f) => f.id)
+  if (flightIds.length === 0) return {}
+
+  // Treasury Sprint 1 — capture the affected participant ids BEFORE the
+  // updates below clear flight_id, so their auto-generated items can be
+  // cleared afterwards. Every participant on these flights stops flying
+  // today regardless of whether they are a lead or a walk-in, so their
+  // itemized revenue must not linger — see pnl-engine.ts: revenueTotal
+  // sums ALL participants regardless of operational_status.
+  const { data: affectedParticipants, error: affectedError } = await supabase
+    .from('participants')
+    .select('id')
+    .in('flight_id', flightIds)
+  if (affectedError) return { error: affectedError.message }
+  const affectedIds = (affectedParticipants ?? []).map((p) => p.id)
+
+  const { error } = await supabase
+    .from('participants')
+    .update({ operational_status: 'WEATHER_CANCELLED' })
+    .in('flight_id', flightIds)
+  if (error) return { error: error.message }
+
+  const { error: leadError } = await supabase
+    .from('participants')
+    .update({ flight_id: null, lead_status: 'RESCHEDULE_NEEDED' })
+    .in('flight_id', flightIds)
+    .not('lead_status', 'is', null)
+  if (leadError) return { error: leadError.message }
+
+  // Single batched delete instead of one clearAutoParticipantItems call per
+  // participant — same effect (only auto_generated rows), one round-trip.
+  if (affectedIds.length > 0) {
+    const { error: clearError } = await supabase
+      .from('participant_items')
+      .delete()
+      .in('participant_id', affectedIds)
+      .eq('auto_generated', true)
+    if (clearError) {
+      console.error('handleWeatherCancellation: clearing auto-generated items failed', clearError.message)
+    }
+  }
+
+  revalidatePath('/', 'layout')
+  return {}
+}
+
+/**
+ * Daily cron target: promotes TENTATIVE leads whose preferred month has arrived.
+ * Tries confirmLead for each — on success they become CONFIRMED with a real
+ * flight; if the day turned out to be full by the time the month arrived,
+ * they are marked RESCHEDULE_NEEDED instead of silently staying TENTATIVE.
+ */
+export async function promoteTentativeLeads(
+  today: string = todayIso(),
+  client?: DbClient
+): Promise<{ promoted: number; rescheduleNeeded: number; error?: string }> {
+  const supabase = client ?? (await createClient())
+
+  const { data: tentativeLeads, error } = await supabase
+    .from('participants')
+    .select('id, preferred_date')
+    .eq('lead_status', 'TENTATIVE')
+    .not('preferred_date', 'is', null)
+
+  if (error) return { promoted: 0, rescheduleNeeded: 0, error: error.message }
+
+  const leads = tentativeLeads ?? []
+  let promoted = 0
+  let rescheduleNeeded = 0
+
+  // No separate "due" date filter here — confirmLead's own classifyDate call
+  // is the single source of truth for the CONFIRMABLE_WINDOW_DAYS rolling
+  // window. A lead still beyond the window classifies as TENTATIVE_ONLY
+  // again (a harmless no-op) and must NOT be marked RESCHEDULE_NEEDED —
+  // only a genuinely full/weather-cancelled/non-operating day should.
+  for (const lead of leads) {
+    const result = await confirmLead(lead.id, lead.preferred_date as string, client, today)
+    if (result.classification === 'CONFIRMABLE' && result.flightId) {
+      promoted++
+    } else if (result.classification !== 'TENTATIVE_ONLY') {
+      await supabase
+        .from('participants')
+        .update({ lead_status: 'RESCHEDULE_NEEDED' })
+        .eq('id', lead.id)
+      rescheduleNeeded++
+    }
+  }
+
+  if (leads.length > 0) revalidatePath('/', 'layout')
+  return { promoted, rescheduleNeeded }
+}
+
+/**
+ * Daily cron target (runs after promoteTentativeLeads in
+ * /api/cron/promote-leads): marks as NO_SHOW every CONFIRMED lead whose
+ * jump date has passed with the manifest untouched (operational_status
+ * still PENDING — no check-in, no waiver, nothing). Complements the
+ * immediate sync in updateOperationalStatus/updateParticipant: that one
+ * covers the staff marking a no-show by hand in the manifest; this sweep
+ * catches the ones nobody remembered to mark, so they surface in the
+ * Canceladas tab for the Reactivar flow instead of staying "Confirmada"
+ * forever.
+ *
+ * Sets BOTH statuses (operational + lead) and clears auto-generated
+ * participant_items, exactly like the manual manifest path does
+ * (NON_FLYING_STATUSES rule) — a no-show must not carry phantom revenue.
+ * Batched, same pattern as handleWeatherCancellation. If the staff later
+ * discovers the person DID show, reverting the status in the manifest (or
+ * Reactivar in /reservas) restores them.
+ */
+export async function sweepOverdueNoShows(
+  client?: DbClient,
+  today: string = todayIso()
+): Promise<{ marked: number; error?: string }> {
+  const supabase = client ?? (await createClient())
+
+  const { data: overdue, error: findError } = await supabase
+    .from('participants')
+    .select('id')
+    .eq('lead_status', 'CONFIRMED')
+    .eq('operational_status', 'PENDING')
+    .lt('confirmed_date', today)
+  if (findError) return { marked: 0, error: findError.message }
+
+  const ids = (overdue ?? []).map((p) => p.id)
+  if (ids.length === 0) return { marked: 0 }
+
+  const { error: updateError } = await supabase
+    .from('participants')
+    .update({ operational_status: 'NO_SHOW', lead_status: 'NO_SHOW' })
+    .in('id', ids)
+  if (updateError) return { marked: 0, error: updateError.message }
+
+  const { error: clearError } = await supabase
+    .from('participant_items')
+    .delete()
+    .in('participant_id', ids)
+    .eq('auto_generated', true)
+  if (clearError) {
+    console.error('sweepOverdueNoShows: clearing auto-generated items failed', clearError.message)
+  }
+
+  revalidatePath('/', 'layout')
+  return { marked: ids.length }
+}
+
+export async function cancelLead(leadId: string, client?: DbClient): Promise<{ error?: string }> {
+  const supabase = client ?? (await createClient())
+  const { error } = await supabase
+    .from('participants')
+    .update({ flight_id: null, lead_status: 'CANCELLED' })
+    .eq('id', leadId)
+  if (error) return { error: error.message }
+
+  // Treasury Sprint 1 — a confirmed lead that gets cancelled may already
+  // have auto-generated items (confirmLead itemizes as soon as a seat is
+  // assigned). Clear them so a cancelled lead never carries phantom
+  // revenue. No-op for leads that were never confirmed (nothing to delete).
+  const clearResult = await clearAutoParticipantItems(leadId, supabase)
+  if (clearResult.error) {
+    console.error('cancelLead: clearAutoParticipantItems failed', clearResult.error)
+  }
+  revalidatePath('/', 'layout')
+  return {}
+}
+
+/**
+ * Reverses cancelLead / a NO_SHOW: puts a terminal lead (CANCELLED or
+ * NO_SHOW) back into the pending queue as NEW, with an automatic note
+ * recording what it was reactivated from. Counts as a staff-client contact
+ * (CRM P0 pattern, same as confirmLead/rescheduleLead/setPreferredDate).
+ *
+ * Releases the seat and resets the operational trail: a no-show marked in
+ * the manifest (or by sweepOverdueNoShows) still carries the flight_id of
+ * the missed flight and operational_status NO_SHOW — a reactivated lead
+ * must satisfy the "lead = flight_id IS NULL" invariant and start clean.
+ * The stale confirmed_date/time are cleared too (that confirmation no
+ * longer holds); preferred_date is kept as a reference for the re-contact
+ * conversation. No participant_items handling needed: they were already
+ * cleared when the lead went CANCELLED/NO_SHOW, and confirmLead re-itemizes
+ * when a new seat is assigned.
+ */
+export async function reactivateLead(leadId: string, note?: string | null): Promise<{ error?: string }> {
+  const supabase = await createClient()
+
+  const { data: current, error: fetchError } = await supabase
+    .from('participants')
+    .select('lead_status, notes')
+    .eq('id', leadId)
+    .single()
+  if (fetchError) return { error: fetchError.message }
+
+  const today = todayIso()
+  const autoNote = `Reactivado desde ${current.lead_status ?? 'estado desconocido'} el ${today}.`
+  const newNotes = [autoNote, note?.trim() || null, current.notes || null].filter(Boolean).join('\n')
+
+  const { error } = await supabase
+    .from('participants')
+    .update({
+      lead_status: 'NEW',
+      flight_id: null,
+      operational_status: 'PENDING',
+      confirmed_date: null,
+      confirmed_time: null,
+      notes: newNotes,
+      last_contact_at: new Date().toISOString(),
+    })
+    .eq('id', leadId)
+  if (error) return { error: error.message }
+
+  revalidatePath('/', 'layout')
+  return {}
+}
+
+/** Count of leads awaiting staff action (NEW + RESCHEDULE_NEEDED) — used for the sidebar badge. */
+// deposit_paid has no manual toggle — it is derived state, recomputed from
+// RESERVA-stage payments by syncDepositPaid (lib/actions/payment.ts) on every
+// payment mutation. To mark a deposit, register the reserva payment.
+
+/** "Contactado ahora" (LeadSheet) — explicit contact bump for calls/WhatsApps that change no other field. */
+export async function markLeadContacted(leadId: string): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('participants')
+    .update({ last_contact_at: new Date().toISOString() })
+    .eq('id', leadId)
+  if (error) return { error: error.message }
+  revalidatePath('/', 'layout')
+  return {}
+}
+
+/**
+ * Edits the sale source of a lead. `source` lives on reservation_groups
+ * (the group-of-1 created at intake is its carrier — see
+ * createParticipant); bot-created leads may have no group at all (source
+ * is optional in the bot contract), so one is created and linked here on
+ * first edit. Only the value is ever edited — the group row is never
+ * deleted (mixBySource/AR depend on it).
+ */
+export async function updateLeadSource(
+  leadId: string,
+  source: ReservationSource
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+
+  const { data: lead, error: fetchError } = await supabase
+    .from('participants')
+    .select('reservation_group_id')
+    .eq('id', leadId)
+    .single()
+  if (fetchError) return { error: fetchError.message }
+
+  if (lead.reservation_group_id) {
+    const { error } = await supabase
+      .from('reservation_groups')
+      .update({ source })
+      .eq('id', lead.reservation_group_id)
+    if (error) return { error: error.message }
+  } else {
+    const { data: group, error: groupError } = await supabase
+      .from('reservation_groups')
+      .insert({ source, payer_name: null })
+      .select('id')
+      .single()
+    if (groupError) return { error: groupError.message }
+    const { error: linkError } = await supabase
+      .from('participants')
+      .update({ reservation_group_id: group.id })
+      .eq('id', leadId)
+    if (linkError) return { error: linkError.message }
+  }
+
+  revalidatePath('/', 'layout')
+  return {}
+}
+
+export type LeadAttentionCounts = {
+  /** Leads awaiting staff action (NEW + RESCHEDULE_NEEDED) — sidebar badge. */
+  pending: number
+  /** Of those, how many are cold (>48h without contact) — turns the badge red. */
+  cold: number
+}
+
+/**
+ * Replaces the old countPendingLeads head-count: one small SELECT (the
+ * pending set is tiny) computes both the sidebar badge count and the cold
+ * subset that escalates it to the alert style.
+ */
+export async function countLeadAttention(): Promise<LeadAttentionCounts> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('participants')
+    .select('last_contact_at')
+    // NO_SHOW included since the /reservas "Reagendar" tab exists: a no-show
+    // waiting to be rebooked is staff work exactly like a RESCHEDULE_NEEDED.
+    .in('lead_status', ['NEW', 'RESCHEDULE_NEEDED', 'NO_SHOW'])
+  if (error || !data) return { pending: 0, cold: 0 }
+  return {
+    pending: data.length,
+    cold: data.filter((r) => isLeadCold(r.last_contact_at)).length,
+  }
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export type LeadStatusSummary = {
+  id: string
+  status: LeadStatus | null
+  depositPaid: boolean
+  confirmedDate: string | null
+  confirmedTime: string | null
+  preferredDate: string | null
+  packageType: PackageType
+  fullName: string
+}
+
+/** Looks up a lead by its internal id or its public token — used by GET /api/bot/v1/reservations/{idOrToken}. */
+export async function getLeadByIdOrToken(
+  idOrToken: string,
+  client?: DbClient
+): Promise<{ lead?: LeadStatusSummary; error?: string }> {
+  if (!UUID_RE.test(idOrToken)) return { error: 'not_found' }
+
+  const supabase = client ?? (await createClient())
+  const { data, error } = await supabase
+    .from('participants')
+    .select('id, lead_status, deposit_paid, confirmed_date, confirmed_time, preferred_date, package_type, full_name')
+    .or(`id.eq.${idOrToken},token.eq.${idOrToken}`)
+    .not('lead_status', 'is', null)
+    .maybeSingle()
+
+  if (error) return { error: error.message }
+  if (!data) return { error: 'not_found' }
+
+  return {
+    lead: {
+      id: data.id,
+      status: data.lead_status as LeadStatus | null,
+      depositPaid: data.deposit_paid,
+      confirmedDate: data.confirmed_date,
+      confirmedTime: data.confirmed_time,
+      preferredDate: data.preferred_date,
+      packageType: data.package_type,
+      fullName: data.full_name,
+    },
+  }
+}
+
+export type LeadFilter = 'pending' | 'reschedule' | 'confirmed' | 'cancelled'
+
+// 'reschedule' groups everyone waiting for a new date: weather/flight
+// cancellations (RESCHEDULE_NEEDED) and no-shows (recoverable — their
+// deposit is already collected). 'cancelled' is only definitive
+// cancellations.
+const STATUSES_BY_FILTER: Record<LeadFilter, LeadStatus[]> = {
+  pending: ['NEW', 'TENTATIVE'],
+  reschedule: ['RESCHEDULE_NEEDED', 'NO_SHOW'],
+  confirmed: ['CONFIRMED'],
+  cancelled: ['CANCELLED'],
+}
+
+/** Row count for a tab badge — head:true avoids downloading the rows (the cancelled tab grows without bound). */
+export async function countLeads(filter: LeadFilter): Promise<number> {
+  const supabase = await createClient()
+  const { count, error } = await supabase
+    .from('participants')
+    .select('id', { count: 'exact', head: true })
+    .in('lead_status', STATUSES_BY_FILTER[filter])
+  if (error) return 0
+  return count ?? 0
+}
+
+/**
+ * Leads for a tab, collapsed into ONE ROW PER BOOKING.
+ *
+ * A reservation group is one booking with 1..N participants, so /reservas
+ * shows the organizer's row carrying its companions underneath rather than a
+ * loose row per person. The companions are still full lead rows in the
+ * database — each has its own waiver, seat, instructor and items — they just
+ * don't deserve their own line in the staff queue.
+ *
+ * groupSize is counted from the rows actually returned for this tab, not from
+ * an embedded participants(count): that count includes cancelled members, so a
+ * party of 2 that once had a third member would keep advertising itself as 3.
+ */
+export async function listLeads(filter: LeadFilter): Promise<{ leads: LeadWithDetails[]; error?: string }> {
+  const supabase = await createClient()
+  // payments: drives the per-row payment badge and the LeadSheet payment manager.
+  const { data, error } = await supabase
+    .from('participants')
+    .select(
+      `*,
+       reservation_group:reservation_groups!participants_reservation_group_id_fkey (*),
+       payments (id, participant_id, amount, method, stage, notes, created_at, group_payment_id),
+       participant_items (quantity, unit_price, amount)`
+    )
+    .in('lead_status', STATUSES_BY_FILTER[filter])
+    .order('preferred_date', { ascending: true, nullsFirst: false })
+    .order('is_organizer', { ascending: false })
+    .order('created_at', { ascending: true })
+
+  if (error) return { leads: [], error: error.message }
+
+  const rows: LeadWithDetails[] = (data ?? []).map((p) => ({
+    id: p.id,
+    reservationGroupId: p.reservation_group_id,
+    flightId: p.flight_id,
+    fullName: p.full_name,
+    phone: p.phone,
+    email: p.email,
+    packageType: p.package_type,
+    weight: p.weight,
+    overweightFee: p.overweight_fee,
+    operationalStatus: p.operational_status,
+    assignedInstructorId: p.assigned_instructor_id,
+    waiverSigned: p.waiver_signed,
+    checkInCompleted: p.check_in_completed,
+    gearedUp: p.geared_up,
+    notes: p.notes,
+    createdAt: p.created_at,
+    updatedAt: p.updated_at,
+    lastContactAt: p.last_contact_at,
+    leadStatus: p.lead_status as LeadStatus | null,
+    preferredDate: p.preferred_date,
+    preferredTime: p.preferred_time,
+    confirmedDate: p.confirmed_date,
+    confirmedTime: p.confirmed_time,
+    depositPaid: p.deposit_paid,
+    channel: p.channel as Channel,
+    createdBy: p.created_by,
+    token: p.token,
+    isOrganizer: p.is_organizer,
+    isMinor: p.is_minor,
+    reservationGroup: p.reservation_group
+      ? {
+          id: p.reservation_group.id,
+          payerName: p.reservation_group.payer_name,
+          source: p.reservation_group.source,
+          notes: p.reservation_group.notes,
+          createdAt: p.reservation_group.created_at,
+          contactPhone: p.reservation_group.contact_phone,
+          contactEmail: p.reservation_group.contact_email,
+          channel: p.reservation_group.channel as Channel,
+          createdBy: p.reservation_group.created_by,
+          paymentMode: p.reservation_group.payment_mode as GroupPaymentMode,
+        }
+      : null,
+    // Filled in by the collapse pass below.
+    groupSize: 1,
+    companions: [],
+    isEvent: false,
+    payments: (p.payments ?? []).map((pay: Record<string, unknown>) => ({
+      id: pay.id as string,
+      participantId: pay.participant_id as string,
+      amount: pay.amount as number,
+      method: pay.method as PaymentMethod,
+      stage: pay.stage as PaymentStage,
+      notes: pay.notes as string | null,
+      createdAt: pay.created_at as string,
+      groupPaymentId: (pay.group_payment_id ?? null) as string | null,
+    })),
+    paidTotal: (p.payments ?? []).reduce((sum: number, pay: { amount: number }) => sum + pay.amount, 0),
+    itemsTotal: (p.participant_items ?? []).reduce(
+      (sum: number, it: { quantity: number; unit_price: number; amount: number | null }) =>
+        sum + (it.amount ?? it.quantity * it.unit_price),
+      0
+    ),
+  }))
+
+  // ── Collapse each booking into its organizer's row ──
+  const threshold = await getGroupEventThreshold(supabase)
+
+  const byGroup = new Map<string, LeadWithDetails[]>()
+  for (const row of rows) {
+    if (!row.reservationGroupId) continue
+    const members = byGroup.get(row.reservationGroupId) ?? []
+    members.push(row)
+    byGroup.set(row.reservationGroupId, members)
+  }
+
+  const emitted = new Set<string>()
+  const leads: LeadWithDetails[] = []
+
+  for (const row of rows) {
+    // A participant with no group at all (older bot-created leads) stands alone.
+    if (!row.reservationGroupId) {
+      leads.push(row)
+      continue
+    }
+    if (emitted.has(row.reservationGroupId)) continue
+    emitted.add(row.reservationGroupId)
+
+    const members = byGroup.get(row.reservationGroupId) ?? [row]
+    // The query orders organizers first, so members[0] is the organizer
+    // whenever there is one; falling back to the earliest member keeps a
+    // booking visible even if its organizer flag went missing.
+    const organizer = members.find((m) => m.isOrganizer) ?? members[0]
+    const companions = members.filter((m) => m.id !== organizer.id)
+
+    for (const member of members) {
+      member.groupSize = members.length
+      member.isEvent = members.length >= threshold
+    }
+    organizer.companions = companions
+    leads.push(organizer)
+  }
+
+  return { leads }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// CRM P0 — phone dedupe (docs/reservas/CRM_REVIEW_2026-07.md §3).
+// ────────────────────────────────────────────────────────────────────────────
+
+export type ActiveLeadMatch = {
+  id: string
+  /** The booking this lead belongs to — lets callers report the party size. */
+  reservationGroupId: string | null
+  token: string | null
+  fullName: string
+  leadStatus: LeadStatus
+  preferredDate: string | null
+  preferredTime: string | null
+  confirmedDate: string | null
+  confirmedTime: string | null
+}
+
+const ACTIVE_LEAD_STATUSES: LeadStatus[] = ['NEW', 'TENTATIVE', 'CONFIRMED', 'RESCHEDULE_NEEDED']
+
+/**
+ * Finds an ACTIVE lead with the same canonical phone number, for duplicate
+ * detection: the "possible duplicate" hint in the staff intake form and the
+ * idempotency guard in POST /api/bot/v1/reservations (same client calls AND
+ * writes to the bot → must not become two leads).
+ *
+ * "Active" = status NEW/TENTATIVE/CONFIRMED/RESCHEDULE_NEEDED whose relevant
+ * date (confirmed, else preferred) is today or later — or with no date at
+ * all (a bare phone inquiry is still an active lead). Past-dated leads don't
+ * match: a returning customer next season is a new reservation, not a dupe.
+ *
+ * Accepts an optional client so the bot API can pass its service client
+ * (same pattern as syncAutoParticipantItems). Returns the match with the
+ * nearest relevant date when there are several.
+ */
+export async function findActiveLeadByPhone(
+  phone: string,
+  client?: DbClient
+): Promise<{ lead: ActiveLeadMatch | null; error?: string }> {
+  const normalized = normalizePhone(phone)
+  // Only match plausible canonical numbers — garbage/short inputs would
+  // otherwise "match" other rows that stored the same garbage.
+  if (!normalized || !/^\+\d{9,15}$/.test(normalized)) return { lead: null }
+
+  const supabase = client ?? (await createClient())
+  const today = todayIso()
+
+  const { data, error } = await supabase
+    .from('participants')
+    .select('id, reservation_group_id, token, full_name, lead_status, preferred_date, preferred_time, confirmed_date, confirmed_time')
+    .eq('phone', normalized)
+    .in('lead_status', ACTIVE_LEAD_STATUSES)
+    .or(
+      `confirmed_date.gte.${today},preferred_date.gte.${today},and(confirmed_date.is.null,preferred_date.is.null)`
+    )
+
+  if (error) return { lead: null, error: error.message }
+  if (!data || data.length === 0) return { lead: null }
+
+  // Nearest upcoming relevant date first; dateless inquiries sort last.
+  const relevantDate = (r: (typeof data)[number]) => r.confirmed_date ?? r.preferred_date ?? '9999-12-31'
+  const [match] = [...data].sort((a, b) => relevantDate(a).localeCompare(relevantDate(b)))
+
+  return {
+    lead: {
+      id: match.id,
+      reservationGroupId: match.reservation_group_id,
+      token: match.token,
+      fullName: match.full_name,
+      leadStatus: match.lead_status as LeadStatus,
+      preferredDate: match.preferred_date,
+      preferredTime: match.preferred_time,
+      confirmedDate: match.confirmed_date,
+      confirmedTime: match.confirmed_time,
+    },
+  }
+}

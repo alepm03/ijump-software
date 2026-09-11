@@ -1,12 +1,17 @@
 # DOCUMENTO DE CONSENTIMIENTO INFORMADO PARA LA PRÁCTICA DE PARACAIDISMO DEPORTIVO
 
-C.D. I JUMP SKYDIVE PURA VIDA  
-CIF G-23600968  
-Aeródromo de Casas de los Pinos. N-301, Km 190, carretera de los Higuerones s/n. 16612 (Cuenca)
+I JUMP SKYDIVE PURA VIDA C.D. · CIF G-23600968
+Aeródromo de Casas de los Pinos. N-301, Km 190, carretera de los Higuerones s/n. 16612 Casas de los Pinos (Cuenca)
+
+> **Documento fuente.** La versión que el cliente firma realmente vive en
+> `src/lib/waiver-templates/rgpd.ts` y se sirve por QR. Este fichero es el
+> espejo en papel de esa versión. Actualizado el 2026-09-10 para colocar el
+> "C.D." al final de la razón social. Si se edita uno de los dos, hay que
+> editar el otro.
 
 D. Dña. ____________________, nacido/a el día _______ de____________ de ______________, con DNI _________________, y domicilio en _________________________________, provincia de ________________, Calle_______________________________________________, con teléfono ______________________, e-mail ________________________________ y licencia deportiva clase (en su caso) _____________, número _______________.
 
-MANIFIESTA: que consecuencia de mi petición he sido invitado por C.D. I JUMP SKYDIVE PURA VIDA a realizar un vuelo de divulgación/paseo o saltos de paracaidismo, tándem, en la aeronave a lo largo todo el año actual. El salto tándem es el primer salto de bautismo como socio.
+MANIFIESTA: que consecuencia de mi petición he sido invitado por I JUMP SKYDIVE PURA VIDA C.D. a realizar un vuelo de divulgación/paseo o saltos de paracaidismo, tándem, en la aeronave a lo largo todo el año actual. El salto tándem es el primer salto de bautismo como socio.
 
 Que ante la eventualidad de un accidente durante el tiempo que dure la realización del vuelo y maniobras directamente relacionadas con el mismo, sabiendo que la práctica del Paracaidismo es un deporte de alto riesgo:
 
@@ -30,21 +35,52 @@ He sido informado de la prohibición de la práctica de submarinismo deportivo 2
 
 En caso de accidente avisar a _______________ parentesco __________________ teléfono_______________________.
 
-Y para que así conste firmo el presente documento, junto a los dos testigos firmantes.
+Y para que así conste firmo el presente documento, junto al testigo firmante.
 
 En Cuenca, a ____________, de __________, de ____________
 
 FIRMADO
 
-Testigo nº 1 | Testigo nº 2
+Testigo
 
-Nombre: | Nombre:  
-DNI: | DNI:  
-Edad: | Edad:  
-Firma: | Firma:
+Nombre:
+DNI:
+Edad:
+Firma:
 
 Menores de edad reconocimiento de firma del padre o tutor (Banco o Notario) o presentes.
 
 VALIDEZ DE UN AÑO ENHORABUENA YA ERES SOCIO DEL CLUB (COLABORADOR)
 
 Artículo 6.2 Código Civil*: La exclusión voluntaria de la Ley aplicable y la renuncia de los derechos en ella reconocidos solo serán válidas cuando no contraríen el interés o el orden público ni perjudique a tercero.
+
+---
+
+## Divergencias entre este papel y lo que se firma digitalmente
+
+### Resueltas (2026-09-11)
+
+1. **Testigo firmante.** El papel original exigía dos. Decisión de Ricardo:
+   **un solo testigo**, no dos. En la práctica suele ser alguien conocido del
+   propio grupo del participante; en su defecto firma Ana (administración).
+   Implementado en el flujo digital: nombre, DNI, edad y firma capturada con
+   el mismo lienzo de firma que ya existe para el participante — sin añadir
+   ninguna tabla ni columna nueva a la base de datos, la firma viaja dentro
+   de `form_data` (JSONB), igual que el resto de campos del formulario. El
+   PDF generado incluye una sección "TESTIGO" con estos datos.
+2. **"Validez de un año" y el alta como socio colaborador.** Reincorporada a
+   `rgpd.ts`, tal cual el original, sin retocar puntuación. Confirmado por
+   Ricardo el 2026-09-10: **el alta de socio no conlleva cuota**.
+
+### Pendiente
+
+3. **Reconocimiento de firma del padre o tutor para menores** (banco o
+   notario, o presencia física). Confirmado por Ricardo el 2026-09-11: **ya
+   está cubierto en pista** como protocolo operativo, no como un paso del
+   software. Queda pendiente **digitalizarlo, si es posible y legal** —
+   no se ha tocado código para esto.
+
+El resto del contenido sí está cubierto: los datos identificativos y el
+contacto de emergencia se recogen como campos del formulario
+(`WAIVER_FIELDS`), y los derechos de imagen, el consentimiento médico y la
+declaración de sobriedad son casillas independientes (`CONSENT_ITEMS`).

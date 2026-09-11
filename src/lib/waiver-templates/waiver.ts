@@ -1,14 +1,14 @@
-export const WAIVER_TITLE = 'Términos y Condiciones — I Jump Skydive Puravida'
+export const WAIVER_TITLE = 'Términos y Condiciones · I Jump Skydive Pura Vida C.D.'
 
 export const WAIVER_LEGAL_TEXT = `
 DOCUMENTO DE COMPRENSIÓN Y CONSENTIMIENTO DE ACTIVIDAD TANDEM
-I JUMP SKYDIVE PURAVIDA
+I JUMP SKYDIVE PURA VIDA C.D. · CIF G-23600968
 
 Por favor, indique que USTED ENTIENDE Y ACEPTA lo siguiente y que ha recibido este documento informativo con anterioridad a efectuar la reserva de la actividad:
 
-• Los depósitos no son reembolsables. Las reservas son válidas por 6 meses desde la compra. En caso de imposibilidad de salto en la fecha programada por cuestiones meteorológicas u otras que, a criterio de I Jump Skydive Puravida, pongan o puedan poner en peligro la integridad del alumno y/o el instructor, se procederá a la reprogramación del salto en otra fecha posterior pero no será motivo en ningún caso de devolución de la cantidad previamente abonada.
+• Los depósitos no son reembolsables. Las reservas son válidas por 6 meses desde la compra. En caso de imposibilidad de salto en la fecha programada por cuestiones meteorológicas u otras que, a criterio de I Jump Skydive Pura Vida C.D., pongan o puedan poner en peligro la integridad del alumno y/o el instructor, se procederá a la reprogramación del salto en otra fecha posterior pero no será motivo en ningún caso de devolución de la cantidad previamente abonada.
 
-• Los alumnos deben tener al menos 18 años el día del salto (14 con consentimiento del/los tutores, según ley).
+• Los alumnos deben tener al menos 18 años el día del salto (14 con consentimiento del/los tutores).
 
 • El peso máximo es de 110kg. El peso debe medirse con ropa, zapatos y totalmente equipado (mono y arnés). Si excede de 90kg. en las condiciones anteriormente señaladas, debe usar un equipo diferente que incurre en un cargo adicional de 45€.
 
@@ -26,11 +26,13 @@ Por favor, indique que USTED ENTIENDE Y ACEPTA lo siguiente y que ha recibido es
 
 • Al hacer una reserva, los alumnos están aceptando los presentes Términos y Condiciones.
 
+• El salto en tándem es parte de un curso de paracaidismo. Soy consciente de que después de mi salto, puedo continuar mi progresión en el curso de paracaidismo de acuerdo con el programa AFF.
+
 • Tenga en cuenta que el paquete del video lo conservaremos durante 15 días desde el día de su salto. Por lo tanto, recomendamos que descargue los archivos a su dispositivo/nube tan pronto como los reciba por correo electrónico.
 
 • Los precios promocionales son válidos para los saltos en tándem completados durante el período de promoción, sin importar la fecha en que se haga la reserva. Las promociones no pueden combinarse ni mezclarse con otros descuentos.
 
-• Entiendo que I Jump Skydive Puravida está ubicado en el aeródromo de Casas de los Pinos en el Centro Internacional de Paracaidismo Aero Balas, S.L., cerca de La Roda en el sur de Castilla la Mancha, N-301, km 190.
+• Entiendo que I Jump Skydive Pura Vida C.D. está ubicado en el aeródromo de Casas de los Pinos en el Centro Internacional de Paracaidismo Aero Balas, S.L., cerca de La Roda en el sur de Castilla la Mancha, N-301, km 190.
 `.trim()
 
 export const HEALTH_ITEMS: Record<string, string> = {

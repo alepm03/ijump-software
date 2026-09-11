@@ -805,6 +805,8 @@ export async function listLeads(filter: LeadFilter): Promise<{ leads: LeadWithDe
 
 export type ActiveLeadMatch = {
   id: string
+  /** The booking this lead belongs to — lets callers report the party size. */
+  reservationGroupId: string | null
   token: string | null
   fullName: string
   leadStatus: LeadStatus
@@ -845,7 +847,7 @@ export async function findActiveLeadByPhone(
 
   const { data, error } = await supabase
     .from('participants')
-    .select('id, token, full_name, lead_status, preferred_date, preferred_time, confirmed_date, confirmed_time')
+    .select('id, reservation_group_id, token, full_name, lead_status, preferred_date, preferred_time, confirmed_date, confirmed_time')
     .eq('phone', normalized)
     .in('lead_status', ACTIVE_LEAD_STATUSES)
     .or(
@@ -862,6 +864,7 @@ export async function findActiveLeadByPhone(
   return {
     lead: {
       id: match.id,
+      reservationGroupId: match.reservation_group_id,
       token: match.token,
       fullName: match.full_name,
       leadStatus: match.lead_status as LeadStatus,

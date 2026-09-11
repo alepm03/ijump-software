@@ -3,6 +3,7 @@
 > Para Ricardo (rewire del chatbot, R5). Esta API permite que el bot consulte disponibilidad y cree/consulte reservas sin tocar la base de datos directamente.
 
 **Historial de versiones:**
+- **v1.2 (2026-09-11)** — Reservas de grupo: `companions[]` en `POST /reservations`, `partySize` en `GET /availability`, regla de EVENTO (10+), `isMinor` y `paymentMode`. **Retrocompatible**: sin `companions` el comportamiento es idéntico al de v1.1.
 - **v1.1 (2026-07-04)** — CRM P0: normalización canónica de `phone` e idempotencia por teléfono en `POST /reservations` (respuesta `200` + `duplicate: true`).
 - v1.0 (2026-06-24) — contrato inicial (PR #37).
 
@@ -43,6 +44,9 @@ Devuelve los próximos días reservables (fines de semana operativos, dentro de 
 **Query params:**
 - `from` (opcional, `YYYY-MM-DD`) — desde qué fecha buscar. Por defecto, hoy.
 - `limit` (opcional, 1-30) — cuántos días devolver. Por defecto, 6.
+- `partySize` (opcional, 1-30) — **v1.2**. Solo devuelve días con al menos esas plazas libres. Por defecto, 1.
+
+> **Úsalo siempre que la reserva sea de más de una persona.** Un grupo se sienta entero o no se sienta: ofrecer a una pareja un día con una sola plaza libre devuelve al cliente al principio de la conversación.
 
 **200:**
 ```json
@@ -96,7 +100,7 @@ Crea una reserva. **No hay pago online en este módulo** (Stripe está fuera de 
 > Por eso la reserva del bot se queda como lead **`NEW`** en `/reservas → pendientes`, a un click de "Confirmar" para el staff, y la respuesta trae **`requiresStaffConfirmation: true`**.
 > Se controla con la fila `bot_autoconfirm_enabled` de `business_settings` (`false` por defecto). Al ponerla en `true` — cuando ya no entren reservas fuera del sistema — el endpoint vuelve a confirmar en la misma llamada, sin desplegar nada.
 
-**Body:**
+**Body (una persona):**
 ```json
 {
   "fullName": "Juan Pérez",
@@ -109,25 +113,83 @@ Crea una reserva. **No hay pago online en este módulo** (Stripe está fuera de 
 }
 ```
 
+**Body (grupo — v1.2):**
+```json
+{
+  "fullName": "Juan Pérez",
+  "phone": "600000000",
+  "email": "juan@example.com",
+  "packageType": "HANDYCAM",
+  "weight": 80,
+  "preferredDate": "2026-07-04",
+  "preferredTime": "10:00",
+  "source": "DIRECT",
+  "paymentMode": "ORGANIZER",
+  "companions": [
+    { "fullName": "Ana Pérez",  "weight": 62, "packageType": "SOLO" },
+    { "fullName": "Luis Gómez", "weight": 75, "packageType": "HANDYCAM", "isMinor": true }
+  ]
+}
+```
+
 - `fullName` (requerido)
 - `preferredDate` (requerido, `YYYY-MM-DD`)
 - `phone`, `email`, `weight`, `source` — opcionales
 - `phone` — se acepta cualquier formato razonable ("600 00 00 00", "+34 600-000-000", "0034600000000"...); el sistema lo **normaliza y almacena en forma canónica** `+<código país><número>` (p. ej. `+34600000000`). El bot no necesita normalizar por su cuenta, pero SÍ debe enviar el teléfono siempre que lo tenga: es la clave de la deduplicación (ver respuesta 200 abajo).
 - `packageType` — opcional, uno de `SOLO | HANDYCAM | VIDEO_EXTERNO | FOTOS | HANDYCAM_FOTOS` (por defecto `SOLO`)
 - `source` — opcional, uno de `DIRECT | GROUPON | BONO | PROMO | SMARTBOX`
+- `preferredTime` — opcional, `HH:MM`. Es la hora de **toda la reserva**, no solo de quien la hace.
+- `isMinor` — opcional, booleano. Menor de edad: falta la autorización paterna firmada, y el manifest lo avisa.
+- `paymentMode` — opcional, `ORGANIZER | INDIVIDUAL | UNDECIDED` (por defecto `UNDECIDED`). Solo registra lo acordado con el cliente sobre quién paga; no restringe ningún cobro. Si no lo preguntas, no lo envíes.
 
-> Nota: de momento **una reserva = una persona**. Reservas de grupo (varios participantes en una sola llamada) no están soportadas todavía en este endpoint.
+### Reservas de grupo (v1.2)
+
+`companions` es la lista de **todos los que no son el organizador**. Quien hace la reserva es el organizador: es el único que aporta teléfono y email, y es el contacto de toda la reserva.
+
+Por cada acompañante:
+
+| Campo | Obligatorio | Nota |
+|---|---|---|
+| `fullName` | ✅ | Nombre y apellidos |
+| `weight` | técnicamente opcional, **en la práctica pídelo siempre** | Fija el límite del tándem, el recargo de sobrepeso y la asignación de equipo e instructor. Sin él, el recargo es una sorpresa en el aeródromo |
+| `packageType` | ❌ | Si no se envía, hereda el del organizador |
+| `isMinor` | ❌ | Menor de edad |
+
+Los acompañantes **no** llevan teléfono ni email: esos datos viven en el organizador.
+
+> **Sin `companions`, el endpoint se comporta exactamente igual que en v1.1.** No hay fecha de corte: el bot puede migrar cuando quiera.
+
+**Cómo se sientan.** La capacidad es de 2 clientes por vuelo, así que un grupo de 4 no cabe en un vuelo: necesita 2 consecutivos, y uno de 9 necesita 5. El sistema sienta al grupo **entero o a nadie**, en el bloque de vuelos consecutivos más ajustado del día. Nunca lo reparte entre días ni deja media reserva confirmada.
+
+### Grupos de 10 o más = EVENTO
+
+A partir de 10 personas (`group_event_threshold` en `business_settings`) la reserva es un **evento**:
+
+- **Se acepta igual** — no la rechaces, ni derives al cliente a otro canal.
+- La respuesta trae `isEvent: true` y `requiresStaffConfirmation: true` **siempre**, aunque `bot_autoconfirm_enabled` esté activo.
+- El bot debe decir claramente que **el equipo tiene que confirmarla expresamente** y que se pondrán en contacto. No prometas plaza ni fecha.
+- Además, el bot debe **escalar al equipo** para que sepan que ha entrado un evento.
+
+**Descuentos de grupo:** el bot no concede ninguno. Si el cliente pregunta, la respuesta es que son posibles pero que hay que hablarlo directamente con el equipo, y se escala. Nunca des un porcentaje ni un importe.
 
 **201 (creada) — con `bot_autoconfirm_enabled = false` (comportamiento actual):**
 ```json
 {
   "reservationId": "uuid",
+  "groupId": "uuid",
   "token": "uuid",
   "status": "NEW",
   "dateClassification": "CONFIRMABLE",
   "confirmedDate": null,
   "confirmedTime": null,
+  "partySize": 3,
+  "isEvent": false,
   "requiresStaffConfirmation": true,
+  "participants": [
+    { "id": "uuid", "fullName": "Juan Pérez",  "isOrganizer": true,  "statusUrl": "/reserva/uuid" },
+    { "id": "uuid", "fullName": "Ana Pérez",   "isOrganizer": false, "statusUrl": "/reserva/uuid" },
+    { "id": "uuid", "fullName": "Luis Gómez",  "isOrganizer": false, "statusUrl": "/reserva/uuid" }
+  ],
   "statusUrl": "/reserva/uuid"
 }
 ```
@@ -136,15 +198,23 @@ Crea una reserva. **No hay pago online en este módulo** (Stripe está fuera de 
 ```json
 {
   "reservationId": "uuid",
+  "groupId": "uuid",
   "token": "uuid",
   "status": "CONFIRMED",
   "dateClassification": "CONFIRMABLE",
   "confirmedDate": "2026-07-04",
   "confirmedTime": "09:00:00",
+  "partySize": 3,
+  "isEvent": false,
   "requiresStaffConfirmation": false,
+  "participants": [ "..." ],
   "statusUrl": "/reserva/uuid"
 }
 ```
+
+Campos de v1.2: `groupId` (la reserva), `partySize` (cuántas personas cubre), `isEvent`, y `participants[]` con un `statusUrl` propio por persona. `reservationId`, `token` y `statusUrl` de primer nivel siguen siendo los del **organizador**, igual que en v1.1.
+
+En un grupo, `confirmedTime` es la hora del **organizador**, que va siempre en el primer vuelo del bloque. Los demás pueden salir en el vuelo siguiente: consulta `participants[].statusUrl` si necesitas la hora de cada uno.
 
 **Cómo debe leerlo el bot:** ramificar por `requiresStaffConfirmation`, no por `status`.
 
@@ -164,14 +234,18 @@ Si el `phone` enviado (una vez normalizado) coincide con un lead **activo** (`NE
 ```json
 {
   "reservationId": "uuid",
+  "groupId": "uuid",
   "token": "uuid",
   "status": "CONFIRMED",
   "confirmedDate": "2026-07-12",
   "confirmedTime": "09:00:00",
+  "partySize": 2,
   "statusUrl": "/reserva/uuid",
   "duplicate": true
 }
 ```
+
+`partySize` (v1.2) dice cuántas personas cubre ya esa reserva, para que el bot pueda decir "ya tienes una reserva para 2 personas el 12 de julio" en vez de un duplicado a secas.
 
 Semántica para el bot: **si `duplicate: true`, el cliente ya tiene una reserva activa.** El bot debe informarle de su reserva existente (fecha y estado, usando `status`/`confirmedDate` o consultando `GET /reservations/{token}`) y NO tratarla como una reserva nueva. Si el cliente realmente quiere una segunda reserva (p. ej. reserva para un acompañante desde el mismo teléfono), debe escalarse al staff — el alta manual en `/reservas` muestra el aviso de posible duplicado pero permite crearla.
 
@@ -181,10 +255,21 @@ Diferencias con el 201: código `200`, campo `duplicate: true`, y no incluye `da
 ```json
 {
   "error": { "code": "unavailable", "message": "The requested date is not available" },
+  "partySize": 1,
   "suggestedDates": ["2026-07-05", "2026-07-11"]
 }
 ```
 Pasa cuando el día está lleno, en meteo-cancelación, o no es día operativo. `suggestedDates` trae hasta 3 alternativas reservables — úsalas para reofrecer al cliente.
+
+**409 por tamaño de grupo (v1.2):** el día está abierto pero no caben todos.
+```json
+{
+  "error": { "code": "unavailable", "message": "The requested date cannot take a party of 4" },
+  "partySize": 4,
+  "suggestedDates": ["2026-07-11", "2026-07-12"]
+}
+```
+`suggestedDates` ya viene **filtrado por el tamaño del grupo**: solo días donde caben los 4. El mensaje distingue los dos casos, así que el bot puede decir "ese día no caben los 4" en vez de "ese día está completo", que sería engañoso.
 
 **422** si falta `fullName`/`preferredDate` o el formato no es válido.
 

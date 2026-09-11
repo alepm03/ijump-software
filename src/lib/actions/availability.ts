@@ -14,6 +14,7 @@ import type {
   DateClass,
 } from '@/types/domain'
 import type { Database } from '@/lib/supabase/database.types'
+import { todayIso } from '@/lib/utils'
 import { NON_COMPLETED_STATUSES } from '@/lib/finance/pnl-engine'
 
 /** Both the cookie-based session client and the service client satisfy this. */
@@ -24,11 +25,6 @@ const DEFAULT_POLICY: AvailabilityPolicy = {
   maxFlightsPerDay: 10,
   operatingWeekdays: [6, 0],
   flightIntervalMinutes: 60,
-}
-
-/** Today as YYYY-MM-DD in the center's timezone (Europe/Madrid). */
-function todayIso(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(new Date())
 }
 
 /** Reads business_settings and builds the policy the pure engine needs. */
@@ -98,19 +94,6 @@ export async function getDayAvailability(
   return computeDaySlots(load, policy)
 }
 
-/**
- * Classifies `date` against live availability WITHOUT touching any lead.
- *
- * confirmLead() does this internally, but it also mutates (parks the lead as
- * TENTATIVE, or assigns a seat). Callers that only need to know whether a date
- * is bookable — the bot route when staff confirmation is required — use this
- * instead, so a rejected date can be answered without a write.
- */
-export async function classifyDateLive(date: string, client?: DbClient): Promise<DateClass> {
-  const slots = await getDayAvailability(date, client)
-  return classifyDate(date, todayIso(), slots)
-}
-
 /** Availability + classification for every day in a given month (YYYY-MM). */
 export async function getMonthAvailability(
   yearMonth: string
@@ -156,10 +139,16 @@ export async function listNextAvailableSlots(
     fromDate?: string
     limit?: number
     maxDaysToScan?: number
+    /**
+     * Only offer days with at least this many free seats. Group bookings are
+     * seated whole or not at all, so suggesting a day with room for 2 to a
+     * party of 4 just sends the client back to the start.
+     */
+    minSeats?: number
   },
   client?: DbClient
 ): Promise<{ date: string; slots: DaySlots; classification: DateClass }[]> {
-  const { fromDate, limit = 6, maxDaysToScan = 120 } = params
+  const { fromDate, limit = 6, maxDaysToScan = 120, minSeats = 1 } = params
   const policy = await getPolicy(client)
   const today = todayIso()
   const startDate = fromDate ?? today
@@ -171,7 +160,7 @@ export async function listNextAvailableSlots(
     const date = cursor.toISOString().slice(0, 10)
     if (isOperatingDay(date, policy)) {
       const slots = await getDayAvailability(date, client, policy)
-      if (slots.bookable) {
+      if (slots.bookable && slots.totalFreeSeats >= minSeats) {
         results.push({ date, slots, classification: classifyDate(date, today, slots) })
       }
     }

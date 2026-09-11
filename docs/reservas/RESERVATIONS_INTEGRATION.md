@@ -81,7 +81,7 @@ Migraciones, en orden:
 ## 5. Pendiente / fuera de alcance (documentado, no es deuda oculta)
 
 - Pago online (Stripe), importe de depósito, política de reembolso — módulo completo excluido, decisión explícita del usuario.
-- Reservas de grupo (varios participantes) en una sola llamada del bot API — el bot crea un lead por llamada.
+- ~~Reservas de grupo (varios participantes) en una sola llamada del bot API~~ — **resuelto (2026-09, contrato v1.2)**: `companions[]` en `POST /reservations` y asignación de asientos de grupo sin partirlo. Ver `docs/reservas/GRUPOS.md`.
 - Reagendar/cancelar una reserva vía bot API — solo el staff, manualmente, desde `/reservas`.
 - Conflicto de horario exacto (dos leads pidiendo la misma hora) — deferido explícitamente, ver §4.
 - `CRON_SECRET` debe añadirse en las variables de entorno de Vercel (Vercel lo inyecta solo si existe la env var con ese nombre exacto).

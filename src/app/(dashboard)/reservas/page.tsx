@@ -18,12 +18,9 @@ import { getDayAvailability, getDayOccupancy, getPolicy } from '@/lib/actions/av
 import { classifyDate, classifyLeadSlot } from '@/lib/availability/availability-engine'
 import { ReservationsView } from '@/components/operational/ReservationsView'
 import type { DateClass } from '@/types/domain'
+import { todayIso } from '@/lib/utils'
 
 const VALID_TABS: LeadFilter[] = ['pending', 'reschedule', 'confirmed', 'cancelled']
-
-function todayIso(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(new Date())
-}
 
 export default async function ReservasPage({
   searchParams,

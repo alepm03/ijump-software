@@ -532,6 +532,24 @@ export async function promoteToOrganizer(
   return {}
 }
 
+/**
+ * How many people the booking actually covers: cancelled members don't count.
+ * Used by the bot API to report the size of a duplicate booking.
+ */
+export async function getGroupPartySize(groupId: string, client?: DbClient): Promise<number> {
+  const supabase = client ?? (await createClient())
+  const { count, error } = await supabase
+    .from('participants')
+    .select('id', { count: 'exact', head: true })
+    .eq('reservation_group_id', groupId)
+    .not('lead_status', 'eq', 'CANCELLED')
+  if (error) {
+    console.error('getGroupPartySize failed', error.message)
+    return 1
+  }
+  return count ?? 1
+}
+
 /** Records what was agreed with the client about who pays. Informative only. */
 export async function setGroupPaymentMode(
   groupId: string,

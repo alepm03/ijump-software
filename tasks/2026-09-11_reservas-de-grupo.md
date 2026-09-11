@@ -278,40 +278,40 @@ el chatbot sigue funcionando igual hasta que se active su versión nueva.
 ## 5. Tareas
 
 ### PR 1 — Núcleo de grupos
-- [ ] Migración: `is_organizer`, `is_minor`, `payment_mode`, `group_payment_id`, `group_event_threshold`, índice único parcial, bloque de ROLLBACK comentado
-- [ ] Fix `createParticipant`: `reservationGroupId` explícito gana sobre `source`
-- [ ] RPC `reservations_assign_group` (todo o nada, bloque contiguo mínimo)
-- [ ] `createGroupLead` / `confirmGroup` / `cancelGroup` / `rescheduleGroup`
-- [ ] `addCompanion` / `removeCompanion` / `promoteToOrganizer`
-- [ ] `listLeads`: colapsar acompañantes en la fila del organizador
-- [ ] Tipos en `domain.ts` (`companions`, `isOrganizer`, `isMinor`, `isEvent`, `paymentMode`)
-- [ ] `graphify update .`
+- [x] Migración: `is_organizer`, `is_minor`, `payment_mode`, `group_payment_id`, `group_event_threshold`, índice único parcial, bloque de ROLLBACK comentado
+- [x] Fix `createParticipant`: `reservationGroupId` explícito gana sobre `source`
+- [x] RPC `reservations_assign_group` (todo o nada, bloque contiguo mínimo)
+- [x] `createGroupLead` / `confirmGroup` / `cancelGroup` / `rescheduleGroup`
+- [x] `addCompanion` / `removeCompanion` / `promoteToOrganizer`
+- [x] `listLeads`: colapsar acompañantes en la fila del organizador
+- [x] Tipos en `domain.ts` (`companions`, `isOrganizer`, `isMinor`, `isEvent`, `paymentMode`)
+- [x] `graphify update .`
 
 ### PR 2 — API del bot v1.2
-- [ ] `POST /reservations`: `companions[]`, `isMinor`, `paymentMode`, límite y validación
-- [ ] Regla de evento (>= umbral): nunca autoconfirmar, `isEvent: true`
-- [ ] `GET /availability?partySize=N`
-- [ ] Dedupe por teléfono con `partySize` en la respuesta
-- [ ] `BOT_API_CONTRACT.md` → v1.2 con ejemplos
-- [ ] `RESERVATIONS_INTEGRATION.md`: quitar la limitación de la línea 84
+- [x] `POST /reservations`: `companions[]`, `isMinor`, `paymentMode`, límite y validación
+- [x] Regla de evento (>= umbral): nunca autoconfirmar, `isEvent: true`
+- [x] `GET /availability?partySize=N`
+- [x] Dedupe por teléfono con `partySize` en la respuesta
+- [x] `BOT_API_CONTRACT.md` → v1.2 con ejemplos
+- [x] `RESERVATIONS_INTEGRATION.md`: quitar la limitación de la línea 84
 
 ### PR 3 — UI
-- [ ] `ReservationRow`: fila de reserva con chip de grupo y desplegable
-- [ ] `LeadSheet`: bloque de grupo (miembros, añadir/quitar, menores, saldo del grupo)
-- [ ] `AddParticipantDrawer`: "Añadir acompañante"
-- [ ] `ConfirmReservationModal` / cancelar / reagendar: alcance grupo vs individual
-- [ ] Manifest: chip de grupo con posición, aviso de grupo partido, aviso de menor
-- [ ] Cobro de grupo con reparto proporcional + saldo del grupo
-- [ ] Badge EVENTO en `/reservas`
+- [x] `ReservationRow`: fila de reserva con chip de grupo y desplegable
+- [x] `LeadSheet`: bloque de grupo (miembros, añadir/quitar, menores, saldo del grupo)
+- [x] `AddParticipantDrawer`: "Añadir acompañante"
+- [x] `ConfirmReservationModal` / cancelar / reagendar: alcance grupo vs individual
+- [x] Manifest: chip de grupo con posición, aviso de grupo partido, aviso de menor
+- [x] Cobro de grupo con reparto proporcional + saldo del grupo
+- [x] Badge EVENTO en `/reservas`
 
 ### Entrega A — Chatbot
-- [ ] Widget: bloques de acompañante
-- [ ] Tool `crear_reserva`: `acompanantes[]`
-- [ ] Sub-workflow v2: quitar `apiSkipped = 'group'`, enviar `companions[]`
-- [ ] Prompt v29 / v30_wa: recogida de nombres, eventos 10+, descuentos
-- [ ] KB v13
-- [ ] Escalado de eventos y descuentos
-- [ ] `STATUS.md`
+- [x] Widget: bloques de acompañante
+- [x] Tool `crear_reserva`: `acompanantes[]`
+- [x] Sub-workflow v2: quitar `apiSkipped = 'group'`, enviar `companions[]`
+- [x] Prompt v29 / v30_wa: recogida de nombres, eventos 10+, descuentos
+- [x] KB v13
+- [x] Escalado de eventos y descuentos
+- [x] `STATUS.md`
 
 ---
 
@@ -332,3 +332,72 @@ el chatbot sigue funcionando igual hasta que se active su versión nueva.
    antigua de Google Sheets). Archivar para que nadie lo lea como fuente de verdad.
 5. **`bot_autoconfirm_enabled` sigue apagado.** Correcto, y con grupos aún más:
    autoconfirmar un grupo de 6 a ciegas es mucho más caro que fallar con uno.
+
+---
+
+## 7. Review de cierre (2026-09-11)
+
+### Entregado
+
+| # | Dónde | PR | Estado |
+|---|---|---|---|
+| 1 | ijump-software | [#73](https://github.com/alepm03/ijump-software/pull/73) | Núcleo: modelo, RPC de grupo, colapso de `/reservas` |
+| 2 | ijump-software | [#74](https://github.com/alepm03/ijump-software/pull/74) | API del bot v1.2 + contrato |
+| 3 | ijump-software | [#75](https://github.com/alepm03/ijump-software/pull/75) | UI: panel, manifest, cobro de grupo, menores |
+| A | ijump-agente-ia | [#15](https://github.com/ricardopm01/ijump-agente-ia/pull/15) | Widget, workflow v2, prompts v30/v31_wa, KB v13 |
+
+Apilados: 73 → 74 → 75. El del chatbot no se activa hasta que 73 y 74 estén desplegados
+(`chatbot/06_backend/RUNBOOK_activacion_grupos.md`).
+
+### Lo que cambió respecto al plan
+
+- **El diagnóstico resultó peor de lo previsto.** No era que el grupo se registrara mal: es que
+  el chatbot **saltaba la llamada a la API entera** cuando había más de una persona, así que ni
+  el lead del organizador llegaba. Eso no estaba en el plan inicial, se encontró al mapear el
+  chatbot.
+- **Regresión de producción encontrada de paso:** `20260715`/`20260716` habían perdido el
+  `flight_interval_minutes` configurable que introdujo `20260704`. Los vuelos autocreados salían
+  cada 60 minutos en vez de cada 45. Arreglado en la misma migración de la RPC de grupo.
+- **El Google Sheet se mantiene** (decisión de Ricardo): ese canal ya no se usa en la práctica y
+  se retirará más adelante, así que el hallazgo 1 queda como pendiente consciente, no como deuda.
+- **Verificación por encima de lo planeado:** la RPC de grupo se probó contra un Postgres real en
+  proceso (PGlite, sin Docker ni red) aplicando las migraciones de verdad, porque el Supabase de
+  la app está en la organización de Alejandro y no es alcanzable desde aquí.
+
+### Verificación
+
+Nueve checks de regresión en verde, tres de ellos nuevos:
+
+| Check | Qué protege |
+|---|---|
+| `supabase/__assign_group_check.mts` | 22 aserciones sobre la RPC de grupo contra Postgres real |
+| `src/lib/finance/__group_payment_check.mts` | El reparto de un cobro suma siempre exactamente lo cobrado |
+| `src/lib/__manifest_groups_check.mts` | Cohesión en el manifest y regla de grupo partido |
+| `chatbot/08_testing/test_tool_crear_reserva_v4_grupos.mjs` | 29 aserciones; falla si vuelve la rama `apiSkipped = 'group'` |
+
+Lint del software: **un error menos que `main`** y cero hallazgos nuevos (comparado archivo a
+archivo, no por número).
+
+### Lo que NO se verificó
+
+**La UI no se ha probado en un navegador.** El único entorno disponible apunta a la base de datos
+de producción y no se crearon reservas de prueba ahí. Merece una pasada visual en una rama de
+Supabase tras aplicar las migraciones, sobre todo los chips del manifest a anchura de tablet
+(~820px), que es donde se usa en el aeródromo.
+
+### Hallazgos colaterales — estado
+
+1. **Doble fuente de verdad (Sheet + software)** — se mantiene a propósito. Pendiente de retirar.
+2. **Capacidad hardcodeada en `computeManifestSummary`** — arreglado (PR 3).
+3. **`updateLeadSource` sobre grupo compartido** — la UI ya lo avisa (PR 3).
+4. **`tools_schema_v1.json` obsoleto** — archivado (PR del chatbot).
+5. **`bot_autoconfirm_enabled` sigue apagado** — correcto, sin cambios.
+
+Nuevos, encontrados durante la ejecución:
+
+6. **Regresión de la cadencia de vuelos** — arreglada (PR 1).
+7. **`createLead` y `classifyDateLive` habían quedado sin llamadas** — eliminados (PRs 2 y 3).
+8. **`PACKAGE_LABELS` duplicado en cuatro componentes con tres redacciones** — unificado (PR 3).
+9. **`Date.now()` durante el render en `ReservationRow`** — arreglado (PR 3).
+10. **7 errores de eslint preexistentes en `main`** (setState en effects, refs en render) — fuera
+    de alcance, no tocados. Merecen una tarea propia.

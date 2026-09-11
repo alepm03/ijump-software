@@ -1,6 +1,6 @@
 # Reservas de grupo
 
-> Guía del módulo. Estado: PR 1 (núcleo) mergeado. PR 2 (API del bot) y PR 3 (UI) van encima.
+> Guía del módulo. Estado: PR 1 (núcleo), PR 2 (API del bot) y PR 3 (UI) listos.
 > Decisiones de negocio: Ricardo, 2026-09-11.
 
 ---
@@ -177,6 +177,14 @@ que hay que hablarlo con el equipo, y escala.
 | `src/lib/actions/participant.ts` | Arreglo: un `reservationGroupId` explícito gana sobre `source` |
 | `src/lib/actions/leads.ts` | `listLeads` colapsa cada reserva en la fila de su organizador |
 | `src/lib/actions/settings.ts` | `getGroupEventThreshold` |
+| `src/app/api/bot/v1/reservations/route.ts` | Contrato v1.2: `companions[]`, `partySize`, regla de evento |
+| `src/app/api/bot/v1/availability/route.ts` | `?partySize=N` — solo días donde cabe el grupo entero |
+| `docs/reservas/BOT_API_CONTRACT.md` | Contrato v1.2, la fuente de verdad compartida con el chatbot |
+| `src/lib/finance/group-payment.ts` | Reparto de un cobro de grupo entre sus miembros (puro) |
+| `src/lib/manifest-groups.ts` | Cohesión de grupos en el manifest: posición, color y detección de grupo partido (puro) |
+| `src/components/operational/GroupPanel.tsx` | Miembros, alta de acompañante, forma de pago y saldo del grupo |
+| `src/components/operational/ReservationRow.tsx` | Fila de reserva con chip de grupo y acompañantes desplegables |
+| `src/components/operational/ParticipantRow.tsx` | Chip de grupo con posición y aviso de menor en el manifest |
 
 ---
 
@@ -192,12 +200,54 @@ Los casos B y F del check fallan si la cadencia no se respeta.
 
 ---
 
+## API del bot (v1.2)
+
+`POST /api/bot/v1/reservations` acepta `companions[]` (nombre, peso, paquete,
+menor) más `isMinor` y `paymentMode` del organizador. La respuesta añade
+`groupId`, `partySize`, `isEvent` y `participants[]` con un `statusUrl` por
+persona.
+
+`GET /api/bot/v1/availability?partySize=N` filtra los días donde no cabe el
+grupo entero, y las `suggestedDates` de un 409 vienen filtradas igual: ofrecer
+a una pareja un día con una sola plaza devuelve al cliente al principio.
+
+Un 409 distingue ahora "el día está cerrado" de "ese día no caben los N", que
+es información distinta para el cliente.
+
+**Retrocompatible**: sin `companions`, el endpoint se comporta exactamente
+igual que en v1.1. No hay fecha de corte; el chatbot migra cuando quiera.
+
+El contrato completo, con ejemplos, está en `BOT_API_CONTRACT.md`.
+
+## UI
+
+**`/reservas`** — la fila es una **reserva**, no una persona. `listLeads`
+colapsa cada grupo en la fila de su organizador; el chip con el número de
+personas despliega a los acompañantes, editables en línea. Confirmar, cancelar
+y reagendar actúan sobre **toda la reserva**, con confirmación previa. Los
+grupos de 10+ llevan chip de **Evento**, y cualquier menor de edad su chip de
+aviso.
+
+**Ficha de la reserva** — bloque "Quién viene" con todos los miembros
+(organizador marcado, peso editable, marca de menor), botón de añadir
+acompañante y el selector de quién paga. A la derecha, el **saldo del grupo**:
+cobrado de total, pendiente, cuántas personas faltan por saldar, y el botón de
+cobrar a todo el grupo con **vista previa del reparto** antes de registrarlo.
+
+**Manifest** — cada miembro lleva un chip del mismo color con su posición
+("Pérez 2/4"). Si el grupo queda en vuelos **no consecutivos** (un vuelo ajeno
+de por medio), el chip se resalta y aparece un aviso arriba del día. Los
+menores llevan su propio aviso mientras falte la autorización.
+
+Verificación de la parte con lógica:
+
+```bash
+node_modules/.bin/jiti src/lib/finance/__group_payment_check.mts   # reparto del cobro
+node_modules/.bin/jiti src/lib/__manifest_groups_check.mts         # cohesión en el manifest
+```
+
 ## Pendiente
 
-- **PR 2** — API del bot v1.2: `companions[]`, `partySize` en disponibilidad,
-  regla de evento, contrato actualizado.
-- **PR 3** — UI: fila de reserva con acompañantes desplegables, alta manual con
-  acompañantes, cohesión de grupo en el manifest, cobro de grupo, aviso de menor.
 - **Chatbot** — widget con bloques de acompañante, `Tool Crear Reserva` v2 sin
   la rama `apiSkipped = 'group'`, prompt y KB, escalado de eventos y descuentos.
 - **Doble fuente de verdad**: las reservas del bot seguirán yendo también al

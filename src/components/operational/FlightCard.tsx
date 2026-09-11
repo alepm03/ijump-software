@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { FlightWithParticipants, Instructor, FlightStatus, Product } from '@/types/domain'
+import type { GroupPresence } from '@/lib/manifest-groups'
 
 // STATUS_CONFIG uses token class names — no hex (Phase 1)
 // Flight statuses map to the nearest semantic family
@@ -73,9 +74,11 @@ interface FlightCardProps {
   onCancel: () => void
   /** Participant to scroll to and briefly highlight (deep-link from /reservas). */
   highlightId?: string | null
+  /** Bookings present in this day, keyed by group id — drives the group chips. */
+  dayGroups: Record<string, GroupPresence>
 }
 
-export function FlightCard({ flight, instructors, products, onAddParticipant, onDelete, onCancel, highlightId = null }: FlightCardProps) {
+export function FlightCard({ flight, instructors, products, onAddParticipant, onDelete, onCancel, highlightId = null, dayGroups }: FlightCardProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [editingTime, setEditingTime] = useState(false)
@@ -304,6 +307,11 @@ export function FlightCard({ flight, instructors, products, onAddParticipant, on
                 instructors={instructors}
                 products={products}
                 highlighted={participant.id === highlightId}
+                group={
+                  participant.reservationGroupId
+                    ? dayGroups[participant.reservationGroupId] ?? null
+                    : null
+                }
               />
             ))}
           </>

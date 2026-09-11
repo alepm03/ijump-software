@@ -9,7 +9,8 @@ import { AlertTriangle } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { createParticipant } from '@/lib/actions/participant'
-import { createLead, findActiveLeadByPhone, type ActiveLeadMatch } from '@/lib/actions/leads'
+import { findActiveLeadByPhone, type ActiveLeadMatch } from '@/lib/actions/leads'
+import { createGroupLead, type GroupCompanionInput } from '@/lib/actions/group'
 import { getDayOccupancy, type DayOccupancySlot } from '@/lib/actions/availability'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,8 +29,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { Channel, Instructor, ReservationSource } from '@/types/domain'
-import { RESERVATION_SOURCES, RESERVATION_SOURCE_LABELS } from '@/types/domain'
+import type { Channel, Instructor, PackageType, ReservationSource } from '@/types/domain'
+import { RESERVATION_SOURCES, RESERVATION_SOURCE_LABELS, PACKAGE_LABELS } from '@/types/domain'
 
 // Staff-entered leads only — WEB_BOT/WHATSAPP_BOT come exclusively from the
 // bot API (route.ts), never from this manual-intake form.
@@ -50,11 +51,25 @@ const schema = z.object({
   weight: z.string().optional(),
   assignedInstructorId: z.string().optional(),
   payerName: z.string().optional(),
+  isMinor: z.boolean().optional(),
   preferredDate: z.string().optional(),
   preferredTime: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
+
+/**
+ * A companion row in the intake form. Name, weight and package only: the
+ * organizer holds the booking's contact data, and asking companions for a
+ * phone they'll never be called on is friction for nothing.
+ */
+type CompanionDraft = {
+  fullName: string
+  weight: string
+  packageType: PackageType
+  isMinor: boolean
+}
+
 
 const DUPLICATE_STATUS_LABELS: Record<ActiveLeadMatch['leadStatus'], string> = {
   NEW: 'pendiente',
@@ -65,13 +80,6 @@ const DUPLICATE_STATUS_LABELS: Record<ActiveLeadMatch['leadStatus'], string> = {
   NO_SHOW: 'no-show',
 }
 
-const PACKAGE_LABELS = {
-  SOLO: 'Solo (sin video)',
-  HANDYCAM: 'Handycam',
-  VIDEO_EXTERNO: 'Videógrafo externo',
-  FOTOS: 'Fotos',
-  HANDYCAM_FOTOS: 'Handycam + Fotos',
-}
 
 interface AddParticipantDrawerProps {
   flightId: string | null
@@ -104,7 +112,6 @@ export function AddParticipantDrawer({
     },
   })
 
-  const source = form.watch('source')
   const preferredDate = isLead ? form.watch('preferredDate') : undefined
   const preferredTime = isLead ? form.watch('preferredTime') : undefined
 
@@ -115,6 +122,7 @@ export function AddParticipantDrawer({
   // — the staff decides (e.g. a parent booking for two kids from one phone).
   const phoneValue = isLead ? form.watch('phone') : undefined
   const [possibleDuplicate, setPossibleDuplicate] = useState<ActiveLeadMatch | null>(null)
+  const [companions, setCompanions] = useState<CompanionDraft[]>([])
 
   useEffect(() => {
     if (!isLead || !phoneValue || phoneValue.trim().length < 9) {
@@ -163,6 +171,7 @@ export function AddParticipantDrawer({
 
   function handleClose() {
     form.reset()
+    setCompanions([])
     onClose()
   }
 
@@ -177,22 +186,43 @@ export function AddParticipantDrawer({
           toast.error('La fecha preferida es obligatoria')
           return
         }
-        const result = await createLead({
+        // Always through createGroupLead, even for one person: a booking is a
+        // booking of 1..N, and going through one path means the organizer
+        // flag and the group row are set the same way everywhere.
+        const named = companions.filter((c) => c.fullName.trim())
+        const result = await createGroupLead({
           fullName: values.fullName,
           phone: values.phone || null,
           email: values.email || null,
           packageType: values.packageType,
           weight: weight ?? null,
+          isMinor: values.isMinor,
           source: values.source,
-          payerName: values.payerName || null,
           preferredDate: values.preferredDate,
           preferredTime: values.preferredTime || null,
           channel: values.channel,
+          companions: named.map((c): GroupCompanionInput => {
+            const w = parseFloat(c.weight)
+            return {
+              fullName: c.fullName.trim(),
+              weight: isNaN(w) ? null : w,
+              packageType: c.packageType,
+              isMinor: c.isMinor,
+            }
+          }),
         })
         if (result.error) {
           toast.error(result.error)
         } else {
+          if (result.isEvent) {
+            toast.warning(
+              `Reserva de ${result.partySize} personas anotada como EVENTO: hay que confirmarla expresamente con el cliente.`
+            )
+          } else if ((result.partySize ?? 1) > 1) {
+            toast.success(`Reserva de ${result.partySize} personas creada`)
+          }
           form.reset()
+          setCompanions([])
           onSuccess()
         }
         return
@@ -337,14 +367,114 @@ export function AddParticipantDrawer({
             </div>
           )}
 
-          {/* Payer name (if grouped source) */}
-          {source !== 'DIRECT' && (
-            <div className="space-y-1.5">
-              <Label className="text-sm">Nombre del pagador (grupo)</Label>
-              <Input
-                {...form.register('payerName')}
-                placeholder="Opcional"
-              />
+          {/* Acompañantes — solo en alta de reserva. Sustituye al antiguo campo
+              de texto "pagador", que no creaba miembros reales: ahora el grupo
+              tiene participantes de verdad, cada uno con su plaza y su waiver. */}
+          {isLead && (
+            <div className="space-y-2 rounded-md border border-border p-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">
+                  Acompañantes
+                  {companions.length > 0 && (
+                    <span className="text-muted-foreground font-normal">
+                      {' '}· reserva de {companions.length + 1} personas
+                    </span>
+                  )}
+                </Label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCompanions((prev) => [
+                      ...prev,
+                      { fullName: '', weight: '', packageType: form.getValues('packageType'), isMinor: false },
+                    ])
+                  }
+                  className="text-xs font-semibold px-2 py-1 rounded-md bg-secondary text-foreground hover:bg-secondary/70 transition-colors"
+                >
+                  + Añadir
+                </button>
+              </div>
+
+              {companions.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Solo hace falta el nombre y el peso de cada uno. El teléfono y el email son los de
+                  quien reserva.
+                </p>
+              ) : (
+                companions.map((companion, index) => (
+                  <div key={index} className="space-y-1.5 border-t border-border pt-2 first:border-t-0 first:pt-0">
+                    <div className="grid grid-cols-[1fr_5rem_auto] gap-2 items-end">
+                      <Input
+                        value={companion.fullName}
+                        onChange={(e) =>
+                          setCompanions((prev) =>
+                            prev.map((c, i) => (i === index ? { ...c, fullName: e.target.value } : c))
+                          )
+                        }
+                        placeholder={`Acompañante ${index + 1}`}
+                        className="h-8 text-sm"
+                      />
+                      <Input
+                        type="number"
+                        value={companion.weight}
+                        onChange={(e) =>
+                          setCompanions((prev) =>
+                            prev.map((c, i) => (i === index ? { ...c, weight: e.target.value } : c))
+                          )
+                        }
+                        placeholder="kg"
+                        className="h-8 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setCompanions((prev) => prev.filter((_, i) => i !== index))}
+                        className="text-xs text-muted-foreground hover:text-destructive transition-colors pb-1.5"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-[1fr_auto] gap-2 items-center">
+                      <Select
+                        value={companion.packageType}
+                        onValueChange={(v) =>
+                          setCompanions((prev) =>
+                            prev.map((c, i) => (i === index ? { ...c, packageType: v as PackageType } : c))
+                          )
+                        }
+                      >
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue>{PACKAGE_LABELS[companion.packageType]}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(PACKAGE_LABELS).map(([val, label]) => (
+                            <SelectItem key={val} value={val}>{label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={companion.isMinor}
+                          onChange={(e) =>
+                            setCompanions((prev) =>
+                              prev.map((c, i) => (i === index ? { ...c, isMinor: e.target.checked } : c))
+                            )
+                          }
+                          className="accent-primary"
+                        />
+                        Menor
+                      </label>
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {companions.length + 1 >= 10 && (
+                <p className="text-xs text-amber-600">
+                  A partir de 10 personas es un evento: confírmalo expresamente con el cliente antes
+                  de dar la fecha por buena.
+                </p>
+              )}
             </div>
           )}
 

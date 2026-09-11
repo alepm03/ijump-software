@@ -23,7 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import type { OperationalDayWithDetails, WeatherStatus } from '@/types/domain'
+import type { OperationalDayWithDetails, WeatherStatus, AvailabilityPolicy } from '@/types/domain'
 
 // WEATHER_CONFIG uses token class names — no hex (Phase 1)
 const WEATHER_CONFIG: Record<WeatherStatus, { label: string; icon: React.ReactNode; triggerClass: string; itemClass: string }> = {
@@ -49,9 +49,11 @@ const WEATHER_CONFIG: Record<WeatherStatus, { label: string; icon: React.ReactNo
 
 interface DayHeaderProps {
   day: OperationalDayWithDetails
+  /** Business policy — the capacity line must not hardcode seats per flight. */
+  policy: AvailabilityPolicy
 }
 
-export function DayHeader({ day }: DayHeaderProps) {
+export function DayHeader({ day, policy }: DayHeaderProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [notesOpen, setNotesOpen] = useState(false)
@@ -61,7 +63,7 @@ export function DayHeader({ day }: DayHeaderProps) {
   const weather = WEATHER_CONFIG[day.weatherStatus]
 
   // KPI data — computed from flights prop (already includes realtime state)
-  const summary = computeManifestSummary(day.flights)
+  const summary = computeManifestSummary(day.flights, policy.maxClientsPerFlight)
 
   // "martes, 26 de mayo de 2026" — capitalize only first letter
   const rawDate = format(date, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })

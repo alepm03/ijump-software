@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { createParticipant, freeSeat } from '@/lib/actions/participant'
+import { freeSeat } from '@/lib/actions/participant'
 import { getDayAvailability, type DbClient } from '@/lib/actions/availability'
 import { classifyDate } from '@/lib/availability/availability-engine'
 import { syncAutoParticipantItems, clearAutoParticipantItems } from '@/lib/actions/finance'
@@ -21,64 +21,50 @@ import type {
   ReservationSource,
 } from '@/types/domain'
 
-export type CreateLeadInput = {
-  fullName: string
-  phone?: string | null
-  email?: string | null
-  packageType?: PackageType
-  weight?: number | null
-  notes?: string | null
-  source?: ReservationSource
-  payerName?: string | null
-  reservationGroupId?: string | null
-  preferredDate: string
-  preferredTime?: string | null
-  channel?: Channel
-  createdBy?: string | null
-}
-
-/** Creates a lead: a participant row with flight_id NULL and lead_status = 'NEW'. */
-export async function createLead(
-  input: CreateLeadInput,
-  client?: DbClient
-): Promise<{ error?: string; leadId?: string; token?: string | null }> {
-  const result = await createParticipant(
-    null,
-    {
-      fullName: input.fullName,
-      phone: input.phone ?? null,
-      email: input.email ?? null,
-      packageType: input.packageType,
-      weight: input.weight ?? null,
-      notes: input.notes ?? null,
-      source: input.source,
-      payerName: input.payerName ?? null,
-      reservationGroupId: input.reservationGroupId ?? null,
-      leadStatus: 'NEW',
-      preferredDate: input.preferredDate,
-      preferredTime: input.preferredTime ?? null,
-      channel: input.channel ?? 'STAFF',
-      createdBy: input.createdBy ?? null,
-    },
-    client
-  )
-  if (result.error) return { error: result.error }
-  return { leadId: result.id, token: result.token }
-}
-
-/** Completes a lead created without a preferred date (e.g. a bare phone inquiry). */
+/**
+ * Completes a booking created without a preferred date (e.g. a bare phone
+ * inquiry).
+ *
+ * The date belongs to the BOOKING, not to one person: setting it only on the
+ * organizer would leave the companions dateless, and they would then sort and
+ * render as if they were still waiting for one. The requested hour stays on
+ * the organizer alone — that is where reservations_assign_group reads it from,
+ * and a companion carrying a different hour would be a contradiction.
+ */
 export async function setPreferredDate(
   leadId: string,
   date: string,
   time?: string | null
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
+  const now = new Date().toISOString()
+
+  const { data: lead, error: fetchError } = await supabase
+    .from('participants')
+    .select('reservation_group_id')
+    .eq('id', leadId)
+    .single()
+  if (fetchError) return { error: fetchError.message }
+
+  // CRM P0 — completing the date happens while talking to the client: contact.
   const { error } = await supabase
     .from('participants')
-    // CRM P0 — completing the date happens while talking to the client: contact.
-    .update({ preferred_date: date, preferred_time: time ?? null, last_contact_at: new Date().toISOString() })
+    .update({ preferred_date: date, preferred_time: time ?? null, last_contact_at: now })
     .eq('id', leadId)
   if (error) return { error: error.message }
+
+  if (lead.reservation_group_id) {
+    const { error: groupError } = await supabase
+      .from('participants')
+      .update({ preferred_date: date, last_contact_at: now })
+      .eq('reservation_group_id', lead.reservation_group_id)
+      .neq('id', leadId)
+      .not('lead_status', 'eq', 'CANCELLED')
+    if (groupError) {
+      console.error('setPreferredDate: propagating to companions failed', groupError.message)
+    }
+  }
+
   revalidatePath('/', 'layout')
   return {}
 }
@@ -688,7 +674,8 @@ export async function listLeads(filter: LeadFilter): Promise<{ leads: LeadWithDe
     .select(
       `*,
        reservation_group:reservation_groups!participants_reservation_group_id_fkey (*),
-       payments (id, participant_id, amount, method, stage, notes, created_at, group_payment_id)`
+       payments (id, participant_id, amount, method, stage, notes, created_at, group_payment_id),
+       participant_items (quantity, unit_price, amount)`
     )
     .in('lead_status', STATUSES_BY_FILTER[filter])
     .order('preferred_date', { ascending: true, nullsFirst: false })
@@ -756,6 +743,11 @@ export async function listLeads(filter: LeadFilter): Promise<{ leads: LeadWithDe
       groupPaymentId: (pay.group_payment_id ?? null) as string | null,
     })),
     paidTotal: (p.payments ?? []).reduce((sum: number, pay: { amount: number }) => sum + pay.amount, 0),
+    itemsTotal: (p.participant_items ?? []).reduce(
+      (sum: number, it: { quantity: number; unit_price: number; amount: number | null }) =>
+        sum + (it.amount ?? it.quantity * it.unit_price),
+      0
+    ),
   }))
 
   // ── Collapse each booking into its organizer's row ──
@@ -805,6 +797,8 @@ export async function listLeads(filter: LeadFilter): Promise<{ leads: LeadWithDe
 
 export type ActiveLeadMatch = {
   id: string
+  /** The booking this lead belongs to — lets callers report the party size. */
+  reservationGroupId: string | null
   token: string | null
   fullName: string
   leadStatus: LeadStatus
@@ -845,7 +839,7 @@ export async function findActiveLeadByPhone(
 
   const { data, error } = await supabase
     .from('participants')
-    .select('id, token, full_name, lead_status, preferred_date, preferred_time, confirmed_date, confirmed_time')
+    .select('id, reservation_group_id, token, full_name, lead_status, preferred_date, preferred_time, confirmed_date, confirmed_time')
     .eq('phone', normalized)
     .in('lead_status', ACTIVE_LEAD_STATUSES)
     .or(
@@ -862,6 +856,7 @@ export async function findActiveLeadByPhone(
   return {
     lead: {
       id: match.id,
+      reservationGroupId: match.reservation_group_id,
       token: match.token,
       fullName: match.full_name,
       leadStatus: match.lead_status as LeadStatus,

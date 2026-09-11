@@ -20,7 +20,7 @@ import { useRouter } from 'next/navigation'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { toast } from 'sonner'
-import { Check } from 'lucide-react'
+import { Check, Users, PartyPopper } from 'lucide-react'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import {
   Select,
@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/select'
 import { LeadStatusBadge } from '@/components/operational/ReservationStatusBadge'
 import { InlineField } from '@/components/operational/InlineField'
+import { GroupBalancePanel, GroupMembersPanel } from '@/components/operational/GroupPanel'
 import { NotesField } from '@/components/operational/shared/NotesField'
 import { PaymentManager } from '@/components/operational/shared/PaymentManager'
 import { updateParticipant, type UpdateParticipantData } from '@/lib/actions/participant'
@@ -40,16 +41,9 @@ import {
   updateLeadSource,
 } from '@/lib/actions/leads'
 import { formatAging, isLeadCold } from '@/lib/utils'
-import { RESERVATION_SOURCES, RESERVATION_SOURCE_LABELS } from '@/types/domain'
+import { RESERVATION_SOURCES, RESERVATION_SOURCE_LABELS, PACKAGE_LABELS } from '@/types/domain'
 import type { Channel, LeadWithDetails, PackageType, ReservationSource } from '@/types/domain'
 
-const PACKAGE_LABELS: Record<PackageType, string> = {
-  SOLO: 'Solo (sin video)',
-  HANDYCAM: 'Handycam',
-  VIDEO_EXTERNO: 'Videógrafo externo',
-  FOTOS: 'Fotos',
-  HANDYCAM_FOTOS: 'Handycam + Fotos',
-}
 
 const CHANNEL_LABELS: Record<Channel, string> = {
   WEB_BOT: 'Web (bot)',
@@ -109,6 +103,22 @@ export function LeadSheet({ lead, onOpenChange }: LeadSheetProps) {
               {lead.fullName || 'Sin nombre'}
             </SheetTitle>
             {lead.leadStatus && <LeadStatusBadge status={lead.leadStatus} />}
+            {lead.groupSize >= 2 && (
+              <span
+                className="inline-flex items-center gap-1 text-2xs font-semibold px-1.5 py-0.5 rounded-full bg-secondary text-primary whitespace-nowrap"
+                title="Esta reserva cubre a varias personas"
+              >
+                <Users size={11} /> {lead.groupSize} personas
+              </span>
+            )}
+            {lead.isEvent && (
+              <span
+                className="inline-flex items-center gap-1 text-2xs font-semibold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 whitespace-nowrap"
+                title="Grupo grande: no se autoconfirma, lo confirma el equipo expresamente"
+              >
+                <PartyPopper size={11} /> Evento
+              </span>
+            )}
             <span
               className={`text-2xs font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap ${
                 cold ? 'bg-amber-50 text-amber-600' : 'bg-secondary text-muted-foreground'
@@ -235,7 +245,14 @@ export function LeadSheet({ lead, onOpenChange }: LeadSheetProps) {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
-                  <FieldLabel>Fuente de venta</FieldLabel>
+                  <FieldLabel>
+                    Fuente de venta
+                    {lead.groupSize >= 2 && (
+                      <span title="La fuente de venta es de la reserva entera: cambiarla afecta a todos sus miembros">
+                        {' '}· todo el grupo
+                      </span>
+                    )}
+                  </FieldLabel>
                   <Select
                     value={lead.reservationGroup?.source ?? 'DIRECT'}
                     onValueChange={(v) =>
@@ -282,6 +299,8 @@ export function LeadSheet({ lead, onOpenChange }: LeadSheetProps) {
                 </span>
               </div>
             </div>
+
+            <GroupMembersPanel lead={lead} />
           </div>
 
           {/* ── Right: notes + payments ── */}
@@ -301,6 +320,7 @@ export function LeadSheet({ lead, onOpenChange }: LeadSheetProps) {
               </p>
               <PaymentManager participantId={lead.id} payments={lead.payments} />
             </div>
+            {lead.groupSize >= 2 && <GroupBalancePanel lead={lead} />}
           </div>
         </div>
       </SheetContent>

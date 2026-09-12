@@ -52,7 +52,17 @@ const PAYMENT_MODE_LABELS: Record<GroupPaymentMode, string> = {
   INDIVIDUAL: 'Cada uno lo suyo',
 }
 
-const PAYMENT_METHODS: PaymentMethod[] = ['EFECTIVO', 'TARJETA', 'BIZUM', 'TRANSFERENCIA', 'GROUPON']
+const PAYMENT_METHODS: PaymentMethod[] = [
+  'EFECTIVO',
+  'TARJETA',
+  'BIZUM',
+  'TRANSFERENCIA',
+  'GROUPON',
+  'SMARTBOX',
+  'WONDERBOX',
+  'JUMPING',
+  'FREEDOM',
+]
 const PAYMENT_STAGES: Record<PaymentStage, string> = {
   RESERVA: 'Señal / reserva',
   LIQUIDACION: 'Liquidación',

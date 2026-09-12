@@ -1,0 +1,58 @@
+-- ============================================================
+-- iJump — Extend payment_method with the 4 remaining platforms
+-- (SMARTBOX, WONDERBOX, JUMPING, FREEDOM)
+-- ============================================================
+--
+-- Context: reservation_source already covers the 5 platform channels
+-- (GROUPON, SMARTBOX, WONDERBOX, JUMPING, FREEDOM — see
+-- 20260704000001_reservation_source_platforms.sql), but payment_method was
+-- still frozen at the original 5 values, where GROUPON was the only
+-- platform. Result: when staff open the payment dialog of a participant
+-- sold through Jumping or Freedom and add the LIQUIDACION, the only
+-- platform option in the "método" dropdown is "Groupon", so a Jumping sale
+-- had to be booked as a Groupon payment. That corrupts two things at once:
+--   - the daily till reconciliation (cash_close_lines is keyed by
+--     payment_method — see 20260702000000_treasury_cash_close.sql), which
+--     then shows Groupon money that never came from Groupon; and
+--   - DailySummary.revenueByMethod / the finance revenue-by-method
+--     breakdown, which loses the platform split entirely.
+-- This migration gives each platform channel its own payment method, so
+-- "quién cobró" (payment_method) can mirror "quién vendió"
+-- (reservation_source) one-to-one.
+--
+-- Note this is deliberately NOT the same vocabulary as reservation_source:
+-- the two enums stay independent (a DIRECT sale is never a DIRECT payment;
+-- it is EFECTIVO/TARJETA/BIZUM/TRANSFERENCIA). Only the platform channels
+-- exist in both, because for those the platform itself is the payer.
+--
+-- ⚠ NOT REVERSIBLE — same explicit, accepted exception to this repo's
+-- migration rule (CLAUDE.md §Migraciones de base de datos: "no ALTER TYPE
+-- ADD VALUE (no reversible)") already taken in
+-- 20260704000001_reservation_source_platforms.sql for reservation_source.
+-- PostgreSQL cannot drop a value from an ENUM type.
+--
+-- No data backfill is performed. Existing payments booked as GROUPON stay
+-- GROUPON: this migration cannot know which of them were really a Jumping
+-- or Freedom sale mis-booked for lack of an option, and guessing from the
+-- participant's reservation_source would silently rewrite accounting
+-- history that has already been reconciled in closed cash_close rows.
+-- Staff can re-point any such payment by hand from the participant's
+-- payment dialog.
+--
+-- Existing cash_close snapshots are unaffected: cash_close_lines rows are
+-- only ever inserted at close time, and buildCashCloseRows already defaults
+-- a method with no stored line to expected = 0
+-- (src/lib/finance/cash-close-engine.ts), so a jornada closed before this
+-- migration still reads back correctly with the 4 new methods at 0.
+--
+-- ROLLBACK: there is no simple rollback. Undoing it requires recreating
+-- payment_method without SMARTBOX/WONDERBOX/JUMPING/FREEDOM and re-casting
+-- every column typed as payment_method (payments.method,
+-- cash_close_lines.method) to the new type, after first re-pointing any row
+-- that already uses one of the 4 removed values. Do not attempt this
+-- without a full data audit.
+
+ALTER TYPE payment_method ADD VALUE IF NOT EXISTS 'SMARTBOX';
+ALTER TYPE payment_method ADD VALUE IF NOT EXISTS 'WONDERBOX';
+ALTER TYPE payment_method ADD VALUE IF NOT EXISTS 'JUMPING';
+ALTER TYPE payment_method ADD VALUE IF NOT EXISTS 'FREEDOM';

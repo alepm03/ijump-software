@@ -46,7 +46,7 @@ Estado general de módulos. Cada módulo se desarrolla en su propia rama (`featu
 
 ## Módulo 5 · Sistema de Pagos ✅
 - [x] Añadir pago (reserva / liquidación / suplemento)
-- [x] Métodos: EFECTIVO, TARJETA, BIZUM, TRANSFERENCIA, GROUPON
+- [x] Métodos: EFECTIVO, TARJETA, BIZUM, TRANSFERENCIA, GROUPON, SMARTBOX, WONDERBOX, JUMPING, FREEDOM
 - [x] Fuente de reserva (DIRECT, GROUPON, BONO, PROMO, SMARTBOX)
 - [x] Editar y eliminar pagos
 - [x] Totales diarios por método en panel resumen

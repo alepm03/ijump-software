@@ -121,7 +121,17 @@ function emptyDailySummary(): DailySummary {
     externalCameraCount: 0,
     overweightCount: 0,
     totalRevenue: 0,
-    revenueByMethod: { EFECTIVO: 0, TARJETA: 0, BIZUM: 0, TRANSFERENCIA: 0, GROUPON: 0 },
+    revenueByMethod: {
+      EFECTIVO: 0,
+      TARJETA: 0,
+      BIZUM: 0,
+      TRANSFERENCIA: 0,
+      GROUPON: 0,
+      SMARTBOX: 0,
+      WONDERBOX: 0,
+      JUMPING: 0,
+      FREEDOM: 0,
+    },
   }
 }
 

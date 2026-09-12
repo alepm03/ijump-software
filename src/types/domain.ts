@@ -618,7 +618,7 @@ export interface LeadWithDetails extends Participant {
 
 // ─── End reservations module types ───────────────────────────
 
-export type WaiverDocumentType = 'WAIVER' | 'RGPD'
+export type WaiverDocumentType = 'WAIVER' | 'RGPD' | 'SOCIO'
 export type WaiverStatus = 'PENDING' | 'COMPLETED' | 'EXPIRED'
 
 // Fields collected from the client during the signing flow.
@@ -637,6 +637,13 @@ export interface WaiverFormData {
   province?: string
   emergencyContactRelationship?: string
   sportsLicenseNumber?: string
+  // SOCIO-specific (club membership form)
+  postalCode?: string
+  city?: string
+  // Membership tier as printed on the paper form. The fee is already covered by
+  // the tandem price — the field records which tier applies, it never charges.
+  memberCategory?: string
+  memberCategoryOther?: string
   // Health/safety declaration checkboxes (WAIVER)
   healthDeclaration?: Record<string, boolean>
   // Consent checkboxes (RGPD / Consentimiento Informado)

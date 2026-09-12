@@ -41,6 +41,7 @@ import {
 import { User } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { createWaiverToken, getParticipantWaivers } from '@/lib/actions/waiver'
+import { WAIVER_DOCUMENT_TYPES, getWaiverTemplate } from '@/lib/waiver-templates/registry'
 import type {
   ParticipantWithDetails,
   Instructor,
@@ -409,10 +410,8 @@ function PaymentCell({
 
 // ─── Waiver / documents section ──────────────────────────────────────────────
 
-const DOC_CONFIG: Record<WaiverDocumentType, { label: string }> = {
-  WAIVER: { label: 'Exención de responsabilidad' },
-  RGPD:   { label: 'Consentimiento informado' },
-}
+// Labels and the list of documents both come from the template registry, so a
+// new legal document shows up here (badge, QR button, status) with no change.
 
 function WaiverSection({ participantId }: { participantId: string }) {
   const [waivers, setWaivers] = useState<Waiver[]>([])
@@ -459,7 +458,7 @@ function WaiverSection({ participantId }: { participantId: string }) {
   return (
     <>
       <div>
-        {(['WAIVER', 'RGPD'] as WaiverDocumentType[]).map((docType) => {
+        {WAIVER_DOCUMENT_TYPES.map((docType) => {
           const doc = waivers.find((w) => w.documentType === docType)
           const completed = doc?.status === 'COMPLETED'
           const pending = doc?.status === 'PENDING'
@@ -481,7 +480,7 @@ function WaiverSection({ participantId }: { participantId: string }) {
               </span>
 
               <span className="text-sm text-foreground flex-1 truncate">
-                {DOC_CONFIG[docType].label}
+                {getWaiverTemplate(docType).staffLabel}
               </span>
 
               {completed ? (
@@ -517,7 +516,7 @@ function WaiverSection({ participantId }: { participantId: string }) {
         <DialogContent className="max-w-xs">
           <DialogHeader>
             <DialogTitle className="text-sm">
-              {qrDocType ? DOC_CONFIG[qrDocType].label : 'Firma'}
+              {qrDocType ? getWaiverTemplate(qrDocType).staffLabel : 'Firma'}
             </DialogTitle>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 py-2">

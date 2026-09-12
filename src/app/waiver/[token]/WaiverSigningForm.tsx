@@ -2,8 +2,7 @@
 
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { submitWaiver } from '@/lib/actions/waiver'
-import { WAIVER_FIELDS, HEALTH_ITEMS, WAIVER_LEGAL_TEXT, WAIVER_TITLE } from '@/lib/waiver-templates/waiver'
-import { RGPD_FIELDS, CONSENT_ITEMS, RGPD_LEGAL_TEXT, RGPD_TITLE } from '@/lib/waiver-templates/rgpd'
+import { getWaiverTemplate } from '@/lib/waiver-templates/registry'
 import type { Waiver, WaiverDocumentType, WaiverFormData } from '@/types/domain'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -94,21 +93,16 @@ function SignatureCanvas({
 
 export default function WaiverSigningForm({ waiver, participantName }: Props) {
   const documentType = waiver.documentType
-  const isWaiver = documentType === 'WAIVER'
-
-  const fields = isWaiver ? WAIVER_FIELDS : RGPD_FIELDS
-  const title = isWaiver ? WAIVER_TITLE : RGPD_TITLE
-  const legalText = isWaiver ? WAIVER_LEGAL_TEXT : RGPD_LEGAL_TEXT
+  const template = getWaiverTemplate(documentType)
+  const { title, legalText, fields, checkboxes: checkboxGroup } = template
 
   // Form state
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(fields.map((f) => [f.key, '']))
   )
-  const [health, setHealth] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(Object.keys(HEALTH_ITEMS).map((k) => [k, false]))
-  )
-  const [consents, setConsents] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(CONSENT_ITEMS.map((c) => [c.key, false]))
+  // One map for the template's checkbox group, whichever field it lands in.
+  const [checks, setChecks] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries((checkboxGroup?.items ?? []).map((c) => [c.key, false]))
   )
   const [hasSignature, setHasSignature] = useState(false)
   // Witness (RGPD only) — one witness, not the paper's original two. Usually
@@ -149,15 +143,21 @@ export default function WaiverSigningForm({ waiver, participantName }: Props) {
       }
     }
 
-    if (isWaiver) {
-      const allHealthChecked = Object.values(health).every(Boolean)
-      if (!allHealthChecked) next['health'] = 'Debes confirmar todos los puntos de salud'
-    } else {
-      const requiredConsents = CONSENT_ITEMS.filter((c) => c.required)
-      for (const c of requiredConsents) {
-        if (!consents[c.key]) next[c.key] = 'Este consentimiento es obligatorio'
+    if (checkboxGroup) {
+      if (checkboxGroup.allRequired) {
+        // One error for the whole group: listing every unticked line when all
+        // of them are mandatory just repeats the heading.
+        if (!checkboxGroup.items.every((c) => checks[c.key])) {
+          next['checkboxes'] = 'Debes confirmar todos los puntos'
+        }
+      } else {
+        for (const c of checkboxGroup.items) {
+          if (c.required && !checks[c.key]) next[c.key] = 'Este consentimiento es obligatorio'
+        }
       }
+    }
 
+    if (template.witness) {
       if (!witnessName.trim()) next['witnessName'] = 'Campo obligatorio'
       if (!witnessDni.trim()) next['witnessDni'] = 'Campo obligatorio'
       if (!witnessAge.trim()) next['witnessAge'] = 'Campo obligatorio'
@@ -190,15 +190,19 @@ export default function WaiverSigningForm({ waiver, participantName }: Props) {
         emergencyContactPhone: values['emergencyContactPhone'] || undefined,
         emergencyContactRelationship: values['emergencyContactRelationship'] || undefined,
         sportsLicenseNumber: values['sportsLicenseNumber'] || undefined,
-        healthDeclaration: isWaiver ? health : undefined,
-        consents: !isWaiver ? consents : undefined,
-        witnessName: !isWaiver ? witnessName.trim() : undefined,
-        witnessDni: !isWaiver ? witnessDni.trim() : undefined,
-        witnessAge: !isWaiver ? witnessAge.trim() : undefined,
+        postalCode: values['postalCode'] || undefined,
+        city: values['city'] || undefined,
+        memberCategory: values['memberCategory'] || undefined,
+        memberCategoryOther: values['memberCategoryOther'] || undefined,
+        healthDeclaration: checkboxGroup?.field === 'healthDeclaration' ? checks : undefined,
+        consents: checkboxGroup?.field === 'consents' ? checks : undefined,
+        witnessName: template.witness ? witnessName.trim() : undefined,
+        witnessDni: template.witness ? witnessDni.trim() : undefined,
+        witnessAge: template.witness ? witnessAge.trim() : undefined,
       }
 
       const signatureDataUrl = canvasRef.current!.toDataURL('image/png')
-      const witnessSignatureDataUrl = !isWaiver
+      const witnessSignatureDataUrl = template.witness
         ? witnessCanvasRef.current!.toDataURL('image/png')
         : undefined
 
@@ -256,16 +260,32 @@ export default function WaiverSigningForm({ waiver, participantName }: Props) {
                 {field.label}
                 {field.required && <span className="text-destructive ml-0.5">*</span>}
               </label>
-              <input
-                type={field.type}
-                value={values[field.key] ?? ''}
-                onChange={(e) => {
-                  setValues((v) => ({ ...v, [field.key]: e.target.value }))
-                  if (errors[field.key]) setErrors((err) => { const n = { ...err }; delete n[field.key]; return n })
-                }}
-                className={`w-full rounded-xl border bg-background px-4 py-3 text-foreground text-base outline-none transition focus:ring-2 focus:ring-primary/30 ${errors[field.key] ? 'border-destructive' : 'border-border'}`}
-                autoComplete="off"
-              />
+              {field.type === 'select' ? (
+                <select
+                  value={values[field.key] ?? ''}
+                  onChange={(e) => {
+                    setValues((v) => ({ ...v, [field.key]: e.target.value }))
+                    if (errors[field.key]) setErrors((err) => { const n = { ...err }; delete n[field.key]; return n })
+                  }}
+                  className={`w-full rounded-xl border bg-background px-4 py-3 text-foreground text-base outline-none transition focus:ring-2 focus:ring-primary/30 ${errors[field.key] ? 'border-destructive' : 'border-border'}`}
+                >
+                  <option value="">Selecciona una opción</option>
+                  {(field.options ?? []).map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type={field.type}
+                  value={values[field.key] ?? ''}
+                  onChange={(e) => {
+                    setValues((v) => ({ ...v, [field.key]: e.target.value }))
+                    if (errors[field.key]) setErrors((err) => { const n = { ...err }; delete n[field.key]; return n })
+                  }}
+                  className={`w-full rounded-xl border bg-background px-4 py-3 text-foreground text-base outline-none transition focus:ring-2 focus:ring-primary/30 ${errors[field.key] ? 'border-destructive' : 'border-border'}`}
+                  autoComplete="off"
+                />
+              )}
               {errors[field.key] && (
                 <p className="text-xs text-destructive mt-1">{errors[field.key]}</p>
               )}
@@ -285,63 +305,48 @@ export default function WaiverSigningForm({ waiver, participantName }: Props) {
           </div>
         </section>
 
-        {/* Health declaration (WAIVER) */}
-        {isWaiver && (
+        {/* Checkbox group — whichever one this document declares */}
+        {checkboxGroup && (
           <section className="space-y-3">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Declaraciones de seguridad
+              {checkboxGroup.sectionTitle}
             </h2>
-            <p className="text-xs text-muted-foreground">
-              Confirma que comprendes y aceptas cada uno de los siguientes puntos:
-            </p>
-            <div className="space-y-3">
-              {Object.entries(HEALTH_ITEMS).map(([key, label]) => (
-                <label key={key} className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={health[key] ?? false}
-                    onChange={(e) => {
-                      setHealth((h) => ({ ...h, [key]: e.target.checked }))
-                      if (errors['health']) setErrors((err) => { const n = { ...err }; delete n['health']; return n })
-                    }}
-                    className="mt-0.5 w-5 h-5 rounded accent-primary flex-shrink-0"
-                  />
-                  <span className="text-sm text-foreground leading-snug">{label}</span>
-                </label>
-              ))}
-            </div>
-            {errors['health'] && (
-              <p className="text-xs text-destructive">{errors['health']}</p>
+            {checkboxGroup.intro && (
+              <p className="text-xs text-muted-foreground">{checkboxGroup.intro}</p>
             )}
-          </section>
-        )}
-
-        {/* Consent items (RGPD) */}
-        {!isWaiver && (
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Consentimientos
-            </h2>
-            <div className="space-y-4">
-              {CONSENT_ITEMS.map((item) => (
+            <div className={checkboxGroup.allRequired ? 'space-y-3' : 'space-y-4'}>
+              {checkboxGroup.items.map((item) => (
                 <div key={item.key}>
                   <label className="flex items-start gap-3 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={consents[item.key] ?? false}
+                      checked={checks[item.key] ?? false}
                       onChange={(e) => {
-                        setConsents((c) => ({ ...c, [item.key]: e.target.checked }))
-                        if (errors[item.key]) setErrors((err) => { const n = { ...err }; delete n[item.key]; return n })
+                        setChecks((c) => ({ ...c, [item.key]: e.target.checked }))
+                        const errorKey = checkboxGroup.allRequired ? 'checkboxes' : item.key
+                        if (errors[errorKey]) {
+                          setErrors((err) => { const n = { ...err }; delete n[errorKey]; return n })
+                        }
                       }}
                       className="mt-0.5 w-5 h-5 rounded accent-primary flex-shrink-0"
                     />
                     <span className="text-sm text-foreground leading-snug">
-                      <span className="font-medium">{item.label}</span>
-                      {!item.required && (
-                        <span className="text-muted-foreground text-xs ml-1">(opcional)</span>
+                      {checkboxGroup.allRequired ? (
+                        item.label
+                      ) : (
+                        <>
+                          <span className="font-medium">{item.label}</span>
+                          {!item.required && (
+                            <span className="text-muted-foreground text-xs ml-1">(opcional)</span>
+                          )}
+                          {item.description && (
+                            <>
+                              <br />
+                              <span className="text-muted-foreground text-xs">{item.description}</span>
+                            </>
+                          )}
+                        </>
                       )}
-                      <br />
-                      <span className="text-muted-foreground text-xs">{item.description}</span>
                     </span>
                   </label>
                   {errors[item.key] && (
@@ -350,11 +355,14 @@ export default function WaiverSigningForm({ waiver, participantName }: Props) {
                 </div>
               ))}
             </div>
+            {errors['checkboxes'] && (
+              <p className="text-xs text-destructive">{errors['checkboxes']}</p>
+            )}
           </section>
         )}
 
         {/* Witness (RGPD) — one witness, not the paper's original two */}
-        {!isWaiver && (
+        {template.witness && (
           <section className="space-y-4">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
               Testigo
@@ -448,7 +456,7 @@ export default function WaiverSigningForm({ waiver, participantName }: Props) {
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              {isWaiver ? 'Firma' : 'Tu firma'}
+              {template.witness ? 'Tu firma' : 'Firma'}
             </h2>
             {hasSignature && (
               <button

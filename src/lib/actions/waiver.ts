@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { generateWaiverPdf } from '@/lib/generate-waiver-pdf'
+import { getWaiverTemplate } from '@/lib/waiver-templates/registry'
 import type { WaiverDocumentType, WaiverFormData, WaiverStatus, Waiver } from '@/types/domain'
 
 // Runtime validation for the public waiver submission endpoint. formData
@@ -22,6 +23,10 @@ const waiverFormDataSchema = z.object({
   emergencyContactPhone: z.string().max(60).optional(),
   emergencyContactRelationship: z.string().max(60).optional(),
   sportsLicenseNumber: z.string().max(60).optional(),
+  postalCode: z.string().max(20).optional(),
+  city: z.string().max(80).optional(),
+  memberCategory: z.string().max(40).optional(),
+  memberCategoryOther: z.string().max(120).optional(),
   healthDeclaration: z.record(z.string().max(100), z.boolean()).optional(),
   consents: z.record(z.string().max(100), z.boolean()).optional(),
   witnessName: z.string().max(120).optional(),
@@ -318,8 +323,9 @@ export async function submitWaiver(
 
   if (updateError) return { error: updateError.message }
 
-  // Mark participant as waiver_signed (only for the WAIVER document type)
-  if (existing.document_type === 'WAIVER') {
+  // Only the liability waiver flips the flag the operational screens read to
+  // allow boarding — the other documents are required but don't gate it.
+  if (getWaiverTemplate(existing.document_type as WaiverDocumentType).marksParticipantSigned) {
     await supabase
       .from('participants')
       .update({ waiver_signed: true })

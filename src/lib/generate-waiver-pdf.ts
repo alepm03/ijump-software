@@ -1,9 +1,8 @@
 import type { WaiverDocumentType, WaiverFormData } from '../types/domain'
-import { WAIVER_TITLE, WAIVER_LEGAL_TEXT, HEALTH_ITEMS, WAIVER_FIELDS } from './waiver-templates/waiver'
-import { RGPD_TITLE, RGPD_LEGAL_TEXT, CONSENT_ITEMS, RGPD_FIELDS } from './waiver-templates/rgpd'
+import { getWaiverTemplate } from './waiver-templates/registry'
 
 /**
- * Generates a PDF for a signed waiver or RGPD document.
+ * Generates a PDF for a signed legal document.
  * Returns the raw base64 string (no data URI prefix).
  * Runs server-side (jsPDF v4 has no DOM dependency and works in Node) so the
  * legal document's content cannot be tampered with by the client.
@@ -13,8 +12,8 @@ export async function generateWaiverPdf(
   formData: WaiverFormData,
   signatureDataUrl: string,
   participantName: string,
-  // RGPD only: the one witness the original paper's two witnesses were
-  // simplified to (business decision 2026-09-11).
+  // Only for templates that declare `witness` — the one witness the original
+  // paper's two witnesses were simplified to (business decision 2026-09-11).
   witnessSignatureDataUrl?: string
 ): Promise<string> {
   const { jsPDF } = await import('jspdf')
@@ -52,9 +51,8 @@ export async function generateWaiverPdf(
     y += 6
   }
 
-  const title = documentType === 'WAIVER' ? WAIVER_TITLE : RGPD_TITLE
-  const legalText = documentType === 'WAIVER' ? WAIVER_LEGAL_TEXT : RGPD_LEGAL_TEXT
-  const fields = documentType === 'WAIVER' ? WAIVER_FIELDS : RGPD_FIELDS
+  const template = getWaiverTemplate(documentType)
+  const { title, legalText, fields } = template
 
   // ── Header ──────────────────────────────────────────────────────────────────
   doc.setFillColor(226, 90, 20)
@@ -86,7 +84,10 @@ export async function generateWaiverPdf(
 
   for (const field of fields) {
     checkPageBreak(7)
-    const value = String((formData as unknown as Record<string, unknown>)[field.key] ?? '—')
+    const stored = String((formData as unknown as Record<string, unknown>)[field.key] ?? '—')
+    // A select stores its option value ("ADULTO"); the signed document has to
+    // show what the person actually picked ("Adulto — 179€"), fee included.
+    const value = field.options?.find((o) => o.value === stored)?.label ?? stored
     doc.setFontSize(8.5)
     doc.setTextColor(100, 100, 100)
     doc.text(`${field.label}:`, margin, y)
@@ -98,44 +99,33 @@ export async function generateWaiverPdf(
   divider()
 
   // ── Checkboxes ───────────────────────────────────────────────────────────────
-  if (documentType === 'WAIVER') {
-    sectionTitle('DECLARACIONES DE SEGURIDAD')
+  const group = template.checkboxes
+  if (group) {
+    sectionTitle(group.sectionTitle)
     doc.setFont('helvetica', 'normal')
 
-    for (const [key, label] of Object.entries(HEALTH_ITEMS)) {
-      const checked = formData.healthDeclaration?.[key] === true
+    const answers = formData[group.field] ?? {}
+
+    for (const item of group.items) {
+      const checked = answers[item.key] === true
       const prefix = checked ? '[X]' : '[ ]'
-      const lines = doc.splitTextToSize(`${prefix} ${label}`, contentW - 4)
+      // An all-required group already says so in its heading, so repeating it
+      // per line would be noise; a mixed group needs the label on every item.
+      const suffix = group.allRequired ? '' : item.required ? ' (obligatorio)' : ' (opcional)'
+      const lines = doc.splitTextToSize(`${prefix} ${item.label}${suffix}`, contentW - 4)
       checkPageBreak(lines.length * 5.5 + 2)
       doc.setFontSize(8.5)
-      doc.setTextColor(checked ? 30 : 160, 30, 30)
+      // Unticked items are flagged red only where every item is mandatory.
+      doc.setTextColor(!checked && group.allRequired ? 160 : 30, 30, 30)
       for (const line of lines) {
         doc.text(line, margin + 2, y)
         y += 5.5
       }
       y += 1
     }
-  } else {
-    sectionTitle('CONSENTIMIENTOS')
-    doc.setFont('helvetica', 'normal')
 
-    for (const item of CONSENT_ITEMS) {
-      const checked = formData.consents?.[item.key] === true
-      const prefix = checked ? '[X]' : '[ ]'
-      const required = item.required ? ' (obligatorio)' : ' (opcional)'
-      const lines = doc.splitTextToSize(`${prefix} ${item.label}${required}`, contentW - 4)
-      checkPageBreak(lines.length * 5.5 + 2)
-      doc.setFontSize(8.5)
-      doc.setTextColor(30, 30, 30)
-      for (const line of lines) {
-        doc.text(line, margin + 2, y)
-        y += 5.5
-      }
-      y += 1
-    }
+    divider()
   }
-
-  divider()
 
   // ── Legal text ───────────────────────────────────────────────────────────────
   sectionTitle('TEXTO LEGAL')
@@ -174,10 +164,10 @@ export async function generateWaiverPdf(
   )
   y += 10
 
-  // ── Witness (RGPD only) ─────────────────────────────────────────────────────
+  // ── Witness (only where the template declares one) ──────────────────────────
   // The original paper required two witnesses (name, DNI, edad, firma each).
   // Simplified to one — see WaiverFormData.witnessName.
-  if (documentType === 'RGPD' && formData.witnessName) {
+  if (template.witness && formData.witnessName) {
     divider()
     checkPageBreak(60)
     sectionTitle('TESTIGO')

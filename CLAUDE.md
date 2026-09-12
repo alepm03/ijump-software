@@ -135,9 +135,9 @@ gh pr create --title "..." --body "..."
 | CRM P0 (aging de leads `last_contact_at` + cola >48h en `/reservas`, dedupe por teléfono con normalización canónica, idempotencia por teléfono en la API del bot — contrato v1.1) | ✅ Producción | #50 |
 | CRM P1 (reactivar leads NO_SHOW/CANCELLED, canal STAFF_PHONE/STAFF_WHATSAPP + migración CHECK, H9 límites Zod en API bot) | ✅ Producción | #55 |
 | CRM lead management (circuito no-show manifest↔leads + barrido cron, `/reservas` como tabla CRM con ficha de lead `LeadSheet`, pagos y `deposit_paid` desde reservas, alerta leads fríos + badge sidebar, fix badge Grupo, deep-link al manifest) | ✅ Producción | #58 |
-| Reservas de grupo — núcleo (semántica real de `reservation_groups`, organizador y menores, RPC `reservations_assign_group` todo-o-nada con vuelos consecutivos, `/reservas` colapsa una fila por reserva, fix cadencia de vuelos) | ⏳ En revisión | (PR 1 de 3) — guía en `docs/reservas/GRUPOS.md` |
-| Reservas de grupo — API del bot v1.2 (`companions[]`, `partySize` en disponibilidad, regla de EVENTO 10+, `isMinor`, `paymentMode`) | ⏳ En revisión | (PR 2 de 3) — contrato en `docs/reservas/BOT_API_CONTRACT.md` |
-| Reservas de grupo — UI (fila por reserva con acompañantes, alta manual con acompañantes, cohesión de grupo y aviso de grupo partido en el manifest, cobro de grupo con reparto proporcional, menores) | ⏳ En revisión | (PR 3 de 3) |
+| Reservas de grupo — núcleo (semántica real de `reservation_groups`, organizador y menores, RPC `reservations_assign_group` todo-o-nada con vuelos consecutivos, `/reservas` colapsa una fila por reserva, fix cadencia de vuelos) | ⚠️ En `main`, migraciones sin confirmar | #73 (+ #76, corrige que #74/#75 no habían llegado a `main`) — guía en `docs/reservas/GRUPOS.md` |
+| Reservas de grupo — API del bot v1.2 (`companions[]`, `partySize` en disponibilidad, regla de EVENTO 10+, `isMinor`, `paymentMode`) | ⚠️ En `main`, migraciones sin confirmar | #74 (vía #76) — contrato en `docs/reservas/BOT_API_CONTRACT.md` |
+| Reservas de grupo — UI (fila por reserva con acompañantes, alta manual con acompañantes, cohesión de grupo y aviso de grupo partido en el manifest, cobro de grupo con reparto proporcional, menores) | ⚠️ En `main`, sin probar en navegador | #75 (vía #76) |
 
 ### Lo que NO está en scope (aún)
 - CRM avanzado

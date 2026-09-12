@@ -908,6 +908,10 @@ export type Database = {
         | "BIZUM"
         | "TRANSFERENCIA"
         | "GROUPON"
+        | "SMARTBOX"
+        | "WONDERBOX"
+        | "JUMPING"
+        | "FREEDOM"
       payment_stage: "RESERVA" | "LIQUIDACION" | "SUPLEMENTO"
       product_category:
         | "TANDEM_BASE"
@@ -1089,6 +1093,10 @@ export const Constants = {
         "BIZUM",
         "TRANSFERENCIA",
         "GROUPON",
+        "SMARTBOX",
+        "WONDERBOX",
+        "JUMPING",
+        "FREEDOM",
       ],
       payment_stage: ["RESERVA", "LIQUIDACION", "SUPLEMENTO"],
       product_category: [

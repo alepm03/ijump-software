@@ -38,6 +38,10 @@ const METHOD_LABELS: Record<PaymentMethod, string> = {
   BIZUM: 'Bizum',
   TRANSFERENCIA: 'Transferencia',
   GROUPON: 'Groupon',
+  SMARTBOX: 'Smartbox',
+  WONDERBOX: 'Wonder Box',
+  JUMPING: 'Jumping',
+  FREEDOM: 'Freedom',
 }
 
 interface CashCloseModalProps {

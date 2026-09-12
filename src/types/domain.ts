@@ -60,7 +60,24 @@ export const RESERVATION_SOURCE_LABELS: Record<ReservationSource, string> = {
   FREEDOM: 'Freedom',
 }
 
-export type PaymentMethod = 'EFECTIVO' | 'TARJETA' | 'BIZUM' | 'TRANSFERENCIA' | 'GROUPON'
+/**
+ * How the money actually arrived. The 4 non-platform values are ways the
+ * client pays at the dropzone; GROUPON/SMARTBOX/WONDERBOX/JUMPING/FREEDOM
+ * mean the sale was collected by that platform (it mirrors the platform
+ * values of ReservationSource — see 20260912000001_payment_method_platforms).
+ * Intentionally NOT the same vocabulary as ReservationSource: only the
+ * platform channels exist in both.
+ */
+export type PaymentMethod =
+  | 'EFECTIVO'
+  | 'TARJETA'
+  | 'BIZUM'
+  | 'TRANSFERENCIA'
+  | 'GROUPON'
+  | 'SMARTBOX'
+  | 'WONDERBOX'
+  | 'JUMPING'
+  | 'FREEDOM'
 
 export type PaymentStage = 'RESERVA' | 'LIQUIDACION' | 'SUPLEMENTO'
 

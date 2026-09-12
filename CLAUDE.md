@@ -200,7 +200,7 @@ Persona individual que salta. Tiene su propio estado operativo, instructor, pago
 Agrupación comercial de participantes (ej. familia que reserva junta). El pago puede ser individual o a través de un pagador principal.
 
 ### Payment
-Desacoplado del participante. Tiene método (EFECTIVO, TARJETA, BIZUM, TRANSFERENCIA, GROUPON) y etapa (RESERVA, LIQUIDACION, SUPLEMENTO).
+Desacoplado del participante. Tiene método (EFECTIVO, TARJETA, BIZUM, TRANSFERENCIA + un método por plataforma: GROUPON, SMARTBOX, WONDERBOX, JUMPING, FREEDOM) y etapa (RESERVA, LIQUIDACION, SUPLEMENTO). Los métodos de plataforma significan «lo cobró la plataforma», y existen uno a uno con los valores de plataforma de `ReservationSource` para que el cierre de caja y el desglose de ingresos por método no mezclen canales.
 
 ---
 
@@ -209,9 +209,9 @@ Desacoplado del participante. Tiene método (EFECTIVO, TARJETA, BIZUM, TRANSFERE
 ```typescript
 PackageType: SOLO | HANDYCAM | VIDEO_EXTERNO | FOTOS | HANDYCAM_FOTOS
 
-ReservationSource: DIRECT | GROUPON | BONO | PROMO | SMARTBOX
+ReservationSource: DIRECT | GROUPON | BONO | PROMO | SMARTBOX | WONDERBOX | JUMPING | FREEDOM
 
-PaymentMethod: EFECTIVO | TARJETA | BIZUM | TRANSFERENCIA | GROUPON
+PaymentMethod: EFECTIVO | TARJETA | BIZUM | TRANSFERENCIA | GROUPON | SMARTBOX | WONDERBOX | JUMPING | FREEDOM
 
 PaymentStage: RESERVA | LIQUIDACION | SUPLEMENTO
 

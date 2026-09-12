@@ -15,6 +15,10 @@ export const METHOD_LABELS: Record<PaymentMethod, string> = {
   BIZUM: 'Bizum',
   TRANSFERENCIA: 'Transfer.',
   GROUPON: 'Groupon',
+  SMARTBOX: 'Smartbox',
+  WONDERBOX: 'Wonder Box',
+  JUMPING: 'Jumping',
+  FREEDOM: 'Freedom',
 }
 
 export const STAGE_LABELS: Record<PaymentStage, string> = {

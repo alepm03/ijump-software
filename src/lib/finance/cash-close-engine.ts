@@ -31,6 +31,10 @@ export const ALL_PAYMENT_METHODS: PaymentMethod[] = [
   'BIZUM',
   'TRANSFERENCIA',
   'GROUPON',
+  'SMARTBOX',
+  'WONDERBOX',
+  'JUMPING',
+  'FREEDOM',
 ]
 
 /** Rounds to 2 decimals, avoiding float accumulation drift (e.g. 0.1 + 0.2). */
